@@ -64,7 +64,8 @@ function createTx(db: Prisma.TransactionClient): CaseTx {
     },
     async lockSubmission(submissionRef) {
       // Transaction-scoped advisory lock keyed on the submission, released at commit or rollback.
-      await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${submissionRef}))`;
+      // $executeRaw, not $queryRaw: the function returns void, which some driver adapters cannot decode.
+      await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${submissionRef}))`;
     },
     async getCase(caseId) {
       const row = await db.disciplinary_cases.findUnique({ where: { disciplinary_case_id: caseId }, include: withEntry });
