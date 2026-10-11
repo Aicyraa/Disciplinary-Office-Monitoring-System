@@ -6,7 +6,7 @@ This file is the parallel dev team's only notes file. It records what changed (f
 
 | slug | branch | worktree | goal | done when | expected files | depends on | merge order | status |
 |---|---|---|---|---|---|---|---|---|
-| foundation-storage | worktree-foundation-storage | .claude/worktrees/foundation-storage | Build step 1 (SPEC 6.1; FEATURE-RULES 3.7): storage interface, S3 impl, in-memory fake, pure upload validator | storage + validator tests green; lint, typecheck, test, build green; seed counts verified on dev | api/src/storage/*, api/src/files/validate*, vitest.config.mjs | none | 1 | review |
+| foundation-storage | worktree-foundation-storage | .claude/worktrees/foundation-storage | Build step 1 (SPEC 6.1; FEATURE-RULES 3.7): storage interface, S3 impl, in-memory fake, pure upload validator | storage + validator tests green; lint, typecheck, test, build green; seed counts verified on dev | api/src/storage/*, api/src/files/validate*, vitest.config.mjs | none | 1 | reviewed (PASS) |
 
 <!-- Per-task sections go below, laid out as:
 
