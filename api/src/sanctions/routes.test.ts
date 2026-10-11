@@ -322,6 +322,52 @@ describe('download link and staff review', () => {
     expect(store.state.caseSanctions[0].status).toBe('pending_verification');
   });
 
+  test('proof rules at the HTTP boundary: 409 upload_not_allowed, then 409 already_reviewed after staff opened a file', async () => {
+    const { id, fileId, student } = await submitted();
+    const extra = await student
+      .post('/files')
+      .field('caseSanctionId', String(id))
+      .attach('files', pdfBytes, { filename: 'b.pdf', contentType: PDF_MIME });
+    expect(extra.status).toBe(409);
+    expect(extra.body.error).toBe('upload_not_allowed');
+
+    const staff = await signedInAgent(build(), STAFF.email);
+    await staff.get(`/files/${fileId}/url`);
+    const replace = await student
+      .post('/files')
+      .field('caseSanctionId', String(id))
+      .field('replaceFileId', String(fileId))
+      .attach('files', pdfBytes, { filename: 'c.pdf', contentType: PDF_MIME });
+    expect(replace.status).toBe(409);
+    expect(replace.body.error).toBe('already_reviewed');
+    const remove = await student.delete(`/files/${fileId}`);
+    expect(remove.status).toBe(409);
+  });
+
+  test('after a return, replacing a file resubmits it', async () => {
+    const { id, fileId, student } = await submitted();
+    const staff = await signedInAgent(build(), STAFF.email);
+    await staff.get(`/files/${fileId}/url`);
+    await staff.post(`/case-sanctions/${id}/return`).send({ reason: 'Unsigned' });
+    const replaced = await student
+      .post('/files')
+      .field('caseSanctionId', String(id))
+      .field('replaceFileId', String(fileId))
+      .attach('files', pdfBytes, { filename: 'signed.pdf', contentType: PDF_MIME });
+    expect(replaced.status).toBe(201);
+    expect(store.state.caseSanctions[0].status).toBe('pending_verification');
+  });
+
+  test('a malformed multipart body is a 400, never a 500', async () => {
+    const agent = await signedInAgent(build(), STUDENT_A.email);
+    const response = await agent
+      .post('/files')
+      .set('Content-Type', 'multipart/form-data; boundary=----broken')
+      .send('------broken\r\nContent-Disposition: form-data; name="files"; filename=\r\n');
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('invalid_input');
+  });
+
   test('record-compliance needs a note and moves an assigned sanction to pending', async () => {
     const id = await assign();
     const staff = await signedInAgent(build(), STAFF.email);

@@ -112,6 +112,49 @@ export function createSanctionService({
 
   const caseCode = (caseId: number) => displayCode('C', caseId);
 
+  /** Deletes objects, logging (never throwing) on failure: an orphan object is harmless, a failed request is not. */
+  async function discardObjects(keys: string[]): Promise<void> {
+    const results = await Promise.allSettled(keys.map((key) => storage.delete(key)));
+    for (const [index, result] of results.entries()) {
+      if (result.status === 'rejected') console.error(`Could not delete object ${keys[index]}`, result.reason);
+    }
+  }
+
+  /**
+   * The rules for adding or replacing proof files (SPEC 4.3), shared by the early check and the check made
+   * again under the lock. `record` may be stale in the early check; the second call is the authority.
+   */
+  function checkUpload(
+    record: CaseSanctionRecord | null,
+    studentId: string,
+    replaceId: number | undefined,
+    files: UploadedFile[],
+  ): SanctionFailure | { ok: true; replacing: boolean; extensions: Array<'pdf' | 'docx'> } {
+    if (!record || !isOwnedBy(record, studentId)) return fail('not_found', 'Sanction not found.');
+    if (record.status === 'completed') return fail('invalid_status', 'This sanction is already completed.');
+
+    const replacing = replaceId !== undefined;
+    if (replacing) {
+      if (record.status === 'assigned') return fail('not_found', 'There is no file to replace.');
+      if (!record.files.some((f) => f.caseSanctionFileId === replaceId)) return fail('not_found', 'File not found.');
+      if (record.status === 'pending_verification' && record.files.some((f) => f.dateViewed !== null)) {
+        return fail('already_reviewed', 'Staff already reviewed this proof, so it cannot be changed.');
+      }
+    } else if (record.status === 'pending_verification') {
+      return fail('upload_not_allowed', 'Proof was already submitted. You can replace a file instead.');
+    }
+
+    // Type, size, magic bytes and the 5-file cap, for every file, before anything is stored.
+    const existingCount = replacing ? record.files.length - 1 : record.files.length;
+    const extensions: Array<'pdf' | 'docx'> = [];
+    for (const [index, file] of files.entries()) {
+      const result = validateUpload({ mimeType: file.mimeType, bytes: file.bytes, existingCount: existingCount + index });
+      if (!result.ok) return fail(result.code, uploadMessage(result.code, file.name));
+      extensions.push(result.ext);
+    }
+    return { ok: true, replacing, extensions };
+  }
+
   /** Student-facing and staff-facing views of one sanction use the same record; `ownedBy` hides foreign rows. */
   const isOwnedBy = (record: CaseSanctionRecord, studentId: string) => record.studentId === studentId;
 
@@ -247,6 +290,7 @@ export function createSanctionService({
       });
     },
 
+
     async uploadProof({ studentId, caseSanctionId, files, replaceCaseSanctionFileId }) {
       if (files.length === 0) return fail('invalid_input', 'Choose at least one file.');
       if (files.length > MAX_FILES_PER_SANCTION) return fail('too_many_files', 'You can upload at most 5 files.');
@@ -254,48 +298,43 @@ export function createSanctionService({
         return fail('invalid_input', 'Replace one file with exactly one file.');
       }
 
+      // Phase 1 (short read): refuse early, before any bytes go to the bucket.
+      const early = await store.transaction(async (tx) => {
+        const record = await tx.getCaseSanction(caseSanctionId);
+        return checkUpload(record, studentId, replaceCaseSanctionFileId, files);
+      });
+      if (!early.ok) return early;
+
+      // Phase 2 (no transaction open): the slow part. Up to 5 x 10 MB must not hold a row lock or run into
+      // the database transaction timeout.
       const stored: string[] = [];
-      let removedKey: string | null = null;
       try {
-        const outcome = await store.transaction(async (tx): Promise<SanctionResult<{ caseSanctionFileIds: number[] }>> => {
+        for (const [index, file] of files.entries()) {
+          const key = proofKey(caseSanctionId, early.extensions[index]);
+          await storage.put(key, file.bytes, file.mimeType);
+          stored.push(key);
+        }
+      } catch (error) {
+        await discardObjects(stored);
+        throw error;
+      }
+
+      // Phase 3 (short write): re-read under the lock, re-check, then insert. If anything changed or fails,
+      // the objects stored above are removed again.
+      let outcome: SanctionResult<{ caseSanctionFileIds: number[]; removedKey: string | null }>;
+      try {
+        outcome = await store.transaction(async (tx) => {
           const record = await loadLocked(tx, caseSanctionId);
-          if (!record || !isOwnedBy(record, studentId)) return fail('not_found', 'Sanction not found.');
-          if (record.status === 'completed') return fail('invalid_status', 'This sanction is already completed.');
-
-          const replacing = replaceCaseSanctionFileId !== undefined;
-          if (replacing) {
-            if (record.status === 'assigned') return fail('not_found', 'There is no file to replace.');
-            const target = record.files.find((f) => f.caseSanctionFileId === replaceCaseSanctionFileId);
-            if (!target) return fail('not_found', 'File not found.');
-            if (record.status === 'pending_verification' && record.files.some((f) => f.dateViewed !== null)) {
-              return fail('already_reviewed', 'Staff already reviewed this proof, so it cannot be changed.');
-            }
-          } else if (record.status === 'pending_verification') {
-            return fail('upload_not_allowed', 'Proof was already submitted. You can replace a file instead.');
-          }
-
-          // Validate every file before anything is stored (type, size, magic bytes, and the 5-file cap).
-          const existingCount = replacing ? record.files.length - 1 : record.files.length;
-          const extensions: Array<'pdf' | 'docx'> = [];
-          for (const [index, file] of files.entries()) {
-            const result = validateUpload({
-              mimeType: file.mimeType,
-              bytes: file.bytes,
-              existingCount: existingCount + index,
-            });
-            if (!result.ok) return fail(result.code, uploadMessage(result.code, file.name));
-            extensions.push(result.ext);
-          }
+          const check = checkUpload(record, studentId, replaceCaseSanctionFileId, files);
+          if (!check.ok) return check;
+          if (!record) return fail('not_found', 'Sanction not found.');
 
           const at = now();
           const ids: number[] = [];
           for (const [index, file] of files.entries()) {
-            const key = proofKey(caseSanctionId, extensions[index]);
-            await storage.put(key, file.bytes, file.mimeType);
-            stored.push(key);
             const inserted = await tx.insertProofFile({
               caseSanctionId,
-              storageKey: key,
+              storageKey: stored[index],
               originalName: file.name,
               mimeType: file.mimeType,
               sizeBytes: file.bytes.length,
@@ -305,7 +344,7 @@ export function createSanctionService({
             ids.push(inserted.caseSanctionFileId);
             await tx.addSanctionHistory({
               caseSanctionId,
-              eventType: replacing ? 'proof_replaced' : 'proof_uploaded',
+              eventType: check.replacing ? 'proof_replaced' : 'proof_uploaded',
               remarks: file.name,
               employeeId: null,
               studentId,
@@ -313,12 +352,15 @@ export function createSanctionService({
             });
           }
 
-          if (replacing) {
+          let removedKey: string | null = null;
+          if (check.replacing) {
             const old = record.files.find((f) => f.caseSanctionFileId === replaceCaseSanctionFileId);
             await tx.deleteProofFile(replaceCaseSanctionFileId as number);
             removedKey = old?.storageKey ?? null;
-          } else {
-            // First proof (assigned) or re-upload (returned): the sanction now waits for staff.
+          }
+          // One rule for "the student has (re)submitted": a first upload, a re-upload after a return, or a
+          // replacement while returned all put the sanction back in front of staff.
+          if (record.status === 'assigned' || record.status === 'returned') {
             await tx.updateCaseSanction(caseSanctionId, { status: 'pending_verification', dateSubmitted: at });
             await tx.addSanctionNotification({
               recipient: 'staff',
@@ -329,21 +371,22 @@ export function createSanctionService({
               idempotencyKey: `san:${caseSanctionId}:submitted:${at.getTime()}`,
             });
           }
-          return { ok: true as const, caseSanctionFileIds: ids };
+          return { ok: true as const, caseSanctionFileIds: ids, removedKey };
         });
-
-        if (!outcome.ok) {
-          await Promise.allSettled(stored.map((key) => storage.delete(key)));
-          return outcome;
-        }
-        // Committed: only now remove the replaced object.
-        if (removedKey) await storage.delete(removedKey);
-        return outcome;
       } catch (error) {
-        // The database rolled back: do not leave orphan objects behind.
-        await Promise.allSettled(stored.map((key) => storage.delete(key)));
+        // The database rolled back: the new objects have no rows.
+        await discardObjects(stored);
         throw error;
       }
+
+      if (!outcome.ok) {
+        await discardObjects(stored);
+        return outcome;
+      }
+      // Committed. Removing the replaced object is best effort: a failure here must never undo the commit
+      // (the new rows already point at the new objects).
+      if (outcome.removedKey) await discardObjects([outcome.removedKey]);
+      return { ok: true as const, caseSanctionFileIds: outcome.caseSanctionFileIds };
     },
 
     async removeProof({ studentId, caseSanctionFileId }) {
@@ -373,24 +416,34 @@ export function createSanctionService({
         removedKey = target.storageKey;
         return { ok: true as const };
       });
-      if (outcome.ok && removedKey) await storage.delete(removedKey);
+      // Committed: removing the object is best effort and must not turn a success into an error.
+      if (outcome.ok && removedKey) await discardObjects([removedKey]);
       return outcome;
     },
 
     async fileDownloadUrl({ requester, caseSanctionFileId }) {
-      const found = await store.transaction(async (tx): Promise<SanctionResult<{ storageKey: string }>> => {
-        const record = await loadByFileLocked(tx, caseSanctionFileId);
+      // 1. Authorize and find the object.
+      const found = await store.transaction(async (tx): Promise<SanctionResult<{ storageKey: string; unviewed: boolean }>> => {
+        const record = await tx.getCaseSanctionByFile(caseSanctionFileId);
         if (!record) return fail('not_found', 'File not found.');
         if (requester.role === 'student' && !isOwnedBy(record, requester.id)) return fail('not_found', 'File not found.');
         const file = record.files.find((f) => f.caseSanctionFileId === caseSanctionFileId);
         if (!file) return fail('not_found', 'File not found.');
-        if (requester.role === 'staff' && file.dateViewed === null) {
-          await tx.markFileViewed(caseSanctionFileId, requester.id, now());
-        }
-        return { ok: true as const, storageKey: file.storageKey };
+        return { ok: true as const, storageKey: file.storageKey, unviewed: file.dateViewed === null };
       });
       if (!found.ok) return found;
+
+      // 2. Issue the link first: a file only counts as viewed once staff were actually given access to it.
       const url = await storage.presignGet(found.storageKey, PRESIGN_TTL_SECONDS);
+
+      // 3. Staff opening a file marks it viewed (verify needs every file viewed).
+      if (requester.role === 'staff' && found.unviewed) {
+        await store.transaction(async (tx) => {
+          const record = await loadByFileLocked(tx, caseSanctionFileId);
+          const file = record?.files.find((f) => f.caseSanctionFileId === caseSanctionFileId);
+          if (file && file.dateViewed === null) await tx.markFileViewed(caseSanctionFileId, requester.id, now());
+        });
+      }
       return { ok: true as const, url, expiresInSeconds: PRESIGN_TTL_SECONDS };
     },
 

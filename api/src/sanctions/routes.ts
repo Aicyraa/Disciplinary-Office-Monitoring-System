@@ -45,6 +45,8 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
   const router = Router();
   const upload = multer({
     storage: multer.memoryStorage(),
+    // File names are UTF-8 (the default is latin1, which garbles names such as "résumé.pdf").
+    defParamCharset: 'utf8',
     limits: { fileSize: MAX_FILE_BYTES, files: MAX_FILES_PER_SANCTION, fields: 5, parts: 12 },
   });
 
@@ -121,13 +123,19 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
   const receive = (request: Request, response: Response, next: NextFunction) => {
     upload.array('files', MAX_FILES_PER_SANCTION)(request, response, (error: unknown) => {
       if (!error) return next();
+      // Everything the multipart parser rejects is the client's problem: never a 500.
+      let code: SanctionFailureCode = 'invalid_input';
+      let message = 'The upload could not be read. Send the files again.';
       if (error instanceof MulterError) {
-        const code: SanctionFailureCode = error.code === 'LIMIT_FILE_SIZE' ? 'too_large' : 'too_many_files';
-        const message = code === 'too_large' ? 'A file is larger than 10 MB.' : 'You can upload at most 5 files.';
-        response.status(HTTP_STATUS[code]).json({ error: code, message });
-        return;
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          code = 'too_large';
+          message = 'A file is larger than 10 MB.';
+        } else if (error.code === 'LIMIT_UNEXPECTED_FILE' || error.code === 'LIMIT_FILE_COUNT') {
+          code = 'too_many_files';
+          message = 'You can upload at most 5 files.';
+        }
       }
-      next(error);
+      response.status(HTTP_STATUS[code]).json({ error: code, message });
     });
   };
 

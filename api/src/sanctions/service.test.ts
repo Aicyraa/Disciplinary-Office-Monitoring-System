@@ -303,6 +303,132 @@ describe('uploadProof', () => {
   });
 });
 
+describe('upload regressions from the step 5 review', () => {
+  /** A service whose storage misbehaves in one way; it shares the same in-memory objects. */
+  const withStorage = (overrides: Partial<MemoryStorage>) =>
+    createSanctionService({ store, storage: { ...storage, ...overrides } as MemoryStorage, now: () => NOW });
+
+  test('replacing a file while returned resubmits the sanction and notifies staff', async () => {
+    // An advancing clock: the notification key carries the timestamp, so two submissions in one instant would
+    // (correctly) collapse into one.
+    let tick = NOW.getTime();
+    const clocked = createSanctionService({ store, storage, now: () => new Date((tick += 60_000)) });
+    const id = await assigned();
+    await clocked.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('v1.pdf')] });
+    await clocked.returnForRevision({ employeeId: STAFF, caseSanctionId: id, reason: 'Unsigned' });
+    expect(sanction(id).status).toBe('returned');
+    const before = store.state.sanctionNotifications.filter((n) => n.recipient === 'staff').length;
+
+    const result = await clocked.uploadProof({
+      studentId: S1,
+      caseSanctionId: id,
+      files: [pdf('v2.pdf')],
+      replaceCaseSanctionFileId: sanction(id).files[0].caseSanctionFileId,
+    });
+    expect(result).toMatchObject({ ok: true });
+    expect(sanction(id)).toMatchObject({ status: 'pending_verification' });
+    expect(sanction(id).files.map((f) => f.originalName)).toEqual(['v2.pdf']);
+    expect(store.state.sanctionNotifications.filter((n) => n.recipient === 'staff')).toHaveLength(before + 1);
+  });
+
+  test('a failed delete of the replaced object after commit does not undo or fail the replacement', async () => {
+    const id = await assigned();
+    await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('old.pdf')] });
+    const oldKey = sanction(id).files[0].storageKey;
+    const flaky = withStorage({
+      delete: async (key: string) => {
+        if (key === oldKey) throw new Error('bucket unavailable');
+        storage.objects.delete(key);
+      },
+    });
+
+    const result = await flaky.uploadProof({
+      studentId: S1,
+      caseSanctionId: id,
+      files: [docx('new.docx')],
+      replaceCaseSanctionFileId: sanction(id).files[0].caseSanctionFileId,
+    });
+    expect(result).toMatchObject({ ok: true });
+    const newKey = sanction(id).files[0].storageKey;
+    expect(newKey).not.toBe(oldKey);
+    // The row still points at an object that exists; only the old object is left behind.
+    expect(storage.objects.has(newKey)).toBe(true);
+  });
+
+  test('a failed delete after a removal still reports success', async () => {
+    const id = await assigned();
+    await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf')] });
+    const flaky = withStorage({
+      delete: async () => {
+        throw new Error('bucket unavailable');
+      },
+    });
+    const result = await flaky.removeProof({ studentId: S1, caseSanctionFileId: sanction(id).files[1].caseSanctionFileId });
+    expect(result).toEqual({ ok: true });
+    expect(sanction(id).files).toHaveLength(1);
+  });
+
+  test('a put that fails halfway removes the objects already stored and inserts nothing', async () => {
+    const id = await assigned();
+    let puts = 0;
+    const flaky = withStorage({
+      put: async (key: string, body: Uint8Array, type: string) => {
+        puts += 1;
+        if (puts === 2) throw new Error('bucket unavailable');
+        storage.objects.set(key, { body, contentType: type });
+      },
+    });
+    await expect(flaky.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf')] })).rejects.toThrow(
+      /bucket unavailable/,
+    );
+    expect(storage.objects.size).toBe(0);
+    expect(sanction(id)).toMatchObject({ status: 'assigned', files: [] });
+  });
+
+  test('the bytes go to the bucket before the transaction that writes the rows (no row lock held during the upload)', async () => {
+    const id = await assigned();
+    store.calls.length = 0;
+    const order: string[] = [];
+    const watching = withStorage({
+      put: async (key: string, body: Uint8Array, type: string) => {
+        order.push(`put after ${store.calls.length} store calls`);
+        storage.objects.set(key, { body, contentType: type });
+      },
+    });
+    await watching.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf()] });
+    const lockAt = store.calls.indexOf('lockStudent');
+    expect(order).toHaveLength(1);
+    // The only store call before the put is the early, lock-free read.
+    expect(store.calls.slice(0, lockAt)).not.toContain('updateCaseSanction');
+    expect(Number(order[0].match(/\d+/)?.[0])).toBeLessThanOrEqual(lockAt);
+  });
+
+  test('if the sanction changed while the bytes were uploading, the objects are removed and nothing is written', async () => {
+    const id = await assigned();
+    // The first lock is taken by the write phase; flip the status as if staff completed it meanwhile.
+    store.onFirstLock((working) => {
+      const target = working.caseSanctions.find((s) => s.caseSanctionId === id);
+      if (target) target.status = 'completed';
+    });
+    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf()] });
+    expect(result).toMatchObject({ ok: false, code: 'invalid_status' });
+    expect(storage.objects.size).toBe(0);
+  });
+
+  test('a file is not marked viewed when the link could not be issued', async () => {
+    const id = await assigned();
+    await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf()] });
+    const fileId = sanction(id).files[0].caseSanctionFileId;
+    const broken = withStorage({
+      presignGet: async () => {
+        throw new Error('bucket unavailable');
+      },
+    });
+    await expect(broken.fileDownloadUrl({ requester: { role: 'staff', id: STAFF }, caseSanctionFileId: fileId })).rejects.toThrow();
+    expect(sanction(id).files[0].dateViewed).toBeNull();
+  });
+});
+
 describe('removeProof', () => {
   async function submitted(count: number) {
     const id = await assigned();

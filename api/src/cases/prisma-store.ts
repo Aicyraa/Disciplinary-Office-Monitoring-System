@@ -364,7 +364,8 @@ function createTx(db: Prisma.TransactionClient): CaseTx {
 /** Prisma-backed case workflow store: one interactive transaction per service call. */
 export function createPrismaCaseStore(prisma: Pick<PrismaClient, '$transaction'>): CaseStore {
   return {
-    transaction: (work) => prisma.$transaction((db) => work(createTx(db))),
+    // Interactive transactions are short now (uploads happen before them); the explicit limits are a safety margin.
+    transaction: (work) => prisma.$transaction((db) => work(createTx(db)), { maxWait: 5_000, timeout: 15_000 }),
   };
 }
 

@@ -91,6 +91,7 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
                 </span>
                 <button
                   type="button"
+                  aria-label={`Open ${file.name}`}
                   className="rounded-md border border-line-strong px-2.5 py-1 text-xs font-medium text-ink hover:bg-page"
                   onClick={() => {
                     openProof(file.id).then(onChanged, failed);
@@ -111,6 +112,10 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
         >
           {notice.text}
         </p>
+      ) : null}
+
+      {sanction.status === 'pending_verification' && !summary.allViewed ? (
+        <p className="mt-2 text-xs text-muted">Open every file to enable Verify ({summary.viewed} of {summary.total} opened).</p>
       ) : null}
 
       <div className="mt-3 flex flex-wrap gap-2">
