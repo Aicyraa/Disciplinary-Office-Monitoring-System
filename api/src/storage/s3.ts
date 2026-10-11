@@ -9,8 +9,7 @@ function requireEnv(name: string): string {
 }
 
 // Construct only when file behavior is explicitly needed (mirrors createPrismaClient).
-// The bucket name is passed in: the spec defines no env key for it (see CONTEXT.md, open question).
-export function createS3Storage(bucket: string): ObjectStorage {
+export function createS3Storage(bucket: string = requireEnv('STORAGE_BUCKET')): ObjectStorage {
   const client = new S3Client({
     region: requireEnv('AWS_REGION'),
     endpoint: requireEnv('AWS_ENDPOINT_URL_S3'),

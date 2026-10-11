@@ -35,7 +35,7 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 - Evidence: `npm test` 4 files / 16 tests pass; `npm run lint`, `typecheck`, `build` clean.
 - Dev branch (MCP, read-only): programs 14, sanctions 10, requirements 4, violations 68, handbook_entries 68, handbook_entry_sanctions 132, 23 public tables.
 - SCOPE EXPANSION: `vitest.config.mjs` — `include` listed only the two smoke tests, so new tests never ran; widened to `api/src/**/*.test.ts` and `client/src/**/*.test.{ts,tsx}`.
-- OPEN QUESTION (human): the spec defines no env key for the bucket name. `createS3Storage(bucket)` takes it as an argument; needs a key (for example `AWS_S3_BUCKET`) in `.env.example`, or a SPEC decision.
+- Bucket name comes from `STORAGE_BUCKET` (same key `api/scripts/storage-smoke.ts` reads); added to `.env.example`. SPEC CHANGE (human): add `STORAGE_BUCKET` to the env list in SPEC 6.1 and CLAUDE.md section 8.
 - Not verified: live upload, download and presign against the Neon bucket; SPEC 11 item 2 (bucket CORS).
 - HUMAN CHECK: put a small PDF with `createS3Storage(<bucket>)` using dev-branch credentials, then open `presignGet(key)` in a browser -> file downloads; after 60 s the URL returns 403.
 - Not done: Prisma `ConnectionTest` removal (human confirms); `multer` wiring (step 5).
