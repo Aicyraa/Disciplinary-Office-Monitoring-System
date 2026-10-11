@@ -84,6 +84,28 @@ describe('POST /auth/login', () => {
     const blocked = await request(app).post('/auth/login').send({ email: STUDENT_EMAIL, password: PASSWORD });
     expect(blocked.status).toBe(429);
   });
+
+  test('a successful login on another account does not refund guesses at the victim', async () => {
+    const app = buildApp({ windowMs: 60_000, limit: 3 });
+    for (let i = 0; i < 3; i += 1) {
+      expect((await request(app).post('/auth/login').send({ email: STUDENT_EMAIL, password: 'WrongPass1' })).status).toBe(401);
+      expect((await request(app).post('/auth/login').send({ email: STAFF_EMAIL, password: PASSWORD })).status).toBe(200);
+    }
+    const blocked = await request(app).post('/auth/login').send({ email: STUDENT_EMAIL, password: 'WrongPass1' });
+    expect(blocked.status).toBe(429);
+  });
+
+  test.each([
+    ['object email', { email: { $ne: '' }, password: PASSWORD }],
+    ['array password', { email: STUDENT_EMAIL, password: [PASSWORD] }],
+    ['numeric fields', { email: 12345, password: 67890 }],
+  ])('malformed types (%s) get the same generic 401, not a 500', async (_label, body) => {
+    const app = buildApp();
+    const baseline = await request(app).post('/auth/login').send({ email: STUDENT_EMAIL, password: 'WrongPass1' });
+    const response = await request(app).post('/auth/login').send(body);
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual(baseline.body);
+  });
 });
 
 describe('session lifecycle', () => {
@@ -194,6 +216,7 @@ describe('POST /staff/students/:studentId/reset-password', () => {
     expect(reset.status).toBe(200);
     const { tempPassword } = reset.body as { tempPassword: string };
     expect(tempPassword).toMatch(/^Temp-\d{4}$/);
+    expect(reset.headers['cache-control']).toBe('no-store');
 
     const stored = repo.accounts.get(`student:${STUDENT_ID}`)!;
     expect(stored.passwordHashed).not.toContain(tempPassword);

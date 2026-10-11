@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { Passport } from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import type { AccountRole, AuthUser } from '../../../shared/types.js';
@@ -9,7 +9,7 @@ import type { AuthService } from './service.js';
 
 export interface LoginRateLimitOptions {
   windowMs: number;
-  /** Failed attempts allowed per IP in the window. */
+  /** Attempts allowed per IP + email in the window; the per-IP cap is 10x this. */
   limit: number;
 }
 
@@ -27,6 +27,8 @@ export function createAuthRouter({ service, loginRateLimit = { windowMs: 15 * 60
 
   authenticator.use(
     new LocalStrategy({ usernameField: 'email', passwordField: 'password' }, (email, password, done) => {
+      // JSON can carry objects or arrays here; anything but strings is just a failed login.
+      if (typeof email !== 'string' || typeof password !== 'string') return done(null, false);
       service.login(email, password).then(
         (user) => done(null, user ?? false),
         (error: unknown) => done(error),
@@ -43,20 +45,34 @@ export function createAuthRouter({ service, loginRateLimit = { windowMs: 15 * 60
     );
   });
 
-  const loginLimiter = rateLimit({
+  // Every attempt counts (successes included), so a valid own-account login cannot refund guesses at another
+  // account. Two limits: per IP + email (stops guessing one account) and a looser per-IP cap (stops
+  // spraying many emails from one address).
+  const limiterBase = {
     windowMs: loginRateLimit.windowMs,
-    limit: loginRateLimit.limit,
     standardHeaders: true,
     legacyHeaders: false,
-    skipSuccessfulRequests: true,
     message: { error: 'too_many_attempts', message: 'Too many sign-in attempts. Try again later.' },
+  } as const;
+  const perAccountLimiter = rateLimit({
+    ...limiterBase,
+    limit: loginRateLimit.limit,
+    keyGenerator: (request) => {
+      const email = asString(request.body?.email);
+      return `${ipKeyGenerator(request.ip ?? '')}|${email === null ? '' : email.trim().toLowerCase()}`;
+    },
+  });
+  const perIpLimiter = rateLimit({
+    ...limiterBase,
+    limit: loginRateLimit.limit * 10,
+    keyGenerator: (request) => ipKeyGenerator(request.ip ?? ''),
   });
 
   const router = Router();
   router.use(authenticator.initialize());
   router.use(authenticator.session());
 
-  router.post('/auth/login', loginLimiter, (request, response, next) => {
+  router.post('/auth/login', perIpLimiter, perAccountLimiter, (request, response, next) => {
     authenticator.authenticate('local', (error: unknown, user: AuthUser | false) => {
       if (error) return next(error);
       if (!user) return response.status(401).json(GENERIC_LOGIN_ERROR);
@@ -114,7 +130,7 @@ export function createAuthRouter({ service, loginRateLimit = { windowMs: 15 * 60
       response.status(404).json({ error: 'not_found' });
       return;
     }
-    response.status(200).json({ tempPassword: result.tempPassword });
+    response.set('Cache-Control', 'no-store').status(200).json({ tempPassword: result.tempPassword });
   });
 
   return router;
