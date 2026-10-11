@@ -1,0 +1,185 @@
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import multer, { MulterError } from 'multer';
+import type { AuthUser } from '../../../shared/types.js';
+import { requireAuth, requirePasswordChanged, requireStaff, requireStudent } from '../auth/guards.js';
+import { MAX_FILE_BYTES, MAX_FILES_PER_SANCTION } from '../files/validate.js';
+import { manilaToday } from '../me/views.js';
+import type { SanctionFailure, SanctionFailureCode, SanctionService } from './service.js';
+
+export interface SanctionRouterOptions {
+  service: SanctionService;
+  now?: () => Date;
+}
+
+const HTTP_STATUS: Record<SanctionFailureCode, number> = {
+  invalid_input: 400,
+  due_date_in_past: 400,
+  unsupported_type: 400,
+  empty: 400,
+  content_mismatch: 400,
+  too_many_files: 400,
+  too_large: 413,
+  not_found: 404,
+  invalid_status: 409,
+  sanction_not_allowed: 409,
+  already_assigned: 409,
+  upload_not_allowed: 409,
+  already_reviewed: 409,
+  last_file: 409,
+  files_not_viewed: 409,
+};
+
+const parseId = (value: unknown): number | null => (typeof value === 'string' && /^\d{1,9}$/.test(value) ? Number(value) : null);
+const user = (request: Request): AuthUser => request.user as AuthUser;
+
+function sendFailure(response: Response, failure: SanctionFailure): void {
+  response.status(HTTP_STATUS[failure.code]).json({ error: failure.code, message: failure.message });
+}
+
+/**
+ * Sanction assignment, proof files and staff verification (SPEC 4.3, 6.1, 7). Uploads go through Express:
+ * memory storage, 10 MB per file, at most 5 files per request; the service re-checks type, size and magic
+ * bytes and enforces every status rule, so the API is the authority no matter what the client sends.
+ */
+export function createSanctionRouter({ service, now = () => new Date() }: SanctionRouterOptions): Router {
+  const router = Router();
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_FILE_BYTES, files: MAX_FILES_PER_SANCTION, fields: 5, parts: 12 },
+  });
+
+  // ---- staff: assign ------------------------------------------------------------------------
+  router.get('/cases/:id/sanction-options', ...requireStaff, async (request, response) => {
+    const caseId = parseId(request.params.id);
+    if (caseId === null) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const result = await service.getAssignmentOptions(caseId);
+    if (!result.ok) return sendFailure(response, result);
+    response.status(200).json({ options: result.options });
+  });
+
+  router.post('/cases/:id/sanctions', ...requireStaff, async (request, response) => {
+    const caseId = parseId(request.params.id);
+    if (caseId === null) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const sanctionId = request.body?.sanctionId;
+    if (!Number.isInteger(sanctionId) || sanctionId < 1) {
+      response.status(400).json({ error: 'invalid_input', message: 'sanctionId is required.' });
+      return;
+    }
+    const result = await service.assignSanction({
+      employeeId: user(request).id,
+      caseId,
+      sanctionId,
+      dueDate: request.body?.dueDate,
+      staffNote: request.body?.staffNote,
+      today: manilaToday(now()),
+    });
+    if (!result.ok) return sendFailure(response, result);
+    response.status(201).json({ caseSanctionId: result.caseSanctionId });
+  });
+
+  // ---- staff: review ------------------------------------------------------------------------
+  router.post('/case-sanctions/:id/record-compliance', ...requireStaff, async (request, response) => {
+    const id = parseId(request.params.id);
+    if (id === null) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const result = await service.recordCompliance({ employeeId: user(request).id, caseSanctionId: id, note: request.body?.note });
+    if (!result.ok) return sendFailure(response, result);
+    response.status(200).json({ ok: true });
+  });
+
+  router.post('/case-sanctions/:id/verify', ...requireStaff, async (request, response) => {
+    const id = parseId(request.params.id);
+    if (id === null) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const result = await service.verify({ employeeId: user(request).id, caseSanctionId: id });
+    if (!result.ok) return sendFailure(response, result);
+    response.status(200).json({ ok: true });
+  });
+
+  router.post('/case-sanctions/:id/return', ...requireStaff, async (request, response) => {
+    const id = parseId(request.params.id);
+    if (id === null) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const result = await service.returnForRevision({ employeeId: user(request).id, caseSanctionId: id, reason: request.body?.reason });
+    if (!result.ok) return sendFailure(response, result);
+    response.status(200).json({ ok: true });
+  });
+
+  // ---- student: proof files ------------------------------------------------------------------
+  const receive = (request: Request, response: Response, next: NextFunction) => {
+    upload.array('files', MAX_FILES_PER_SANCTION)(request, response, (error: unknown) => {
+      if (!error) return next();
+      if (error instanceof MulterError) {
+        const code: SanctionFailureCode = error.code === 'LIMIT_FILE_SIZE' ? 'too_large' : 'too_many_files';
+        const message = code === 'too_large' ? 'A file is larger than 10 MB.' : 'You can upload at most 5 files.';
+        response.status(HTTP_STATUS[code]).json({ error: code, message });
+        return;
+      }
+      next(error);
+    });
+  };
+
+  router.post('/files', ...requireStudent, receive, async (request, response) => {
+    const caseSanctionId = parseId(request.body?.caseSanctionId);
+    const replaceRaw = request.body?.replaceFileId;
+    const replaceId = replaceRaw === undefined || replaceRaw === '' ? undefined : parseId(replaceRaw);
+    if (caseSanctionId === null || replaceId === null) {
+      response.status(400).json({ error: 'invalid_input', message: 'caseSanctionId is required.' });
+      return;
+    }
+    const received = (request.files ?? []) as Express.Multer.File[];
+    const result = await service.uploadProof({
+      studentId: user(request).id,
+      caseSanctionId,
+      files: received.map((file) => ({
+        name: file.originalname.slice(0, 200),
+        mimeType: file.mimetype,
+        bytes: new Uint8Array(file.buffer),
+      })),
+      replaceCaseSanctionFileId: replaceId,
+    });
+    if (!result.ok) return sendFailure(response, result);
+    response.status(201).json({ fileIds: result.caseSanctionFileIds });
+  });
+
+  router.delete('/files/:id', ...requireStudent, async (request, response) => {
+    const id = parseId(request.params.id);
+    if (id === null) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const result = await service.removeProof({ studentId: user(request).id, caseSanctionFileId: id });
+    if (!result.ok) return sendFailure(response, result);
+    response.status(204).end();
+  });
+
+  // The owning student or any staff member. Opening it as staff marks the file viewed.
+  router.get('/files/:id/url', requireAuth, requirePasswordChanged, async (request, response) => {
+    const id = parseId(request.params.id);
+    if (id === null) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const requester = user(request);
+    const result = await service.fileDownloadUrl({
+      requester: { role: requester.role, id: requester.id },
+      caseSanctionFileId: id,
+    });
+    if (!result.ok) return sendFailure(response, result);
+    response.set('Cache-Control', 'no-store').status(200).json({ url: result.url, expiresInSeconds: result.expiresInSeconds });
+  });
+
+  return router;
+}

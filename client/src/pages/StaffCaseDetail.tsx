@@ -6,9 +6,10 @@ import { Card, ErrorState, PageHeader, Resource, StatusPill, buttonClass, fieldC
 import { api, toApiError } from '../lib/api';
 import { formatDate, formatDateTime, statusLabel } from '../lib/format';
 import { useApi } from '../lib/useApi';
+import { AssignSanctionForm, SanctionsPanel } from './StaffSanctions';
 import { whoLabel } from './StaffCases';
 
-export type CaseAction = 'validate' | 'reject' | 'link_student' | 'resolve' | 'resolve_without_sanction';
+export type CaseAction = 'validate' | 'reject' | 'link_student' | 'assign_sanction' | 'resolve' | 'resolve_without_sanction';
 
 /**
  * Which workflow buttons make sense for a case (SPEC 4.1). The API enforces the same rules; this only keeps
@@ -22,9 +23,11 @@ export function availableActions(
       if (detail.submissionRef === null) return [];
       return detail.student ? ['validate', 'reject'] : ['link_student', 'reject'];
     case 'validated':
-      return ['resolve_without_sanction'];
+      return ['assign_sanction', 'resolve_without_sanction'];
     case 'for_sanction':
-      return detail.sanctions.length > 0 && detail.sanctions.every((s) => s.status === 'completed') ? ['resolve'] : [];
+      return detail.sanctions.length > 0 && detail.sanctions.every((s) => s.status === 'completed')
+        ? ['assign_sanction', 'resolve']
+        : ['assign_sanction'];
     default:
       return [];
   }
@@ -150,6 +153,11 @@ function Actions({ detail, onDone }: { detail: StaffCaseDetail; onDone: () => vo
             Reject
           </button>
         ) : null}
+        {actions.includes('assign_sanction') ? (
+          <button type="button" className={buttonClass} onClick={() => setOpen('assign_sanction')}>
+            Assign sanction
+          </button>
+        ) : null}
         {actions.includes('resolve') ? (
           <button
             type="button"
@@ -184,8 +192,16 @@ function Actions({ detail, onDone }: { detail: StaffCaseDetail; onDone: () => vo
         </button>
       </div>
 
-      {actions.length === 0 && detail.status === 'for_sanction' ? (
+      {detail.status === 'for_sanction' && !actions.includes('resolve') ? (
         <p className="mt-3 text-sm text-muted">This case can be resolved once every sanction is completed.</p>
+      ) : null}
+
+      {open === 'assign_sanction' ? (
+        <AssignSanctionForm
+          caseId={detail.id}
+          onCancel={() => setOpen(null)}
+          onAssigned={() => finish('Sanction assigned.')}
+        />
       ) : null}
 
       {open === 'reject' && ref ? (
@@ -303,21 +319,6 @@ function Details({ detail }: { detail: StaffCaseDetail }) {
           ))}
         </p>
       ) : null}
-      {detail.sanctions.length > 0 ? (
-        <div className="mt-4">
-          <h3 className="text-sm font-semibold text-ink">Sanctions</h3>
-          <ul className="mt-1 space-y-1 text-sm">
-            {detail.sanctions.map((sanction) => (
-              <li key={sanction.id} className="flex items-center justify-between gap-2">
-                <span>
-                  {sanction.type} · due {formatDate(sanction.dueDate)}
-                </span>
-                <StatusPill status={sanction.status} />
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
     </Card>
   );
 }
@@ -370,6 +371,7 @@ export function CaseDetailPage() {
               }
             />
             <Actions detail={detail} onDone={resource.reload} />
+            <SanctionsPanel sanctions={detail.sanctions} onChanged={resource.reload} />
             <div className="mb-3 flex gap-2" role="tablist" aria-label="Case sections">
               {(['details', 'history'] as const).map((option) => (
                 <button

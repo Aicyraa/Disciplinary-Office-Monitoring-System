@@ -8,6 +8,7 @@ import type {
   StudentSanctionView,
 } from '../../../shared/types.js';
 import { displayCode } from '../codes.js';
+import { lateByDays } from '../sanctions/rules.js';
 import type {
   AppointmentRecord,
   CaseHistoryRecord,
@@ -42,7 +43,9 @@ export function toTimelineEntry(entry: CaseHistoryRecord): CaseTimelineEntry {
   return { eventType: entry.eventType, statusAfter: entry.statusAfter, remarks: entry.remarks, date: iso(entry.date) };
 }
 
-export function toSanctionView(record: CaseSanctionRecord): StudentSanctionView {
+/** `today` is the Asia/Manila calendar day (see manilaToday); it only feeds the derived "late by" figure. */
+export function toSanctionView(record: CaseSanctionRecord, today: string): StudentSanctionView {
+  const staffReviewed = record.files.some((file) => file.dateViewed !== null);
   return {
     id: record.caseSanctionId,
     caseId: record.caseId,
@@ -66,17 +69,35 @@ export function toSanctionView(record: CaseSanctionRecord): StudentSanctionView 
       by: event.byStaff ? 'staff' : 'student',
       date: iso(event.date),
     })),
+    files: record.files.map((file) => ({
+      id: file.caseSanctionFileId,
+      name: file.originalName,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+      dateUploaded: iso(file.dateUploaded),
+    })),
+    lateByDays: lateByDays({
+      dueDate: dateOnly(record.dueDate),
+      status: record.status,
+      today,
+      completedOn: record.dateCompleted ? manilaToday(record.dateCompleted) : null,
+    }),
+    // Mirrors the API rules (SPEC 4.3) so the screen only offers what the API will accept.
+    canUpload: record.status === 'assigned' || record.status === 'returned',
+    canChangeFiles:
+      (record.status === 'returned' && record.files.length > 0) || (record.status === 'pending_verification' && !staffReviewed),
   };
 }
 
 export function toCaseDetailView(
   record: CaseRecord & { history: CaseHistoryRecord[] },
   sanctions: CaseSanctionRecord[],
+  today: string,
 ): StudentCaseDetailView {
   return {
     ...toCaseView(record),
     timeline: record.history.map(toTimelineEntry),
-    sanctions: sanctions.map(toSanctionView),
+    sanctions: sanctions.map((sanction) => toSanctionView(sanction, today)),
   };
 }
 

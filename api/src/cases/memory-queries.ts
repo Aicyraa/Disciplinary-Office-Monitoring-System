@@ -1,6 +1,7 @@
 import type { StaffCaseDetail, StaffCaseRow } from '../../../shared/types.js';
 import { displayCode } from '../codes.js';
 import type { MemoryCaseStore } from './memory-store.js';
+import { toStaffSanctionView } from '../sanctions/views.js';
 import { CASE_PAGE_SIZE, parseCaseCode, type CaseQueries } from './queries.js';
 import type { CaseRecord } from './types.js';
 
@@ -60,7 +61,7 @@ export function createMemoryCaseQueries(
       return { rows: rows.slice(start, start + CASE_PAGE_SIZE), total: rows.length };
     },
 
-    async detail(caseId) {
+    async detail(caseId, today) {
       const record = store.state.cases.find((c) => c.caseId === caseId);
       if (!record) return null;
       const links = store.state.escalations;
@@ -84,7 +85,9 @@ export function createMemoryCaseQueries(
           record.submissionRef === null
             ? []
             : store.state.cases.filter((c) => c.submissionRef === record.submissionRef && c.caseId !== caseId).map((c) => c.caseId),
-        sanctions: [],
+        sanctions: store.state.caseSanctions
+          .filter((s) => s.caseId === caseId)
+          .map((s) => toStaffSanctionView(s, today)),
       };
       return detail;
     },

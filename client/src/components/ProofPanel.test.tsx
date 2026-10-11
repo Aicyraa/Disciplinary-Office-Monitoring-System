@@ -1,0 +1,92 @@
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, test } from 'vitest';
+import type { StudentSanctionView } from '../../../shared/types';
+import { viewedSummary } from '../pages/StaffSanctions';
+import { ProofPanel } from './ProofPanel';
+
+const base: StudentSanctionView = {
+  id: 7,
+  caseId: 1,
+  caseCode: 'C001',
+  sanctionId: 1,
+  sanctionCode: 'S001',
+  type: 'Violation Slip',
+  description: 'x',
+  severity: 'Minor',
+  status: 'assigned',
+  dateAssigned: '2026-10-01T02:00:00.000Z',
+  dueDate: '2026-10-30',
+  dateSubmitted: null,
+  dateCompleted: null,
+  staffNote: null,
+  complianceNote: null,
+  history: [],
+  files: [],
+  lateByDays: 0,
+  canUpload: true,
+  canChangeFiles: false,
+};
+
+const file = (id: number) => ({
+  id,
+  name: `proof-${id}.pdf`,
+  mimeType: 'application/pdf',
+  sizeBytes: 2048,
+  dateUploaded: '2026-10-03T02:00:00.000Z',
+});
+
+const render = (sanction: StudentSanctionView) =>
+  renderToStaticMarkup(<ProofPanel sanction={sanction} onChanged={() => {}} />);
+
+describe('ProofPanel', () => {
+  test('an assigned sanction offers a multi-file upload with a labelled input and the limits', () => {
+    const html = render(base);
+    expect(html).toContain('Upload your proof');
+    expect(html).toContain('multiple');
+    expect(html).toContain('accept=".pdf,.docx"');
+    expect(html).toContain('at most 5 files');
+    expect(html).toContain('No file uploaded yet.');
+    expect(html).not.toContain('Replace');
+  });
+
+  test('pending and unreviewed: lists files with Replace and Remove, no new upload', () => {
+    const html = render({ ...base, status: 'pending_verification', canUpload: false, canChangeFiles: true, files: [file(1), file(2)] });
+    expect(html).toContain('proof-1.pdf');
+    expect(html).toContain('Replace');
+    expect(html).toContain('Remove');
+    expect(html).not.toContain('Submit proof');
+  });
+
+  test('the last file cannot be removed while pending (button disabled with the reason)', () => {
+    const html = render({ ...base, status: 'pending_verification', canUpload: false, canChangeFiles: true, files: [file(1)] });
+    expect(html).toContain('You cannot remove the last file');
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>Remove<\/button>/);
+  });
+
+  test('pending and reviewed: read-only with an explanation', () => {
+    const html = render({ ...base, status: 'pending_verification', canUpload: false, canChangeFiles: false, files: [file(1)] });
+    expect(html).not.toContain('Replace');
+    expect(html).not.toContain('Remove');
+    expect(html).toContain('can no longer be changed');
+  });
+
+  test('returned: offers a corrected upload', () => {
+    const html = render({ ...base, status: 'returned', canUpload: true, canChangeFiles: true, files: [file(1)] });
+    expect(html).toContain('Upload a corrected file');
+  });
+
+  test('a completed sanction with no files renders nothing', () => {
+    expect(render({ ...base, status: 'completed', canUpload: false })).toBe('');
+  });
+});
+
+describe('viewedSummary', () => {
+  test('counts opened files and flags when all were opened', () => {
+    expect(viewedSummary([{ viewed: true }, { viewed: false }])).toEqual({ viewed: 1, total: 2, allViewed: false });
+    expect(viewedSummary([{ viewed: true }, { viewed: true }])).toEqual({ viewed: 2, total: 2, allViewed: true });
+  });
+
+  test('no files counts as all viewed (a compliance-recorded sanction can be verified)', () => {
+    expect(viewedSummary([])).toEqual({ viewed: 0, total: 0, allViewed: true });
+  });
+});

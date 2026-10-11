@@ -2,12 +2,15 @@ import { Router, type Response } from 'express';
 import type { AuthUser, CaseStatus, Severity } from '../../../shared/types.js';
 import { requireStaff } from '../auth/guards.js';
 import { STUDENT_ID_PATTERN } from '../auth/policy.js';
+import { manilaToday } from '../me/views.js';
 import { CASE_PAGE_SIZE, type CaseQueries } from './queries.js';
 import type { CaseFailure, CaseFailureCode, CaseService } from './service.js';
 
 export interface CaseRouterOptions {
   service: CaseService;
   queries: CaseQueries;
+  /** Injected so tests control "today" (Asia/Manila). */
+  now?: () => Date;
 }
 
 const STATUSES: readonly CaseStatus[] = ['reported', 'validated', 'for_sanction', 'resolved', 'rejected'];
@@ -38,7 +41,7 @@ function sendFailure(response: Response, failure: CaseFailure): void {
  * Staff case workflow (SPEC 7). Every route needs a staff session with a settled password; the rules
  * themselves live in CaseService so they hold no matter which client calls.
  */
-export function createCaseRouter({ service, queries }: CaseRouterOptions): Router {
+export function createCaseRouter({ service, queries, now = () => new Date() }: CaseRouterOptions): Router {
   const router = Router();
   router.use(['/cases', '/submissions'], ...requireStaff);
 
@@ -74,7 +77,7 @@ export function createCaseRouter({ service, queries }: CaseRouterOptions): Route
 
   router.get('/cases/:id', async (request, response) => {
     const caseId = parseId(String(request.params.id));
-    const detail = caseId === null ? null : await queries.detail(caseId);
+    const detail = caseId === null ? null : await queries.detail(caseId, manilaToday(now()));
     if (!detail) {
       response.status(404).json({ error: 'not_found' });
       return;

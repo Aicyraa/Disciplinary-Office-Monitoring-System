@@ -11,6 +11,8 @@ import type { CaseService } from './cases/service.js';
 import { createHandbookRouter } from './handbook/routes.js';
 import type { HandbookRepo } from './handbook/repo.js';
 import { createMeRouter } from './me/routes.js';
+import { createSanctionRouter } from './sanctions/routes.js';
+import type { SanctionService } from './sanctions/service.js';
 import type { StudentViewRepo } from './me/repo.js';
 
 export interface AppDeps {
@@ -31,6 +33,8 @@ export interface AppDeps {
     studentViews: StudentViewRepo;
     /** Staff case workflow: the rules (service) and the read side (queries). */
     cases?: { service: CaseService; queries: CaseQueries };
+    /** Sanction assignment, proof files and verification. */
+    sanctions?: { service: SanctionService };
     /** Injected so tests control "today" (Asia/Manila). */
     now?: () => Date;
   };
@@ -74,7 +78,8 @@ export function createApp({ auth, data }: AppDeps = {}) {
     if (data) {
       app.use(createHandbookRouter({ repo: data.handbook }));
       app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
-      if (data.cases) app.use(createCaseRouter(data.cases));
+      if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));
+      if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
     }
   }
 

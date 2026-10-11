@@ -43,12 +43,13 @@ export function createMeRouter({ repo, now = () => new Date() }: MeRouterOptions
       return;
     }
     const sanctions = await repo.listSanctions(owner, { caseId });
-    response.status(200).json({ case: toCaseDetailView(record, sanctions) });
+    response.status(200).json({ case: toCaseDetailView(record, sanctions, manilaToday(now())) });
   });
 
   router.get('/me/sanctions', async (request, response) => {
     const sanctions = await repo.listSanctions(studentId(request));
-    response.status(200).json({ sanctions: sanctions.map(toSanctionView) });
+    const today = manilaToday(now());
+    response.status(200).json({ sanctions: sanctions.map((sanction) => toSanctionView(sanction, today)) });
   });
 
   router.get('/me/appointments', async (request, response) => {

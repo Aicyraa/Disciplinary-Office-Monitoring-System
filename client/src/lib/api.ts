@@ -3,6 +3,7 @@ import type {
   AuthUser,
   EscalationConversion,
   HandbookEntryView,
+  SanctionAssignmentOptions,
   StaffCaseDetail,
   StaffCaseListResponse,
   StudentAppointmentView,
@@ -85,6 +86,14 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
   }
 }
 
+async function del(path: string): Promise<void> {
+  try {
+    await http.delete(path);
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
 async function patch<T>(path: string, body?: unknown): Promise<T> {
   try {
     return (await http.patch<T>(path, body)).data;
@@ -136,6 +145,25 @@ export const api = {
   resolveWithoutSanction: (caseId: number, reason: string) =>
     post<{ ok: true }>(`/cases/${caseId}/resolve-without-sanction`, { reason }),
   addRemark: (caseId: number, remarks: string) => post<{ ok: true }>(`/cases/${caseId}/remarks`, { remarks }),
+
+  // Sanctions and proof files (SPEC 4.3, 6.1)
+  sanctionOptions: (caseId: number) => get<{ options: SanctionAssignmentOptions }>(`/cases/${caseId}/sanction-options`),
+  assignSanction: (caseId: number, sanctionId: number, dueDate: string, staffNote: string) =>
+    post<{ caseSanctionId: number }>(`/cases/${caseId}/sanctions`, { sanctionId, dueDate, staffNote }),
+  recordCompliance: (caseSanctionId: number, note: string) =>
+    post<{ ok: true }>(`/case-sanctions/${caseSanctionId}/record-compliance`, { note }),
+  verifySanction: (caseSanctionId: number) => post<{ ok: true }>(`/case-sanctions/${caseSanctionId}/verify`),
+  returnSanction: (caseSanctionId: number, reason: string) =>
+    post<{ ok: true }>(`/case-sanctions/${caseSanctionId}/return`, { reason }),
+  uploadProof: (caseSanctionId: number, files: File[], replaceFileId?: number) => {
+    const form = new FormData();
+    form.append('caseSanctionId', String(caseSanctionId));
+    if (replaceFileId !== undefined) form.append('replaceFileId', String(replaceFileId));
+    for (const file of files) form.append('files', file);
+    return post<{ fileIds: number[] }>('/files', form);
+  },
+  deleteProofFile: (fileId: number) => del(`/files/${fileId}`),
+  fileUrl: (fileId: number) => get<{ url: string; expiresInSeconds: number }>(`/files/${fileId}/url`),
 
   myClearance: (term?: { academicYear: number; semester: number }) =>
     get<StudentClearanceResponse>(

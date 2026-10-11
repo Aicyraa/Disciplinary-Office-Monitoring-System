@@ -15,7 +15,8 @@ export interface CaseListFilter {
 /** Read side of the staff case screens. Writes go through the CaseService. */
 export interface CaseQueries {
   list(filter: CaseListFilter): Promise<{ rows: StaffCaseRow[]; total: number }>;
-  detail(caseId: number): Promise<StaffCaseDetail | null>;
+  /** `today` is the Asia/Manila calendar day, for the derived "late by N days" of each sanction. */
+  detail(caseId: number, today: string): Promise<StaffCaseDetail | null>;
 }
 
 /** "C005", "c5" or "5" -> 5; anything else -> null. */

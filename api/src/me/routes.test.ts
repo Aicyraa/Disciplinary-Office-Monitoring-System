@@ -32,6 +32,7 @@ const sanctionBase: CaseSanctionRecord = {
   staffNote: 'Bring a signed slip.',
   complianceNote: null,
   history: [{ eventType: 'assigned', remarks: null, byStaff: true, date: new Date('2026-09-02T02:00:00Z') }],
+  files: [],
 };
 
 // "Today" in Manila is 2026-10-12 (the clock is 2026-10-11T20:00Z, already the 12th in Asia/Manila).
@@ -193,6 +194,70 @@ describe('GET /me/sanctions', () => {
     const empty = buildHarnessApp({ studentViews: createMemoryStudentViewRepo(), now: () => NOW });
     const agent = await signedInAgent(empty, STUDENT_B.email);
     expect((await agent.get('/me/sanctions')).body).toEqual({ sanctions: [] });
+  });
+});
+
+describe('GET /me/sanctions: proof files, lateness and what the student may do (SPEC 4.3)', () => {
+  const file = (id: number, viewed: boolean) => ({
+    caseSanctionFileId: id,
+    originalName: `proof-${id}.pdf`,
+    mimeType: 'application/pdf',
+    sizeBytes: 2048,
+    dateUploaded: new Date('2026-10-03T02:00:00Z'),
+    dateViewed: viewed ? new Date('2026-10-04T02:00:00Z') : null,
+  });
+  const repo = createMemoryStudentViewRepo({
+    sanctions: [
+      // returned, overdue by 7 Manila days (today is 2026-10-12), one old viewed file
+      { studentId: STUDENT_A.id, ...sanctionBase, caseSanctionId: 21, status: 'returned', dueDate: new Date('2026-10-05T00:00:00Z'), files: [file(1, true)] },
+      // pending, nothing opened yet: may still change the files, may not add more
+      { studentId: STUDENT_A.id, ...sanctionBase, caseSanctionId: 22, status: 'pending_verification', dueDate: new Date('2026-10-30T00:00:00Z'), files: [file(2, false), file(3, false)] },
+      // pending, staff opened one: already reviewed, so no changes
+      { studentId: STUDENT_A.id, ...sanctionBase, caseSanctionId: 23, status: 'pending_verification', dueDate: new Date('2026-10-30T00:00:00Z'), files: [file(4, true), file(5, false)] },
+      // completed late: measured at the completion day (Manila 2026-10-08), not today
+      {
+        studentId: STUDENT_A.id,
+        ...sanctionBase,
+        caseSanctionId: 24,
+        status: 'completed',
+        dueDate: new Date('2026-10-05T00:00:00Z'),
+        dateCompleted: new Date('2026-10-08T02:00:00Z'),
+        files: [file(6, true)],
+      },
+      { studentId: STUDENT_A.id, ...sanctionBase, caseSanctionId: 25, status: 'assigned', dueDate: new Date('2026-10-12T00:00:00Z'), files: [] },
+    ],
+  });
+
+  async function sanctions() {
+    const agent = await signedInAgent(buildHarnessApp({ studentViews: repo, now: () => NOW }), STUDENT_A.email);
+    const body = (await agent.get('/me/sanctions')).body as { sanctions: Array<Record<string, unknown> & { id: number }> };
+    return { body, byId: (id: number) => body.sanctions.find((s) => s.id === id)! };
+  }
+
+  test('computes lateness in Manila days, frozen at the completion day', async () => {
+    const { byId } = await sanctions();
+    expect(byId(21).lateByDays).toBe(7);
+    expect(byId(22).lateByDays).toBe(0);
+    expect(byId(24).lateByDays).toBe(3);
+    expect(byId(25).lateByDays).toBe(0); // due today is not late
+  });
+
+  test('tells the screen what the student may do', async () => {
+    const { byId } = await sanctions();
+    expect([byId(25).canUpload, byId(25).canChangeFiles]).toEqual([true, false]); // assigned
+    expect([byId(22).canUpload, byId(22).canChangeFiles]).toEqual([false, true]); // pending, unopened
+    expect([byId(23).canUpload, byId(23).canChangeFiles]).toEqual([false, false]); // pending, reviewed
+    expect([byId(21).canUpload, byId(21).canChangeFiles]).toEqual([true, true]); // returned
+    expect([byId(24).canUpload, byId(24).canChangeFiles]).toEqual([false, false]); // completed
+  });
+
+  test('lists files by id and name only: no storage keys, viewer ids or viewed flags', async () => {
+    const { body, byId } = await sanctions();
+    expect(byId(22).files).toEqual([
+      { id: 2, name: 'proof-2.pdf', mimeType: 'application/pdf', sizeBytes: 2048, dateUploaded: '2026-10-03T02:00:00.000Z' },
+      { id: 3, name: 'proof-3.pdf', mimeType: 'application/pdf', sizeBytes: 2048, dateUploaded: '2026-10-03T02:00:00.000Z' },
+    ]);
+    expect(JSON.stringify(body)).not.toMatch(/storage|viewed|employee/i);
   });
 });
 

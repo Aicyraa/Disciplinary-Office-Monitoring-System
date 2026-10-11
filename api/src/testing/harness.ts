@@ -5,6 +5,7 @@ import { createMemoryAccountRepo } from '../auth/memory-repo.js';
 import { createAuthService } from '../auth/service.js';
 import type { CaseQueries } from '../cases/queries.js';
 import type { CaseService } from '../cases/service.js';
+import type { SanctionService } from '../sanctions/service.js';
 import type { HandbookRepo } from '../handbook/repo.js';
 import { createMemoryHandbookRepo } from '../handbook/memory-repo.js';
 import type { StudentViewRepo } from '../me/repo.js';
@@ -25,6 +26,7 @@ export interface HarnessOptions {
   handbook?: HandbookRepo;
   studentViews?: StudentViewRepo;
   cases?: { service: CaseService; queries: CaseQueries };
+  sanctions?: { service: SanctionService };
   now?: () => Date;
 }
 
@@ -58,6 +60,7 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
       handbook: options.handbook ?? createMemoryHandbookRepo(),
       studentViews: options.studentViews ?? createMemoryStudentViewRepo(),
       cases: options.cases,
+      sanctions: options.sanctions,
       now: options.now,
     },
   });

@@ -82,6 +82,7 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
           sanctions: true,
           disciplinary_cases: { include: { [CURRENT]: { include: { violations: true } } } },
           case_sanction_history: { orderBy: { date_logged: 'asc' } },
+          case_sanction_files: { include: { files: true }, orderBy: { case_sanction_file_id: 'asc' } },
         },
         orderBy: { date_assigned: 'desc' },
       });
@@ -106,6 +107,14 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
             remarks: event.remarks,
             byStaff: event.employee_id !== null,
             date: event.date_logged,
+          })),
+          files: row.case_sanction_files.map((link) => ({
+            caseSanctionFileId: link.case_sanction_file_id,
+            originalName: link.files.original_name,
+            mimeType: link.files.mime_type,
+            sizeBytes: link.files.size_bytes,
+            dateUploaded: link.files.date_uploaded,
+            dateViewed: link.date_viewed,
           })),
         };
       });

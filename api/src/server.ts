@@ -9,6 +9,9 @@ import { createCaseService } from './cases/service.js';
 import { createPrismaHandbookRepo } from './handbook/prisma-repo.js';
 import { createPrismaStudentViewRepo } from './me/prisma-repo.js';
 import { createPrismaClient } from './prisma.js';
+import { createSanctionService } from './sanctions/service.js';
+import { createS3Storage } from './storage/s3.js';
+import { createUnavailableStorage } from './storage/unavailable.js';
 
 const port = Number(process.env.SERVER_PORT ?? process.env.PORT ?? 3000);
 const isProduction = process.env.NODE_ENV === 'production';
@@ -28,6 +31,15 @@ function buildApp() {
   const sessionStore = new PgStore({ pool: new Pool({ connectionString: DATABASE_URL }), createTableIfMissing: true });
   const prisma = createPrismaClient();
   const service = createAuthService({ repo: createPrismaAccountRepo(prisma) });
+  const caseStore = createPrismaCaseStore(prisma);
+
+  // File storage is optional in development (everything but proof files keeps working) and required in production.
+  const bucketConfigured = Boolean(
+    process.env.STORAGE_BUCKET && process.env.AWS_ENDPOINT_URL_S3 && process.env.AWS_ACCESS_KEY_ID,
+  );
+  if (!bucketConfigured && isProduction) throw new Error('STORAGE_BUCKET and the AWS_* variables are required in production');
+  if (!bucketConfigured) console.warn('Object storage variables missing: proof file upload and download are disabled.');
+  const storage = bucketConfigured ? createS3Storage() : createUnavailableStorage('set STORAGE_BUCKET and the AWS_* keys');
 
   return createApp({
     auth: { service, sessionSecret: SESSION_SECRET, clientOrigin, sessionStore, secureCookies: isProduction },
@@ -35,9 +47,10 @@ function buildApp() {
       handbook: createPrismaHandbookRepo(prisma),
       studentViews: createPrismaStudentViewRepo(prisma),
       cases: {
-        service: createCaseService({ store: createPrismaCaseStore(prisma) }),
+        service: createCaseService({ store: caseStore }),
         queries: createPrismaCaseQueries(prisma),
       },
+      sanctions: { service: createSanctionService({ store: caseStore, storage }) },
     },
   });
 }

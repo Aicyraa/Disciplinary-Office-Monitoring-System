@@ -1,8 +1,9 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import type { CaseSanctionStatus, CaseStatus, Severity, StaffCaseDetail, StaffCaseRow } from '../../../shared/types.js';
 import { displayCode } from '../codes.js';
+import { toStaffSanctionView } from '../sanctions/views.js';
 import { CASE_PAGE_SIZE, parseCaseCode, type CaseListFilter, type CaseQueries } from './queries.js';
-import type { CaseRecord, CaseStore, CaseTx, HandbookEntryLite } from './types.js';
+import type { CaseRecord, CaseSanctionRecord, CaseStore, CaseTx, HandbookEntryLite } from './types.js';
 
 const CURRENT = 'handbook_entries_disciplinary_cases_handbook_entry_idTohandbook_entries';
 const ORIGINAL = 'handbook_entries_disciplinary_cases_original_handbook_entry_idTohandbook_entries';
@@ -46,6 +47,72 @@ function toRecord(row: CaseRow): CaseRecord {
     isEscalated: row.is_escalated,
     resolvedWithoutSanction: row.resolved_without_sanction,
     dateResolved: row.date_resolved,
+  };
+}
+
+const sanctionInclude = {
+  sanctions: true,
+  // The case's student and status only (never an account row).
+  disciplinary_cases: { select: { student_id: true, status: true } },
+  case_sanction_files: { include: { files: true }, orderBy: { case_sanction_file_id: 'asc' } },
+} as const;
+
+type SanctionRow = {
+  case_sanction_id: number;
+  disciplinary_case_id: number;
+  sanction_id: number;
+  status: string;
+  date_assigned: Date;
+  due_date: Date;
+  date_submitted: Date | null;
+  date_completed: Date | null;
+  staff_note: string | null;
+  compliance_note: string | null;
+  sanctions: { sanction_type: string };
+  disciplinary_cases: { student_id: string | null; status: string };
+  case_sanction_files: Array<{
+    case_sanction_file_id: number;
+    file_id: number;
+    viewed_by_employee_id: string | null;
+    date_viewed: Date | null;
+    files: {
+      storage_key: string;
+      original_name: string;
+      mime_type: string;
+      size_bytes: number;
+      uploaded_by_student_id: string | null;
+      date_uploaded: Date;
+    };
+  }>;
+};
+
+function toSanctionRecord(row: SanctionRow): CaseSanctionRecord {
+  return {
+    caseSanctionId: row.case_sanction_id,
+    caseId: row.disciplinary_case_id,
+    studentId: row.disciplinary_cases.student_id,
+    caseStatus: row.disciplinary_cases.status as CaseStatus,
+    sanctionId: row.sanction_id,
+    sanctionType: row.sanctions.sanction_type,
+    status: row.status as CaseSanctionStatus,
+    dueDate: row.due_date.toISOString().slice(0, 10),
+    dateAssigned: row.date_assigned,
+    dateSubmitted: row.date_submitted,
+    dateCompleted: row.date_completed,
+    staffNote: row.staff_note,
+    complianceNote: row.compliance_note,
+    files: row.case_sanction_files.map((link) => ({
+      caseSanctionFileId: link.case_sanction_file_id,
+      fileId: link.file_id,
+      storageKey: link.files.storage_key,
+      originalName: link.files.original_name,
+      mimeType: link.files.mime_type,
+      sizeBytes: link.files.size_bytes,
+      uploadedByStudentId: link.files.uploaded_by_student_id,
+      dateUploaded: link.files.date_uploaded,
+      dateViewed: link.date_viewed,
+      viewedByEmployeeId: link.viewed_by_employee_id,
+    })),
   };
 }
 
@@ -101,6 +168,135 @@ function createTx(db: Prisma.TransactionClient): CaseTx {
       ]);
       return { total, completed };
     },
+
+    // ---- sanctions and proof ----------------------------------------------------------------
+    async listHandbookSanctions(handbookEntryId) {
+      const rows = await db.handbook_entry_sanctions.findMany({
+        where: { handbook_entry_id: handbookEntryId },
+        include: { sanctions: true },
+        orderBy: [{ offense_number: 'asc' }, { sanction_id: 'asc' }],
+      });
+      return rows.map((row) => ({
+        offenseNumber: row.offense_number,
+        sanctionId: row.sanction_id,
+        sanctionType: row.sanctions.sanction_type,
+      }));
+    },
+    async getSanction(sanctionId) {
+      const row = await db.sanctions.findUnique({ where: { sanction_id: sanctionId } });
+      return row ? { sanctionId: row.sanction_id, sanctionType: row.sanction_type } : null;
+    },
+    async listCaseSanctions(caseId) {
+      const rows = await db.case_sanctions.findMany({
+        where: { disciplinary_case_id: caseId },
+        include: sanctionInclude,
+        orderBy: { case_sanction_id: 'asc' },
+      });
+      return rows.map((row) => toSanctionRecord(row as unknown as SanctionRow));
+    },
+    async getCaseSanction(caseSanctionId) {
+      const row = await db.case_sanctions.findUnique({ where: { case_sanction_id: caseSanctionId }, include: sanctionInclude });
+      return row ? toSanctionRecord(row as unknown as SanctionRow) : null;
+    },
+    async getCaseSanctionByFile(caseSanctionFileId) {
+      const link = await db.case_sanction_files.findUnique({
+        where: { case_sanction_file_id: caseSanctionFileId },
+        select: { case_sanction_id: true },
+      });
+      if (!link) return null;
+      const row = await db.case_sanctions.findUnique({ where: { case_sanction_id: link.case_sanction_id }, include: sanctionInclude });
+      return row ? toSanctionRecord(row as unknown as SanctionRow) : null;
+    },
+    async insertCaseSanction(input) {
+      const created = await db.case_sanctions.create({
+        data: {
+          disciplinary_case_id: input.caseId,
+          sanction_id: input.sanctionId,
+          due_date: new Date(`${input.dueDate}T00:00:00Z`),
+          assigned_by_employee_id: input.assignedByEmployeeId,
+          staff_note: input.staffNote,
+          date_assigned: input.date,
+        },
+        select: { case_sanction_id: true },
+      });
+      return created.case_sanction_id;
+    },
+    async updateCaseSanction(caseSanctionId, patch) {
+      await db.case_sanctions.update({
+        where: { case_sanction_id: caseSanctionId },
+        data: {
+          ...(patch.status !== undefined && { status: patch.status }),
+          ...(patch.dateSubmitted !== undefined && { date_submitted: patch.dateSubmitted }),
+          ...(patch.dateCompleted !== undefined && { date_completed: patch.dateCompleted }),
+          ...(patch.verifiedByEmployeeId !== undefined && { verified_by_employee_id: patch.verifiedByEmployeeId }),
+          ...(patch.staffNote !== undefined && { staff_note: patch.staffNote }),
+          ...(patch.complianceNote !== undefined && { compliance_note: patch.complianceNote }),
+        },
+      });
+    },
+    async insertProofFile(input) {
+      const file = await db.files.create({
+        data: {
+          storage_key: input.storageKey,
+          original_name: input.originalName,
+          mime_type: input.mimeType,
+          size_bytes: input.sizeBytes,
+          uploaded_by_student_id: input.uploadedByStudentId,
+          date_uploaded: input.date,
+        },
+        select: { file_id: true },
+      });
+      const link = await db.case_sanction_files.create({
+        data: { case_sanction_id: input.caseSanctionId, file_id: file.file_id },
+        select: { case_sanction_file_id: true },
+      });
+      return { caseSanctionFileId: link.case_sanction_file_id, fileId: file.file_id };
+    },
+    async deleteProofFile(caseSanctionFileId) {
+      const link = await db.case_sanction_files.findUnique({
+        where: { case_sanction_file_id: caseSanctionFileId },
+        select: { file_id: true },
+      });
+      if (!link) return;
+      await db.case_sanction_files.delete({ where: { case_sanction_file_id: caseSanctionFileId } });
+      await db.files.delete({ where: { file_id: link.file_id } });
+    },
+    async markFileViewed(caseSanctionFileId, employeeId, date) {
+      await db.case_sanction_files.update({
+        where: { case_sanction_file_id: caseSanctionFileId },
+        data: { viewed_by_employee_id: employeeId, date_viewed: date },
+      });
+    },
+    async addSanctionHistory(input) {
+      await db.case_sanction_history.create({
+        data: {
+          case_sanction_id: input.caseSanctionId,
+          event_type: input.eventType,
+          remarks: input.remarks,
+          employee_id: input.employeeId,
+          student_id: input.studentId,
+          date_logged: input.date,
+        },
+      });
+    },
+    async addSanctionNotification(input) {
+      await db.notifications.createMany({
+        data: [
+          {
+            recipient_type: input.recipient,
+            student_id: input.studentId,
+            kind: 'sanction',
+            title: input.title,
+            message: input.message,
+            link_type: 'sanction',
+            link_id: input.caseSanctionId,
+            idempotency_key: input.idempotencyKey,
+          },
+        ],
+        skipDuplicates: true,
+      });
+    },
+
     async insertCase(input) {
       const created = await db.disciplinary_cases.create({
         data: {
@@ -257,7 +453,7 @@ export function createPrismaCaseQueries(
       return { rows: rows.map((row) => toRow(row as unknown as ListRow)), total };
     },
 
-    async detail(caseId) {
+    async detail(caseId, today) {
       const row = await db.disciplinary_cases.findUnique({
         where: { disciplinary_case_id: caseId },
         include: {
@@ -265,7 +461,7 @@ export function createPrismaCaseQueries(
           case_status_history: { orderBy: { date_updated: 'asc' }, include: { employee_accounts: employeeName } },
           [AS_MAJOR]: true,
           [AS_MINOR]: true,
-          case_sanctions: { include: { sanctions: true }, orderBy: { case_sanction_id: 'asc' } },
+          case_sanctions: { include: sanctionInclude, orderBy: { case_sanction_id: 'asc' } },
         },
       });
       if (!row) return null;
@@ -294,13 +490,9 @@ export function createPrismaCaseQueries(
         createdFromCaseIds: asMajor.map((link) => link.minor_case_id),
         countedTowardCaseId: asMinor?.major_case_id ?? null,
         siblingCaseIds: siblings.map((sibling) => sibling.disciplinary_case_id),
-        sanctions: row.case_sanctions.map((sanction) => ({
-          id: sanction.case_sanction_id,
-          sanctionCode: displayCode('S', sanction.sanction_id),
-          type: sanction.sanctions.sanction_type,
-          status: sanction.status as CaseSanctionStatus,
-          dueDate: sanction.due_date.toISOString().slice(0, 10),
-        })),
+        sanctions: row.case_sanctions.map((sanction) =>
+          toStaffSanctionView(toSanctionRecord(sanction as unknown as SanctionRow), today),
+        ),
       };
       return detail;
     },

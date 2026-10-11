@@ -41,6 +41,15 @@ export interface CaseSanctionRecord {
   staffNote: string | null;
   complianceNote: string | null;
   history: Array<{ eventType: string; remarks: string | null; byStaff: boolean; date: Date }>;
+  /** Proof files; `dateViewed` is only used to decide whether the student can still change them. */
+  files: Array<{
+    caseSanctionFileId: number;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dateUploaded: Date;
+    dateViewed: Date | null;
+  }>;
 }
 
 export interface AppointmentRecord {

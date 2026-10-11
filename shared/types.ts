@@ -63,6 +63,15 @@ export type SanctionHistoryEntry = {
   date: string;
 };
 
+export type ProofFileView = {
+  /** Id for `GET /files/:id/url` and `DELETE /files/:id`. */
+  id: number;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  dateUploaded: string;
+};
+
 export type StudentSanctionView = {
   /** case_sanctions.case_sanction_id */
   id: number;
@@ -83,6 +92,13 @@ export type StudentSanctionView = {
   staffNote: string | null;
   complianceNote: string | null;
   history: SanctionHistoryEntry[];
+  files: ProofFileView[];
+  /** Derived from the due date in Asia/Manila time; never stored. */
+  lateByDays: number;
+  /** Proof can be uploaded now (the sanction is assigned or returned). */
+  canUpload: boolean;
+  /** Files can be replaced or removed now (and staff have not reviewed them yet, when pending). */
+  canChangeFiles: boolean;
 };
 
 export type StudentCaseView = {
@@ -192,13 +208,35 @@ export type StaffCaseDetail = StaffCaseRow & {
   countedTowardCaseId: number | null;
   /** Other cases from the same gate submission. */
   siblingCaseIds: number[];
-  sanctions: Array<{
-    id: number;
-    sanctionCode: string;
-    type: string;
-    status: CaseSanctionStatus;
-    dueDate: string;
-  }>;
+  sanctions: StaffSanctionView[];
+};
+
+export type StaffProofFileView = ProofFileView & {
+  /** A staff member has opened it; verify needs every file viewed. */
+  viewed: boolean;
+};
+
+export type StaffSanctionView = {
+  /** case_sanctions.case_sanction_id: the id used by `/case-sanctions/:id/*`. */
+  id: number;
+  sanctionCode: string;
+  type: string;
+  status: CaseSanctionStatus;
+  dueDate: string;
+  dateSubmitted: string | null;
+  dateCompleted: string | null;
+  staffNote: string | null;
+  complianceNote: string | null;
+  lateByDays: number;
+  files: StaffProofFileView[];
+};
+
+export type SanctionAssignmentOptions = {
+  /** Computed by the API: 1 + the student's earlier cases for the same violation. */
+  offenseNumber: number;
+  /** The offense number whose sanctions are offered (highest defined one when there is no exact match). */
+  offenseUsed: number | null;
+  sanctions: Array<{ sanctionId: number; sanctionCode: string; type: string; alreadyAssigned: boolean }>;
 };
 
 export type EscalationConversion = {

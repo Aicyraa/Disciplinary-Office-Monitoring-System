@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Severity, StudentSanctionView } from '../../../shared/types';
+import { ProofPanel } from '../components/ProofPanel';
 import { Card, EmptyState, PageHeader, Resource, StatusPill } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDate, SANCTION_STEPS, statusLabel } from '../lib/format';
@@ -23,7 +24,7 @@ function Tracker({ status }: { status: string }) {
   );
 }
 
-function SanctionCard({ sanction }: { sanction: StudentSanctionView }) {
+function SanctionCard({ sanction, onChanged }: { sanction: StudentSanctionView; onChanged: () => void }) {
   return (
     <li className="rounded-lg border border-line bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -33,6 +34,11 @@ function SanctionCard({ sanction }: { sanction: StudentSanctionView }) {
           </div>
           <div className="text-sm text-muted">
             {sanction.caseCode} · assigned {formatDate(sanction.dateAssigned)} · due {formatDate(sanction.dueDate)}
+            {sanction.lateByDays > 0 ? (
+              <span className="ml-2 rounded bg-[#F7E6E6] px-1.5 py-0.5 text-xs font-semibold text-[#9B2C2C]">
+                Late by {sanction.lateByDays} day{sanction.lateByDays === 1 ? '' : 's'}
+              </span>
+            ) : null}
           </div>
         </div>
         <div className="flex gap-2">
@@ -47,6 +53,7 @@ function SanctionCard({ sanction }: { sanction: StudentSanctionView }) {
         </p>
       ) : null}
       <Tracker status={sanction.status} />
+      <ProofPanel sanction={sanction} onChanged={onChanged} />
     </li>
   );
 }
@@ -92,7 +99,7 @@ export function SanctionsPage() {
               ) : (
                 <ul className="space-y-3">
                   {shown.map((sanction) => (
-                    <SanctionCard key={sanction.id} sanction={sanction} />
+                    <SanctionCard key={sanction.id} sanction={sanction} onChanged={resource.reload} />
                   ))}
                 </ul>
               )}

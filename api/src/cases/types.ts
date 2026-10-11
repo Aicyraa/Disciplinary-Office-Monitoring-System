@@ -1,4 +1,5 @@
-import type { CaseStatus, Severity } from '../../../shared/types.js';
+import type { CaseSanctionStatus, CaseStatus, Severity } from '../../../shared/types.js';
+import type { HandbookSanctionRow } from '../sanctions/rules.js';
 import type { EscalationCandidate } from './escalation.js';
 
 export type CaseSource = 'gate' | 'staff';
@@ -75,8 +76,115 @@ export interface CasePatch {
   dateResolved?: Date | null;
 }
 
+// ---- sanctions and proof files (SPEC 4.3, 6.1) ---------------------------------------------------
+
+export interface ProofFileRecord {
+  caseSanctionFileId: number;
+  fileId: number;
+  storageKey: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedByStudentId: string | null;
+  dateUploaded: Date;
+  /** Set when a staff member opened the file; verify is blocked until every file has it. */
+  dateViewed: Date | null;
+  viewedByEmployeeId: string | null;
+}
+
+export interface CaseSanctionRecord {
+  caseSanctionId: number;
+  caseId: number;
+  /** The case's student; null only while a gate report is unmatched (no sanction can exist then). */
+  studentId: string | null;
+  caseStatus: CaseStatus;
+  sanctionId: number;
+  sanctionType: string;
+  status: CaseSanctionStatus;
+  /** YYYY-MM-DD */
+  dueDate: string;
+  dateAssigned: Date;
+  dateSubmitted: Date | null;
+  dateCompleted: Date | null;
+  staffNote: string | null;
+  complianceNote: string | null;
+  files: ProofFileRecord[];
+}
+
+export interface CaseSanctionPatch {
+  status?: CaseSanctionStatus;
+  dateSubmitted?: Date | null;
+  dateCompleted?: Date | null;
+  verifiedByEmployeeId?: string | null;
+  staffNote?: string | null;
+  complianceNote?: string | null;
+}
+
+export type SanctionEventType =
+  | 'assigned'
+  | 'proof_uploaded'
+  | 'proof_replaced'
+  | 'proof_removed'
+  | 'compliance_recorded'
+  | 'returned'
+  | 'verified';
+
+export interface SanctionHistoryInput {
+  caseSanctionId: number;
+  eventType: SanctionEventType;
+  remarks: string | null;
+  /** Exactly one of employeeId / studentId is set (DB check). */
+  employeeId: string | null;
+  studentId: string | null;
+  date: Date;
+}
+
+export interface SanctionNotificationInput {
+  /** All staff share one mailbox (recipient_type 'staff', student_id NULL). */
+  recipient: 'student' | 'staff';
+  studentId: string | null;
+  title: string;
+  message: string;
+  caseSanctionId: number;
+  idempotencyKey: string;
+}
+
+export interface NewProofFileInput {
+  caseSanctionId: number;
+  storageKey: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedByStudentId: string;
+  date: Date;
+}
+
 /** Everything the case workflow reads and writes, scoped to one database transaction. */
 export interface CaseTx {
+  // sanctions and proof
+  /** Handbook-allowed sanctions for a violation, every offense number. */
+  listHandbookSanctions(handbookEntryId: number): Promise<HandbookSanctionRow[]>;
+  getSanction(sanctionId: number): Promise<{ sanctionId: number; sanctionType: string } | null>;
+  listCaseSanctions(caseId: number): Promise<CaseSanctionRecord[]>;
+  getCaseSanction(caseSanctionId: number): Promise<CaseSanctionRecord | null>;
+  getCaseSanctionByFile(caseSanctionFileId: number): Promise<CaseSanctionRecord | null>;
+  insertCaseSanction(input: {
+    caseId: number;
+    sanctionId: number;
+    dueDate: string;
+    assignedByEmployeeId: string;
+    staffNote: string | null;
+    date: Date;
+  }): Promise<number>;
+  updateCaseSanction(caseSanctionId: number, patch: CaseSanctionPatch): Promise<void>;
+  insertProofFile(input: NewProofFileInput): Promise<{ caseSanctionFileId: number; fileId: number }>;
+  /** Removes the link and the files row. */
+  deleteProofFile(caseSanctionFileId: number): Promise<void>;
+  markFileViewed(caseSanctionFileId: number, employeeId: string, date: Date): Promise<void>;
+  addSanctionHistory(input: SanctionHistoryInput): Promise<void>;
+  /** Idempotent, like addNotification. */
+  addSanctionNotification(input: SanctionNotificationInput): Promise<void>;
+
   /** Serialises escalation counting per student (SELECT ... FOR UPDATE on the account). */
   lockStudent(studentId: string): Promise<void>;
   /** Serialises decisions on one gate submission (advisory lock), including unmatched ones with no student. */
