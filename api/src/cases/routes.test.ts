@@ -1,0 +1,286 @@
+import request from 'supertest';
+import { beforeEach, describe, expect, test } from 'vitest';
+import {
+  buildHarnessApp,
+  signedInAgent,
+  STAFF,
+  STAFF_TEMP,
+  STUDENT_A,
+} from '../testing/harness.js';
+import { createMemoryCaseQueries } from './memory-queries.js';
+import { createMemoryCaseStore, type MemoryCaseStore } from './memory-store.js';
+import { createCaseService } from './service.js';
+import type { CaseRecord } from './types.js';
+
+const S1 = STUDENT_A.id;
+const REF = '11111111-1111-4111-8111-111111111111';
+const NOW = new Date('2026-10-12T02:00:00Z');
+
+let store: MemoryCaseStore;
+
+function seedCase(overrides: Partial<CaseRecord> & { caseId: number }): void {
+  store.state.cases.push({
+    caseDate: new Date(Date.UTC(2026, 8, overrides.caseId, 2)),
+    status: 'reported',
+    severity: 'Minor',
+    isEscalated: false,
+    studentId: S1,
+    handbookEntryId: 1,
+    originalHandbookEntryId: null,
+    source: 'gate',
+    reportedByEmployeeId: null,
+    claimedStudentId: S1,
+    claimedName: 'Ana Cruz',
+    submissionRef: null,
+    resolvedWithoutSanction: false,
+    dateResolved: null,
+    ...overrides,
+  });
+  store.state.nextCaseId = Math.max(store.state.nextCaseId, overrides.caseId + 1);
+}
+
+function build() {
+  const service = createCaseService({ store, now: () => NOW });
+  const queries = createMemoryCaseQueries(store, new Map([[S1, 'Ana Cruz']]));
+  return buildHarnessApp({ cases: { service, queries }, now: () => NOW });
+}
+
+beforeEach(() => {
+  store = createMemoryCaseStore({
+    students: new Set([S1, '2025-0000002']),
+    handbook: [
+      { handbookEntryId: 1, violationType: 'Improper uniform', severity: 'Minor', isSystem: false },
+      { handbookEntryId: 2, violationType: 'No ID', severity: 'Minor', isSystem: false },
+      { handbookEntryId: 3, violationType: 'Cheating', severity: 'Major', isSystem: false },
+      { handbookEntryId: 68, violationType: '3 minor offense', severity: 'Major', isSystem: true },
+    ],
+  });
+});
+
+const staff = () => signedInAgent(build(), STAFF.email);
+
+describe('access control (every case route)', () => {
+  const routes: Array<[string, string]> = [
+    ['get', '/cases'],
+    ['get', '/cases/1'],
+    ['post', '/cases'],
+    ['get', `/submissions/${REF}/escalation-preview`],
+    ['post', `/submissions/${REF}/validate`],
+    ['post', `/submissions/${REF}/reject`],
+    ['patch', '/cases/1/student'],
+    ['post', '/cases/1/resolve'],
+    ['post', '/cases/1/resolve-without-sanction'],
+    ['post', '/cases/1/remarks'],
+  ];
+
+  test.each(routes)('%s %s is 401 without a session', async (method, path) => {
+    const app = build();
+    const response = await (request(app) as unknown as Record<string, (p: string) => request.Test>)[method](path);
+    expect(response.status).toBe(401);
+  });
+
+  test.each(routes)('%s %s is 403 for a student', async (method, path) => {
+    const agent = await signedInAgent(build(), STUDENT_A.email);
+    const response = await (agent as unknown as Record<string, (p: string) => request.Test>)[method](path);
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('forbidden');
+  });
+
+  test('is 403 password_change_required for staff who must change their password', async () => {
+    const agent = await signedInAgent(build(), STAFF_TEMP.email);
+    const response = await agent.get('/cases');
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('password_change_required');
+  });
+});
+
+describe('POST /cases', () => {
+  test('records a violation as the signed-in staff member', async () => {
+    const agent = await staff();
+    const response = await agent.post('/cases').send({ studentId: S1, handbookEntryId: 1 });
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({ caseId: 1, conversions: [] });
+    expect(store.state.cases[0]).toMatchObject({ reportedByEmployeeId: STAFF.id, status: 'validated', source: 'staff' });
+  });
+
+  test('the third minor returns the conversion', async () => {
+    const agent = await staff();
+    await agent.post('/cases').send({ studentId: S1, handbookEntryId: 1 });
+    await agent.post('/cases').send({ studentId: S1, handbookEntryId: 2 });
+    const third = await agent.post('/cases').send({ studentId: S1, handbookEntryId: 1 });
+    expect(third.body).toEqual({ caseId: 3, conversions: [{ majorCaseId: 3, minorCaseIds: [1, 2] }] });
+  });
+
+  test.each([
+    [{}],
+    [{ studentId: S1 }],
+    [{ studentId: 'E001', handbookEntryId: 1 }],
+    [{ studentId: S1, handbookEntryId: '1' }],
+    [{ studentId: S1, handbookEntryId: 0 }],
+    [{ studentId: S1, handbookEntryId: 1.5 }],
+    [{ studentId: { $ne: '' }, handbookEntryId: 1 }],
+  ])('rejects malformed input %j with 400', async (body) => {
+    const agent = await staff();
+    expect((await agent.post('/cases').send(body)).status).toBe(400);
+    expect(store.state.cases).toHaveLength(0);
+  });
+
+  test('maps domain failures to 404 and 409', async () => {
+    const agent = await staff();
+    expect((await agent.post('/cases').send({ studentId: '2025-9999999', handbookEntryId: 1 })).status).toBe(404);
+    expect((await agent.post('/cases').send({ studentId: S1, handbookEntryId: 999 })).status).toBe(404);
+    const system = await agent.post('/cases').send({ studentId: S1, handbookEntryId: 68 });
+    expect(system.status).toBe(409);
+    expect(system.body.error).toBe('violation_not_allowed');
+  });
+});
+
+describe('submissions', () => {
+  beforeEach(() => {
+    seedCase({ caseId: 1, submissionRef: REF });
+    seedCase({ caseId: 2, submissionRef: REF, handbookEntryId: 2 });
+  });
+
+  test('preview then validate: 200, then 409 already_decided', async () => {
+    const agent = await staff();
+    expect((await agent.get(`/submissions/${REF}/escalation-preview`)).body).toEqual({ conversions: [] });
+    const validated = await agent.post(`/submissions/${REF}/validate`);
+    expect(validated.status).toBe(200);
+    expect(validated.body.caseIds).toEqual([1, 2]);
+    const again = await agent.post(`/submissions/${REF}/validate`);
+    expect(again.status).toBe(409);
+    expect(again.body.error).toBe('already_decided');
+  });
+
+  test('preview reports the case that would become the Major, then validate does it', async () => {
+    seedCase({ caseId: 9, status: 'validated' });
+    const agent = await staff();
+    const preview = await agent.get(`/submissions/${REF}/escalation-preview`);
+    expect(preview.body).toEqual({ conversions: [{ majorCaseId: 9, minorCaseIds: [1, 2] }] });
+    const validated = await agent.post(`/submissions/${REF}/validate`);
+    expect(validated.body.conversions).toEqual(preview.body.conversions);
+  });
+
+  test('validate is 409 student_not_matched while the ID is unmatched, and works after linking', async () => {
+    store.state.cases.forEach((c) => (c.studentId = null));
+    const agent = await staff();
+    const blocked = await agent.post(`/submissions/${REF}/validate`);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.error).toBe('student_not_matched');
+
+    expect((await agent.patch('/cases/1/student').send({ studentId: S1 })).status).toBe(200);
+    expect((await agent.post(`/submissions/${REF}/validate`)).status).toBe(200);
+  });
+
+  test('reject needs a reason', async () => {
+    const agent = await staff();
+    const missing = await agent.post(`/submissions/${REF}/reject`).send({});
+    expect(missing.status).toBe(400);
+    const rejected = await agent.post(`/submissions/${REF}/reject`).send({ reason: 'Not the student' });
+    expect(rejected.status).toBe(200);
+    expect(store.state.cases.every((c) => c.status === 'rejected')).toBe(true);
+  });
+
+  test('a malformed or unknown reference is 404', async () => {
+    const agent = await staff();
+    expect((await agent.post('/submissions/not-a-uuid/validate')).status).toBe(404);
+    expect((await agent.post('/submissions/22222222-2222-4222-8222-222222222222/validate')).status).toBe(404);
+  });
+});
+
+describe('resolve, remarks and link', () => {
+  test('resolve-without-sanction needs a reason and a validated case', async () => {
+    seedCase({ caseId: 1, status: 'validated' });
+    const agent = await staff();
+    expect((await agent.post('/cases/1/resolve-without-sanction').send({})).status).toBe(400);
+    expect((await agent.post('/cases/1/resolve-without-sanction').send({ reason: 'Warning only' })).status).toBe(200);
+    const again = await agent.post('/cases/1/resolve-without-sanction').send({ reason: 'again' });
+    expect(again.status).toBe(409);
+    expect(again.body.error).toBe('invalid_status');
+  });
+
+  test('resolve is 409 sanctions_incomplete until every sanction is completed', async () => {
+    seedCase({ caseId: 1, status: 'for_sanction' });
+    store.state.sanctions.set(1, ['pending_verification']);
+    const agent = await staff();
+    const blocked = await agent.post('/cases/1/resolve');
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.error).toBe('sanctions_incomplete');
+    store.state.sanctions.set(1, ['completed']);
+    expect((await agent.post('/cases/1/resolve')).status).toBe(200);
+  });
+
+  test('remarks are appended to the timeline and shown in the detail', async () => {
+    seedCase({ caseId: 1, status: 'validated' });
+    const agent = await staff();
+    expect((await agent.post('/cases/1/remarks').send({ remarks: 'Call the parent' })).status).toBe(201);
+    const detail = await agent.get('/cases/1');
+    expect(detail.body.case.timeline.at(-1)).toMatchObject({ eventType: 'remark', remarks: 'Call the parent', by: STAFF.id });
+  });
+
+  test.each(['abc', '0x1', '1.5', '-1'])('rejects id %s with 404', async (id) => {
+    const agent = await staff();
+    expect((await agent.post(`/cases/${id}/remarks`).send({ remarks: 'x' })).status).toBe(404);
+  });
+});
+
+describe('GET /cases', () => {
+  beforeEach(() => {
+    for (let id = 1; id <= 8; id += 1) {
+      seedCase({ caseId: id, status: id % 2 === 0 ? 'validated' : 'reported', handbookEntryId: id === 8 ? 3 : 1 });
+    }
+  });
+
+  test('pages six at a time, newest first, with the total', async () => {
+    const agent = await staff();
+    const first = await agent.get('/cases');
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ total: 8, page: 1, pageSize: 6 });
+    expect(first.body.cases.map((c: { id: number }) => c.id)).toEqual([8, 7, 6, 5, 4, 3]);
+    const second = await agent.get('/cases?page=2');
+    expect(second.body.cases.map((c: { id: number }) => c.id)).toEqual([2, 1]);
+  });
+
+  test('sorts oldest first', async () => {
+    const agent = await staff();
+    const response = await agent.get('/cases?sort=oldest');
+    expect(response.body.cases.map((c: { id: number }) => c.id)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  test('filters by status and by class', async () => {
+    const agent = await staff();
+    const validated = await agent.get('/cases?status=validated');
+    expect(validated.body.cases.map((c: { id: number }) => c.id)).toEqual([8, 6, 4, 2]);
+    const major = await agent.get('/cases?class=Major');
+    expect(major.body.cases.map((c: { id: number }) => c.id)).toEqual([8]);
+  });
+
+  test('searches by case code and by student name', async () => {
+    const agent = await staff();
+    expect((await agent.get('/cases?q=C005')).body.cases.map((c: { id: number }) => c.id)).toEqual([5]);
+    expect((await agent.get('/cases?q=ana')).body.total).toBe(8);
+    expect((await agent.get('/cases?q=nobody')).body.total).toBe(0);
+  });
+
+  test.each(['status=bogus', 'class=Medium', 'sort=random', 'page=0', 'page=abc', 'page=1.5'])('rejects %s with 400', async (query) => {
+    const agent = await staff();
+    expect((await agent.get(`/cases?${query}`)).status).toBe(400);
+  });
+});
+
+describe('GET /cases/:id', () => {
+  test('returns the detail with escalation links after a conversion', async () => {
+    const agent = await staff();
+    for (const handbookEntryId of [1, 2, 1]) await agent.post('/cases').send({ studentId: S1, handbookEntryId });
+    const major = (await agent.get('/cases/3')).body.case;
+    expect(major).toMatchObject({ code: 'C003', violation: '3 minor offense', severity: 'Major', convertedFrom: 'Improper uniform' });
+    expect(major.createdFromCaseIds).toEqual([1, 2]);
+    const minor = (await agent.get('/cases/1')).body.case;
+    expect(minor).toMatchObject({ isEscalated: true, countedTowardCaseId: 3 });
+  });
+
+  test('an unknown id is 404', async () => {
+    const agent = await staff();
+    expect((await agent.get('/cases/404')).status).toBe(404);
+  });
+});

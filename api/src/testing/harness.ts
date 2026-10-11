@@ -3,6 +3,8 @@ import request from 'supertest';
 import { createApp } from '../app.js';
 import { createMemoryAccountRepo } from '../auth/memory-repo.js';
 import { createAuthService } from '../auth/service.js';
+import type { CaseQueries } from '../cases/queries.js';
+import type { CaseService } from '../cases/service.js';
 import type { HandbookRepo } from '../handbook/repo.js';
 import { createMemoryHandbookRepo } from '../handbook/memory-repo.js';
 import type { StudentViewRepo } from '../me/repo.js';
@@ -22,6 +24,7 @@ const ROUNDS = 4;
 export interface HarnessOptions {
   handbook?: HandbookRepo;
   studentViews?: StudentViewRepo;
+  cases?: { service: CaseService; queries: CaseQueries };
   now?: () => Date;
 }
 
@@ -54,6 +57,7 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
     data: {
       handbook: options.handbook ?? createMemoryHandbookRepo(),
       studentViews: options.studentViews ?? createMemoryStudentViewRepo(),
+      cases: options.cases,
       now: options.now,
     },
   });

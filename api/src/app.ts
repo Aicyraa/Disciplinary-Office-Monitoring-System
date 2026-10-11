@@ -5,6 +5,9 @@ import helmet from 'helmet';
 import type { HealthResponse } from '../../shared/types.js';
 import { createAuthRouter, type LoginRateLimitOptions } from './auth/routes.js';
 import type { AuthService } from './auth/service.js';
+import type { CaseQueries } from './cases/queries.js';
+import { createCaseRouter } from './cases/routes.js';
+import type { CaseService } from './cases/service.js';
 import { createHandbookRouter } from './handbook/routes.js';
 import type { HandbookRepo } from './handbook/repo.js';
 import { createMeRouter } from './me/routes.js';
@@ -26,6 +29,8 @@ export interface AppDeps {
   data?: {
     handbook: HandbookRepo;
     studentViews: StudentViewRepo;
+    /** Staff case workflow: the rules (service) and the read side (queries). */
+    cases?: { service: CaseService; queries: CaseQueries };
     /** Injected so tests control "today" (Asia/Manila). */
     now?: () => Date;
   };
@@ -69,6 +74,7 @@ export function createApp({ auth, data }: AppDeps = {}) {
     if (data) {
       app.use(createHandbookRouter({ repo: data.handbook }));
       app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
+      if (data.cases) app.use(createCaseRouter(data.cases));
     }
   }
 

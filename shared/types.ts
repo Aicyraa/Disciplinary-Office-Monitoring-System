@@ -143,3 +143,65 @@ export type StudentClearanceResponse = {
   terms: ClearanceTermView[];
   clearance: StudentClearanceView | null;
 };
+
+// ---- Staff case workflow (SPEC 4.1, 4.2, 4.10; FEATURE-RULES 3.3, 3.5) -----------------------------
+
+export type CaseSource = 'gate' | 'staff';
+
+export type StaffCaseRow = {
+  id: number;
+  /** Display code, C001 style. */
+  code: string;
+  status: CaseStatus;
+  severity: Severity;
+  violation: string;
+  section: string;
+  caseDate: string;
+  source: CaseSource;
+  /** The matched student, or null while a gate report's ID is unmatched. */
+  student: { id: string; name: string } | null;
+  /** What the guard typed on the gate form (gate cases only). */
+  claimed: { studentId: string | null; name: string | null; program: string | null; year: string | null } | null;
+  /** Cases from one gate submit share this reference; validate and reject act on all of them. */
+  submissionRef: string | null;
+  /** This minor was counted into a 3-minor Major case. */
+  isEscalated: boolean;
+  /** Set on a converted Major case: the violation it was reported as. */
+  convertedFrom: string | null;
+};
+
+export type StaffCaseListResponse = {
+  cases: StaffCaseRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type StaffTimelineEntry = CaseTimelineEntry & {
+  /** Staff member's name, or "System". */
+  by: string;
+};
+
+export type StaffCaseDetail = StaffCaseRow & {
+  resolvedWithoutSanction: boolean;
+  dateResolved: string | null;
+  timeline: StaffTimelineEntry[];
+  /** On a converted Major: the minors it was created from. */
+  createdFromCaseIds: number[];
+  /** On an escalated minor: the Major case it was counted toward. */
+  countedTowardCaseId: number | null;
+  /** Other cases from the same gate submission. */
+  siblingCaseIds: number[];
+  sanctions: Array<{
+    id: number;
+    sanctionCode: string;
+    type: string;
+    status: CaseSanctionStatus;
+    dueDate: string;
+  }>;
+};
+
+export type EscalationConversion = {
+  majorCaseId: number;
+  minorCaseIds: number[];
+};

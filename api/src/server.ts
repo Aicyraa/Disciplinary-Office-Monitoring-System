@@ -4,6 +4,8 @@ import { Pool } from 'pg';
 import { app as healthOnlyApp, createApp } from './app.js';
 import { createPrismaAccountRepo } from './auth/prisma-repo.js';
 import { createAuthService } from './auth/service.js';
+import { createPrismaCaseQueries, createPrismaCaseStore } from './cases/prisma-store.js';
+import { createCaseService } from './cases/service.js';
 import { createPrismaHandbookRepo } from './handbook/prisma-repo.js';
 import { createPrismaStudentViewRepo } from './me/prisma-repo.js';
 import { createPrismaClient } from './prisma.js';
@@ -29,7 +31,14 @@ function buildApp() {
 
   return createApp({
     auth: { service, sessionSecret: SESSION_SECRET, clientOrigin, sessionStore, secureCookies: isProduction },
-    data: { handbook: createPrismaHandbookRepo(prisma), studentViews: createPrismaStudentViewRepo(prisma) },
+    data: {
+      handbook: createPrismaHandbookRepo(prisma),
+      studentViews: createPrismaStudentViewRepo(prisma),
+      cases: {
+        service: createCaseService({ store: createPrismaCaseStore(prisma) }),
+        queries: createPrismaCaseQueries(prisma),
+      },
+    },
   });
 }
 
