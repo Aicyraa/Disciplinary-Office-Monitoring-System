@@ -79,6 +79,8 @@ export interface CasePatch {
 export interface CaseTx {
   /** Serialises escalation counting per student (SELECT ... FOR UPDATE on the account). */
   lockStudent(studentId: string): Promise<void>;
+  /** Serialises decisions on one gate submission (advisory lock), including unmatched ones with no student. */
+  lockSubmission(submissionRef: string): Promise<void>;
   getCase(caseId: number): Promise<CaseRecord | null>;
   listStudentCases(studentId: string): Promise<CaseRecord[]>;
   listSubmission(submissionRef: string): Promise<CaseRecord[]>;

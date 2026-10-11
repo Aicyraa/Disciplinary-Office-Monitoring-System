@@ -121,6 +121,32 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
     return { ok: true, cases };
   }
 
+  /**
+   * Locks first, then reads, so the status checks that follow cannot be stale: a decision that committed while
+   * this transaction waited for the lock is visible. Locks are taken in one order (submission, then students
+   * sorted by id) so two transactions cannot deadlock.
+   */
+  async function loadSubmissionLocked(
+    tx: CaseTx,
+    submissionRef: string,
+  ): Promise<{ ok: true; cases: CaseRecord[] } | CaseFailure> {
+    await tx.lockSubmission(submissionRef);
+    const first = await tx.listSubmission(submissionRef);
+    if (first.length === 0) return fail('not_found', 'No report with that reference was found.');
+    const students = distinct(first.map((c) => c.studentId).filter((id): id is string => id !== null)).sort();
+    for (const studentId of students) await tx.lockStudent(studentId);
+    return { ok: true, cases: await tx.listSubmission(submissionRef) };
+  }
+
+  /** Single-case version of the same rule: lock the student (or the submission), then read the case. */
+  async function loadCaseLocked(tx: CaseTx, caseId: number): Promise<CaseRecord | null> {
+    const first = await tx.getCase(caseId);
+    if (!first) return null;
+    if (first.submissionRef !== null) await tx.lockSubmission(first.submissionRef);
+    if (first.studentId !== null) await tx.lockStudent(first.studentId);
+    return tx.getCase(caseId);
+  }
+
   return {
     async recordViolation({ employeeId, studentId, handbookEntryId }) {
       return store.transaction(async (tx) => {
@@ -187,7 +213,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
 
     async validateSubmission({ employeeId, submissionRef }) {
       return store.transaction(async (tx) => {
-        const loaded = await loadSubmission(tx, submissionRef);
+        const loaded = await loadSubmissionLocked(tx, submissionRef);
         if (!loaded.ok) return loaded;
         if (loaded.cases.some((c) => c.status !== 'reported')) {
           return fail('already_decided', 'This report was already validated or rejected.');
@@ -230,7 +256,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
       const text = cleanText(reason);
       if (text === null) return fail('invalid_input', `A reason is required (up to ${MAX_TEXT_LENGTH} characters).`);
       return store.transaction(async (tx) => {
-        const loaded = await loadSubmission(tx, submissionRef);
+        const loaded = await loadSubmissionLocked(tx, submissionRef);
         if (!loaded.ok) return loaded;
         if (loaded.cases.some((c) => c.status !== 'reported')) {
           return fail('already_decided', 'This report was already validated or rejected.');
@@ -263,7 +289,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
 
     async linkStudent({ employeeId, caseId, studentId }) {
       return store.transaction(async (tx) => {
-        const record = await tx.getCase(caseId);
+        const record = await loadCaseLocked(tx, caseId);
         if (!record) return fail('not_found', 'Case not found.');
         if (record.studentId !== null) return fail('student_already_linked', 'This case is already linked to a student.');
         if (record.status !== 'reported') return fail('invalid_status', 'Only a reported case can be linked to a student.');
@@ -289,7 +315,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
 
     async resolveCase({ employeeId, caseId }) {
       return store.transaction(async (tx) => {
-        const record = await tx.getCase(caseId);
+        const record = await loadCaseLocked(tx, caseId);
         if (!record) return fail('not_found', 'Case not found.');
         if (record.status !== 'for_sanction') return fail('invalid_status', 'Only a case with an assigned sanction can be resolved this way.');
         const counts = await tx.sanctionCounts(caseId);
@@ -317,7 +343,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
       const text = cleanText(reason);
       if (text === null) return fail('invalid_input', `A reason is required (up to ${MAX_TEXT_LENGTH} characters).`);
       return store.transaction(async (tx) => {
-        const record = await tx.getCase(caseId);
+        const record = await loadCaseLocked(tx, caseId);
         if (!record) return fail('not_found', 'Case not found.');
         if (record.status !== 'validated') {
           return fail('invalid_status', 'Only a validated case with no sanction can be resolved without one.');
@@ -343,7 +369,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
       const text = cleanText(remarks);
       if (text === null) return fail('invalid_input', `A remark is required (up to ${MAX_TEXT_LENGTH} characters).`);
       return store.transaction(async (tx) => {
-        const record = await tx.getCase(caseId);
+        const record = await loadCaseLocked(tx, caseId);
         if (!record) return fail('not_found', 'Case not found.');
         const at = now();
         await tx.addHistory({ caseId, eventType: 'remark', statusAfter: record.status, remarks: text, employeeId, date: at });

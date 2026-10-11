@@ -213,6 +213,61 @@ describe('validateSubmission', () => {
   });
 });
 
+describe('locking and races (review finding: status check raced the lock)', () => {
+  beforeEach(() => {
+    seedCase({ caseId: 1, submissionRef: REF });
+    seedCase({ caseId: 2, submissionRef: REF, handbookEntryId: 2 });
+  });
+
+  test('validate takes the submission and student locks before it decides or writes', async () => {
+    store.calls.length = 0;
+    await service.validateSubmission({ employeeId: STAFF, submissionRef: REF });
+    const firstWrite = store.calls.indexOf('updateCase');
+    expect(store.calls.indexOf('lockSubmission')).toBeGreaterThanOrEqual(0);
+    expect(store.calls.indexOf('lockSubmission')).toBeLessThan(store.calls.indexOf('lockStudent'));
+    // The read that the status checks use happens after the locks.
+    expect(store.calls.lastIndexOf('listSubmission', firstWrite)).toBeGreaterThan(store.calls.indexOf('lockStudent'));
+  });
+
+  test('a reject that waited for a validate to commit sees it and refuses to overwrite', async () => {
+    // While this transaction waits for the lock, another one validated the submission.
+    store.onFirstLock((working) => working.cases.forEach((c) => (c.status = 'validated')));
+    const result = await service.rejectSubmission({ employeeId: STAFF, submissionRef: REF, reason: 'Not the student' });
+    expect(result).toMatchObject({ ok: false, code: 'already_decided' });
+    // The other transaction's validation stands; this reject wrote nothing over it.
+    expect(store.state.cases.map((c) => c.status)).toEqual(['validated', 'validated']);
+    expect(store.state.history.filter((h) => h.eventType === 'rejected')).toEqual([]);
+    expect(store.state.notifications).toEqual([]);
+  });
+
+  test('a validate that waited for a reject to commit sees it and refuses', async () => {
+    store.onFirstLock((working) => working.cases.forEach((c) => (c.status = 'rejected')));
+    const result = await service.validateSubmission({ employeeId: STAFF, submissionRef: REF });
+    expect(result).toMatchObject({ ok: false, code: 'already_decided' });
+    expect(store.state.notifications).toEqual([]);
+  });
+
+  test('a single-case resolve that waited for another decision sees the new status', async () => {
+    seedCase({ caseId: 5, status: 'validated' });
+    store.onFirstLock((working) => {
+      const target = working.cases.find((c) => c.caseId === 5);
+      if (target) target.status = 'resolved';
+    });
+    const result = await service.resolveWithoutSanction({ employeeId: STAFF, caseId: 5, reason: 'x' });
+    expect(result).toMatchObject({ ok: false, code: 'invalid_status' });
+  });
+
+  test('validateSubmission is atomic: a failure after some writes leaves nothing behind', async () => {
+    seedCase({ caseId: 9, status: 'validated' }); // so the validation also escalates
+    const before = JSON.stringify([store.state.cases, store.state.history, store.state.escalations, store.state.notifications]);
+    store.failAfterWrites(6);
+    await expect(service.validateSubmission({ employeeId: STAFF, submissionRef: REF })).rejects.toThrow(/simulated failure/);
+    store.failAfterWrites(null);
+    expect(JSON.stringify([store.state.cases, store.state.history, store.state.escalations, store.state.notifications])).toBe(before);
+    expect(find(1).status).toBe('reported');
+  });
+});
+
 describe('previewEscalation', () => {
   beforeEach(() => {
     seedCase({ caseId: 1, status: 'validated' });

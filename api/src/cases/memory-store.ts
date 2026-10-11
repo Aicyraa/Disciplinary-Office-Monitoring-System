@@ -25,6 +25,13 @@ export interface MemoryCaseStore extends CaseStore {
   state: MemoryState;
   /** Test hook: make the next transaction throw after `afterWrites` writes, to prove atomicity. */
   failAfterWrites(afterWrites: number | null): void;
+  /**
+   * Test hook: runs once, inside the first lock a transaction takes, against that transaction's working copy.
+   * It stands in for "another transaction committed while we waited for the lock".
+   */
+  onFirstLock(hook: ((working: MemoryState) => void) | null): void;
+  /** Names of the lock / read / write calls made, in order, across all transactions. */
+  readonly calls: string[];
 }
 
 const clone = (state: MemoryState): MemoryState => ({
@@ -55,6 +62,10 @@ export function createMemoryCaseStore(seed: Partial<MemoryState> = {}): MemoryCa
     failAfterWrites(afterWrites) {
       failAt = afterWrites;
     },
+    onFirstLock(hook) {
+      lockHook = hook;
+    },
+    calls: [],
     async transaction(work) {
       // Work on a copy and swap it in only if `work` succeeds: that is the atomicity the real store gives.
       const working = clone(store.state);
@@ -66,18 +77,36 @@ export function createMemoryCaseStore(seed: Partial<MemoryState> = {}): MemoryCa
       const severityOf = (handbookEntryId: number): Severity =>
         working.handbook.find((h) => h.handbookEntryId === handbookEntryId)?.severity ?? 'Minor';
 
+      const runLockHook = () => {
+        if (lockHook) {
+          const hook = lockHook;
+          lockHook = null;
+          hook(working);
+        }
+      };
+
       const tx: CaseTx = {
-        async lockStudent() {},
+        async lockStudent() {
+          store.calls.push('lockStudent');
+          runLockHook();
+        },
+        async lockSubmission() {
+          store.calls.push('lockSubmission');
+          runLockHook();
+        },
         async getCase(caseId) {
+          store.calls.push('getCase');
           const found = working.cases.find((c) => c.caseId === caseId);
           return found ? { ...found, severity: severityOf(found.handbookEntryId) } : null;
         },
         async listStudentCases(studentId) {
+          store.calls.push('listStudentCases');
           return working.cases
             .filter((c) => c.studentId === studentId)
             .map((c) => ({ ...c, severity: severityOf(c.handbookEntryId) }));
         },
         async listSubmission(submissionRef) {
+          store.calls.push('listSubmission');
           return working.cases
             .filter((c) => c.submissionRef === submissionRef)
             .map((c) => ({ ...c, severity: severityOf(c.handbookEntryId) }));
@@ -118,6 +147,7 @@ export function createMemoryCaseStore(seed: Partial<MemoryState> = {}): MemoryCa
           return caseId;
         },
         async updateCase(caseId, patch: CasePatch) {
+          store.calls.push('updateCase');
           countWrite();
           const index = working.cases.findIndex((c) => c.caseId === caseId);
           if (index === -1) throw new Error(`case ${caseId} not found`);
@@ -147,5 +177,6 @@ export function createMemoryCaseStore(seed: Partial<MemoryState> = {}): MemoryCa
     },
   };
   let failAt: number | null = null;
+  let lockHook: ((working: MemoryState) => void) | null = null;
   return store;
 }

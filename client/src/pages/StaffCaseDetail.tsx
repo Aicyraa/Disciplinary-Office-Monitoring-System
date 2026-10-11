@@ -34,7 +34,7 @@ const msg = (error: unknown): string => toApiError(error).message;
 
 function Actions({ detail, onDone }: { detail: StaffCaseDetail; onDone: () => void }) {
   const [open, setOpen] = useState<CaseAction | 'remark' | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [linkId, setLinkId] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
   const actions = availableActions(detail);
@@ -48,7 +48,14 @@ function Actions({ detail, onDone }: { detail: StaffCaseDetail; onDone: () => vo
 
   const finish = (message: string) => {
     setOpen(null);
-    setNotice(message);
+    setNotice({ tone: 'success', text: message });
+    onDone();
+  };
+
+  /** A refused action (for example 409: someone else already decided) is an error, and the view is stale. */
+  const failure = (error: unknown) => {
+    setOpen(null);
+    setNotice({ tone: 'error', text: msg(error) });
     onDone();
   };
 
@@ -59,7 +66,7 @@ function Actions({ detail, onDone }: { detail: StaffCaseDetail; onDone: () => vo
       const converted = result.conversions.length > 0;
       finish(converted ? 'Validated. A 3rd minor was converted into a Major case.' : 'Validated.');
     } catch (error) {
-      setNotice(msg(error));
+      failure(error);
     }
   }
 
@@ -84,8 +91,11 @@ function Actions({ detail, onDone }: { detail: StaffCaseDetail; onDone: () => vo
     <Card className="mb-4">
       <h2 className="mb-2 text-lg font-semibold text-ink">Actions</h2>
       {notice ? (
-        <p role="status" className="mb-2 text-sm font-medium text-success">
-          {notice}
+        <p
+          role={notice.tone === 'error' ? 'alert' : 'status'}
+          className={`mb-2 text-sm font-medium ${notice.tone === 'error' ? 'text-danger' : 'text-success'}`}
+        >
+          {notice.text}
         </p>
       ) : null}
 
@@ -149,7 +159,7 @@ function Actions({ detail, onDone }: { detail: StaffCaseDetail; onDone: () => vo
                 await api.resolveCase(detail.id);
                 finish('Case resolved.');
               } catch (error) {
-                setNotice(msg(error));
+                failure(error);
               }
             }}
           >

@@ -62,6 +62,10 @@ function createTx(db: Prisma.TransactionClient): CaseTx {
       // Serialises escalation counting for this student across concurrent validations.
       await db.$queryRaw`SELECT student_id FROM student_accounts WHERE student_id = ${studentId} FOR UPDATE`;
     },
+    async lockSubmission(submissionRef) {
+      // Transaction-scoped advisory lock keyed on the submission, released at commit or rollback.
+      await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${submissionRef}))`;
+    },
     async getCase(caseId) {
       const row = await db.disciplinary_cases.findUnique({ where: { disciplinary_case_id: caseId }, include: withEntry });
       return row ? toRecord(row as unknown as CaseRow) : null;
@@ -172,8 +176,11 @@ export function createPrismaCaseStore(prisma: Pick<PrismaClient, '$transaction'>
 const listInclude = {
   [CURRENT]: { include: { violations: true } },
   [ORIGINAL]: { include: { violations: true } },
-  student_accounts: true,
+  // Names only: never load the account row, which carries password_hashed.
+  student_accounts: { select: { first_name: true, last_name: true } },
 } as const;
+
+const employeeName = { select: { first_name: true, last_name: true } } as const;
 
 type ListRow = CaseRow & {
   claimed_program: string | null;
@@ -254,7 +261,7 @@ export function createPrismaCaseQueries(
         where: { disciplinary_case_id: caseId },
         include: {
           ...listInclude,
-          case_status_history: { orderBy: { date_updated: 'asc' }, include: { employee_accounts: true } },
+          case_status_history: { orderBy: { date_updated: 'asc' }, include: { employee_accounts: employeeName } },
           [AS_MAJOR]: true,
           [AS_MINOR]: true,
           case_sanctions: { include: { sanctions: true }, orderBy: { case_sanction_id: 'asc' } },

@@ -41,7 +41,7 @@ function seedCase(overrides: Partial<CaseRecord> & { caseId: number }): void {
 
 function build() {
   const service = createCaseService({ store, now: () => NOW });
-  const queries = createMemoryCaseQueries(store, new Map([[S1, 'Ana Cruz']]));
+  const queries = createMemoryCaseQueries(store, new Map([[S1, 'Ana Cruz']]), new Map([[STAFF.id, 'Sam Reyes']]));
   return buildHarnessApp({ cases: { service, queries }, now: () => NOW });
 }
 
@@ -215,7 +215,7 @@ describe('resolve, remarks and link', () => {
     const agent = await staff();
     expect((await agent.post('/cases/1/remarks').send({ remarks: 'Call the parent' })).status).toBe(201);
     const detail = await agent.get('/cases/1');
-    expect(detail.body.case.timeline.at(-1)).toMatchObject({ eventType: 'remark', remarks: 'Call the parent', by: STAFF.id });
+    expect(detail.body.case.timeline.at(-1)).toMatchObject({ eventType: 'remark', remarks: 'Call the parent', by: 'Sam Reyes' });
   });
 
   test.each(['abc', '0x1', '1.5', '-1'])('rejects id %s with 404', async (id) => {

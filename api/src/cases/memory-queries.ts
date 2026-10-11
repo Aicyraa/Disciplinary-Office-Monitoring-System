@@ -9,6 +9,8 @@ export function createMemoryCaseQueries(
   store: MemoryCaseStore,
   /** student id -> display name */
   names: Map<string, string> = new Map(),
+  /** employee id -> display name; the timeline shows names, as the Prisma queries do. */
+  staffNames: Map<string, string> = new Map(),
 ): CaseQueries {
   const entryOf = (id: number) => store.state.handbook.find((h) => h.handbookEntryId === id);
 
@@ -74,7 +76,7 @@ export function createMemoryCaseQueries(
             statusAfter: h.statusAfter,
             remarks: h.remarks,
             date: h.date.toISOString(),
-            by: h.employeeId ?? 'System',
+            by: h.employeeId === null ? 'System' : (staffNames.get(h.employeeId) ?? h.employeeId),
           })),
         createdFromCaseIds: links.filter((l) => l.majorCaseId === caseId).map((l) => l.minorCaseId),
         countedTowardCaseId: links.find((l) => l.minorCaseId === caseId)?.majorCaseId ?? null,
