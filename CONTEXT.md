@@ -203,3 +203,18 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 
 ---
 
+
+
+## Verification and decisions after step 4 (human merged steps 1-4 into main and c_v1)
+
+**Decisions by the human** ("proceed with the open choices"): the step 3 and step 4 choices are accepted as built: `PATCH /cases/:id/student` as the endpoint for fixing the student link (it links every unmatched case in the same submission); reject allowed only from `reported`; reasons and remarks capped at 1000 characters; a staff-recorded case gets one `validated` timeline entry and a `newviol` notification, gate validations use kind `case`; notifications are written `pending` and sent in step 6; recording a violation requires an existing, active student; `assigned` and `scheduled` reuse the pending and validated pill tones. Still the human's to do in `docs/sdao-handoff/**` and `CLAUDE.md` (no agent may edit them): add `STORAGE_BUCKET` to SPEC 6.1 and CLAUDE.md section 8, and add the `PATCH /cases/:id/student` endpoint and the 1000-character cap to SPEC section 7 / 4.1.
+
+**Live check at the database level (dev branch, via the Neon MCP, 2026-10-12).** No API process was running and agents may not start it or `curl` it, so the application path was not exercised. What was run: the exact write sequence of the case store, in one `DO` block that always raises at the end so everything rolled back (afterwards 0 rows in `disciplinary_cases`, `case_escalations`, `case_status_history`, `notifications`). Results:
+- `SELECT ... FROM student_accounts ... FOR UPDATE` and `pg_advisory_xact_lock(hashtext(<uuid text>))` both work.
+- Three validated staff cases for one student, then the conversion: ids 1, 2 end `is_escalated = true` with their own entries; id 3 ends `handbook_entry_id = 68 (H068)`, `original_handbook_entry_id` = the original entry, `is_escalated = false`; `case_escalations` accepts (3,1), (3,2).
+- `INSERT ... ON CONFLICT (idempotency_key) DO NOTHING` (what `createMany({ skipDuplicates })` generates): the duplicate inserted 0 rows and one row exists for the key.
+- Constraints the service must never violate all fire: reusing a minor in `case_escalations` (unique_violation); a `validated` case with no student; a staff case with no `reported_by_employee_id`; a notification with an unknown `kind`; a history row with an unknown `status_after` (all check_violation).
+- Not covered by this check: Prisma's own generated SQL and relation includes (type-checked by `tsc` only), `$executeRaw` for the advisory lock, `$transaction` behavior, and every screen in a browser. The HUMAN CHECK lists in the step 3 and step 4 sections still apply for those.
+
+---
+
