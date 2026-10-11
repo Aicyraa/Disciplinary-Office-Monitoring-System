@@ -1,5 +1,5 @@
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/prisma/client.js';
 
 // Construct only when database-backed behavior is explicitly needed.
 export function createPrismaClient() {

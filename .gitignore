@@ -150,3 +150,6 @@ vite.config.ts.timestamp-*
 # Turbo Repo
 .turbo
 opencode.json
+
+# Prisma generated client (api)
+api/generated/

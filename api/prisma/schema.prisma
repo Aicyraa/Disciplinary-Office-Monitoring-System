@@ -1,10 +1,17 @@
 generator client {
-  provider   = "prisma-client-js"
-  engineType = "client"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+}
+
+// Throwaway model used only to verify Prisma <-> Neon connectivity.
+model ConnectionTest {
+  id        Int      @id @default(autoincrement())
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("connection_test")
 }
