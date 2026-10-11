@@ -1,0 +1,37 @@
+{
+  "name": "disciplinary-office-monitoring-system",
+  "version": "1.0.0",
+  "description": "Temporary project description:",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint api/src api/prisma.config.ts client/src client/vite.config.ts shared eslint.config.mjs vitest.config.mjs",
+    "typecheck": "npm --prefix api run typecheck && npm --prefix client run typecheck",
+    "build": "concurrently --success all --kill-others-on-fail \"npm --prefix api run build\" \"npm --prefix client run build\"",
+    "dev": "concurrently --success all --kill-others --kill-signal SIGTERM \"npm --prefix api run dev\" \"npm --prefix client run dev\"",
+    "start": "concurrently --success all --kill-others --kill-signal SIGTERM \"npm --prefix api start\" \"npm --prefix client start\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aicyraa/Disciplinary-Office-Monitoring-System.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Aicyraa/Disciplinary-Office-Monitoring-System/issues"
+  },
+  "homepage": "https://github.com/Aicyraa/Disciplinary-Office-Monitoring-System#readme",
+  "dependencies": {
+    "@neon/config": "^1.8.6",
+    "@neon/env": "^1.5.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.2",
+    "concurrently": "9.2.1",
+    "eslint": "9.39.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1",
+    "vitest": "4.1.6"
+  }
+}
