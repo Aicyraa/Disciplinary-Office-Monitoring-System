@@ -85,3 +85,16 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 
 ---
 
+
+
+## Integration 2026-10-12 (branch integrate/2026-10-12, based on c_v1 at 78c8c85)
+
+- Merged in order: `worktree-foundation-storage` (34f8611, no conflicts), then `worktree-auth` (d7a2904; only CONTEXT.md conflicted: kept both task rows and both sections; `vitest.config.mjs` auto-merged, identical change on both sides).
+- After the final merge: `npm test` 6 files / 55 tests pass; `npm run lint`, `npm run typecheck` (api + client) and `npm run build` (api + client) clean.
+- Process note: the first integrator run was blocked from writing the shared checkout by the background-isolation guard after merge 1; merge 2 was completed from a linked worktree and the integrate branch fast-forwarded to it.
+- Diff base for the human: `git diff c_v1...integrate/2026-10-12` (local `main` is far behind).
+- Human to do before merging: (1) add `STORAGE_BUCKET` to SPEC 6.1 and CLAUDE.md section 8; (2) run the two HUMAN CHECKs above (storage presign, auth login curl); (3) delete the worktrees and `worktree-*` branches after merging.
+- Still open from reviews: `trust proxy` and secure cookies behind a proxy; change-password throttle; password max length; session-id-change test; `requireStudent` API test with the first student route; no test of `createS3Storage`.
+
+---
+
