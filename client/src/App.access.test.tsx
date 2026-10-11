@@ -50,9 +50,9 @@ describe('navFor', () => {
     ]);
   });
 
-  test('staff do not get student-only pages', () => {
+  test('staff get the case screens and no student-only pages', () => {
     const paths = navFor('staff').map((item) => item.to);
-    expect(paths).toEqual(['/', '/handbook']);
+    expect(paths).toEqual(['/', '/record', '/cases', '/handbook']);
   });
 });
 

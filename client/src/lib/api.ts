@@ -1,7 +1,10 @@
 import axios, { AxiosError } from 'axios';
 import type {
   AuthUser,
+  EscalationConversion,
   HandbookEntryView,
+  StaffCaseDetail,
+  StaffCaseListResponse,
   StudentAppointmentView,
   StudentCaseDetailView,
   StudentCaseView,
@@ -82,6 +85,22 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
   }
 }
 
+async function patch<T>(path: string, body?: unknown): Promise<T> {
+  try {
+    return (await http.patch<T>(path, body)).data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export interface StaffCaseQuery {
+  status?: string;
+  class?: string;
+  q?: string;
+  sort?: 'newest' | 'oldest';
+  page?: number;
+}
+
 export const api = {
   login: (email: string, password: string) => post<{ user: AuthUser }>('/auth/login', { email, password }),
   logout: () => post<void>('/auth/logout'),
@@ -95,6 +114,29 @@ export const api = {
   myCase: (id: number) => get<{ case: StudentCaseDetailView }>(`/me/cases/${id}`),
   mySanctions: () => get<{ sanctions: StudentSanctionView[] }>('/me/sanctions'),
   myAppointments: () => get<{ appointments: StudentAppointmentView[] }>('/me/appointments'),
+  // Staff case workflow (SPEC 7)
+  staffCases: (query: StaffCaseQuery) => {
+    const params: Record<string, string | number> = {};
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== '') params[key] = value;
+    }
+    return get<StaffCaseListResponse>('/cases', params);
+  },
+  staffCase: (id: number) => get<{ case: StaffCaseDetail }>(`/cases/${id}`),
+  recordViolation: (studentId: string, handbookEntryId: number) =>
+    post<{ caseId: number; conversions: EscalationConversion[] }>('/cases', { studentId, handbookEntryId }),
+  escalationPreview: (submissionRef: string) =>
+    get<{ conversions: EscalationConversion[] }>(`/submissions/${submissionRef}/escalation-preview`),
+  validateSubmission: (submissionRef: string) =>
+    post<{ caseIds: number[]; conversions: EscalationConversion[] }>(`/submissions/${submissionRef}/validate`),
+  rejectSubmission: (submissionRef: string, reason: string) =>
+    post<{ caseIds: number[] }>(`/submissions/${submissionRef}/reject`, { reason }),
+  linkStudent: (caseId: number, studentId: string) => patch<{ caseIds: number[] }>(`/cases/${caseId}/student`, { studentId }),
+  resolveCase: (caseId: number) => post<{ ok: true }>(`/cases/${caseId}/resolve`),
+  resolveWithoutSanction: (caseId: number, reason: string) =>
+    post<{ ok: true }>(`/cases/${caseId}/resolve-without-sanction`, { reason }),
+  addRemark: (caseId: number, remarks: string) => post<{ ok: true }>(`/cases/${caseId}/remarks`, { remarks }),
+
   myClearance: (term?: { academicYear: number; semester: number }) =>
     get<StudentClearanceResponse>(
       '/me/clearance',

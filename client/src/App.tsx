@@ -10,6 +10,9 @@ import { StaffHome, StudentDashboard } from './pages/Dashboard';
 import { HandbookPage } from './pages/Handbook';
 import Login from './pages/Login';
 import { InboxPage, NotFoundPage } from './pages/Misc';
+import { RecordViolationPage } from './pages/RecordViolation';
+import { CaseDetailPage } from './pages/StaffCaseDetail';
+import { CasesPage } from './pages/StaffCases';
 import { SanctionsPage } from './pages/Sanctions';
 import { ViolationDetail, ViolationsList } from './pages/Violations';
 
@@ -38,7 +41,7 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-/** Students only (the `/me/*` API is 403 for staff). */
+/** Pages for one role only (the `/me/*` API is 403 for staff, the case API is 403 for students). */
 function RoleOnly({ role }: { role: AccountRole }) {
   const { state } = useAuth();
   if (state.status === 'authenticated' && state.user.role !== role) return <Navigate to="/" replace />;
@@ -66,6 +69,11 @@ function AppRoutes() {
             <Route path="sanctions" element={<SanctionsPage />} />
             <Route path="appointments" element={<AppointmentsPage />} />
             <Route path="clearance" element={<ClearancePage />} />
+          </Route>
+          <Route element={<RoleOnly role="staff" />}>
+            <Route path="record" element={<RecordViolationPage />} />
+            <Route path="cases" element={<CasesPage />} />
+            <Route path="cases/:id" element={<CaseDetailPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

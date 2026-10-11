@@ -20,9 +20,11 @@ const STUDENT_NAV: NavItem[] = [
   { to: '/handbook', label: 'Handbook', icon: 'menu_book' },
 ];
 
-// Staff pages arrive in later build steps; until then staff have a landing page and the handbook.
+// Staff pages arrive step by step; the rest of the ten staff pages follow in later build steps.
 const STAFF_NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: 'home', end: true },
+  { to: '/record', label: 'Record violation', icon: 'edit_note' },
+  { to: '/cases', label: 'Cases', icon: 'folder_open' },
   { to: '/handbook', label: 'Handbook', icon: 'menu_book' },
 ];
 
