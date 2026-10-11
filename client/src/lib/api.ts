@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { resolveApiBaseUrl } from './apiBase';
 import type {
   AuthUser,
   EscalationConversion,
@@ -13,7 +14,13 @@ import type {
   StudentSanctionView,
 } from '../../../shared/types';
 
-const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+// The API is on the page's own host (localhost and 127.0.0.1 are different hosts: cookies and CORS care).
+// `__API_PORT__` is the root .env SERVER_PORT, injected by vite.config.ts; tests have no such define.
+const baseURL = resolveApiBaseUrl({
+  configured: import.meta.env.VITE_API_URL,
+  page: typeof window === 'undefined' ? undefined : window.location,
+  port: typeof __API_PORT__ === 'undefined' ? '3000' : __API_PORT__,
+});
 
 /** Session cookie auth: every request carries credentials. */
 export const http = axios.create({ baseURL, withCredentials: true });
@@ -49,6 +56,16 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * No response at all: the API is down, the address is wrong, or the browser blocked the call (CORS looks the
+ * same as an outage to the page). In development the message says where the request went and the usual causes.
+ */
+export function networkErrorMessage(): string {
+  const base = 'Cannot reach the server. Check your connection and try again.';
+  if (!import.meta.env.DEV) return base;
+  return `${base} (Development: requests go to ${baseURL}. Is the API running, and was this page opened at the same host, localhost or 127.0.0.1?)`;
+}
+
 /** Plain-language fallback when the API sends a status without a message. */
 export function defaultMessage(status: number): string {
   if (status === 401) return 'Your session has ended. Please sign in again.';
@@ -65,7 +82,7 @@ export function toApiError(error: unknown): ApiError {
       const { status } = error.response;
       return new ApiError(status, body?.message ?? defaultMessage(status), body?.error ?? null);
     }
-    return new ApiError(0, 'Cannot reach the server. Check your connection and try again.', null);
+    return new ApiError(0, networkErrorMessage(), null);
   }
   return new ApiError(0, error instanceof Error ? error.message : 'Something went wrong.', null);
 }

@@ -1,7 +1,8 @@
 import connectPgSimple from 'connect-pg-simple';
 import session from 'express-session';
 import { Pool } from 'pg';
-import { app as healthOnlyApp, createApp } from './app.js';
+import { createApp } from './app.js';
+import { allowedClientOrigins } from './cors.js';
 import { createPrismaAccountRepo } from './auth/prisma-repo.js';
 import { createAuthService } from './auth/service.js';
 import { createPrismaCaseQueries, createPrismaCaseStore } from './cases/prisma-store.js';
@@ -20,12 +21,21 @@ function buildApp() {
   const { DATABASE_URL, SESSION_SECRET } = process.env;
   const clientOrigin = process.env.APP_BASE_URL ?? `http://localhost:${process.env.CLIENT_PORT ?? 5173}`;
 
+  const loopbackAliases = !isProduction;
+  const origins = [...allowedClientOrigins(clientOrigin, { loopbackAliases })];
+  console.log(`Browser origins accepted by CORS: ${origins.join(', ')}`);
+
+  // Development keeps running with a clear 503 on every route (and CORS headers, so the browser shows the
+  // reason instead of "cannot reach the server"); production refuses to start.
+  const misconfigured = (reason: string) => {
+    if (isProduction) throw new Error(reason);
+    console.warn(`${reason} Serving /health only; every other route answers 503.`);
+    return createApp({ unconfigured: { clientOrigin, reason, loopbackAliases } });
+  };
   if (!DATABASE_URL || !SESSION_SECRET) {
-    if (isProduction) throw new Error('DATABASE_URL and SESSION_SECRET are required in production');
-    console.warn('DATABASE_URL or SESSION_SECRET missing: serving /health only, auth routes are disabled.');
-    return healthOnlyApp;
+    return misconfigured('DATABASE_URL and SESSION_SECRET must be set in the root .env.');
   }
-  if (SESSION_SECRET.length < 32) throw new Error('SESSION_SECRET must be at least 32 characters');
+  if (SESSION_SECRET.length < 32) return misconfigured('SESSION_SECRET must be at least 32 characters.');
 
   const PgStore = connectPgSimple(session);
   const sessionStore = new PgStore({ pool: new Pool({ connectionString: DATABASE_URL }), createTableIfMissing: true });
@@ -42,7 +52,14 @@ function buildApp() {
   const storage = bucketConfigured ? createS3Storage() : createUnavailableStorage('set STORAGE_BUCKET and the AWS_* keys');
 
   return createApp({
-    auth: { service, sessionSecret: SESSION_SECRET, clientOrigin, sessionStore, secureCookies: isProduction },
+    auth: {
+      service,
+      sessionSecret: SESSION_SECRET,
+      clientOrigin,
+      loopbackAliases,
+      sessionStore,
+      secureCookies: isProduction,
+    },
     data: {
       handbook: createPrismaHandbookRepo(prisma),
       studentViews: createPrismaStudentViewRepo(prisma),
