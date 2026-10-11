@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     envDir: rootDir,
+    // The API port is not a secret; the client builds its API address from the page's own host and this port.
+    define: { __API_PORT__: JSON.stringify(env.SERVER_PORT ?? '3000') },
     server: { host: '127.0.0.1', port: devPort, strictPort: true },
     preview: { host: '127.0.0.1', port: 4173, strictPort: true },
   };

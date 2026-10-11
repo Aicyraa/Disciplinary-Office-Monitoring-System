@@ -3,6 +3,7 @@ import express from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import type { HealthResponse } from '../../shared/types.js';
+import { allowedClientOrigins } from './cors.js';
 import { createAuthRouter, type LoginRateLimitOptions } from './auth/routes.js';
 import type { AuthService } from './auth/service.js';
 import type { CaseQueries } from './cases/queries.js';
@@ -20,13 +21,21 @@ export interface AppDeps {
   auth?: {
     service: AuthService;
     sessionSecret: string;
-    /** The one browser origin allowed by CORS (the client). */
+    /** The browser origin allowed by CORS (the client). */
     clientOrigin: string;
+    /** Development only: also accept localhost / 127.0.0.1 / [::1] spellings of a loopback `clientOrigin`. */
+    loopbackAliases?: boolean;
     /** Defaults to an in-memory store; production passes connect-pg-simple. */
     sessionStore?: session.Store;
     secureCookies?: boolean;
     loginRateLimit?: LoginRateLimitOptions;
   };
+  /**
+   * Development only, used instead of `auth` when required configuration is missing. Every route except
+   * /health answers 503 with the reason, and CORS headers are sent, so the browser shows the real cause
+   * instead of a misleading "cannot reach the server".
+   */
+  unconfigured?: { clientOrigin: string; reason: string; loopbackAliases?: boolean };
   /** Read-side repositories. Routes mount only when `auth` is also given (they need the session). */
   data?: {
     handbook: HandbookRepo;
@@ -40,7 +49,16 @@ export interface AppDeps {
   };
 }
 
-export function createApp({ auth, data }: AppDeps = {}) {
+/** CORS that answers only the allowed browser origins; any other origin gets no CORS headers. */
+function clientCors(clientOrigin: string, loopbackAliases: boolean | undefined) {
+  const allowed = allowedClientOrigins(clientOrigin, { loopbackAliases: loopbackAliases ?? false });
+  return cors({
+    origin: (origin, callback) => callback(null, origin !== undefined && allowed.has(origin)),
+    credentials: true,
+  });
+}
+
+export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
   const app = express();
 
   app.get('/health', (_request, response) => {
@@ -48,15 +66,16 @@ export function createApp({ auth, data }: AppDeps = {}) {
     response.status(200).json(health);
   });
 
+  if (!auth && unconfigured) {
+    app.use(clientCors(unconfigured.clientOrigin, unconfigured.loopbackAliases));
+    app.use((_request, response) => {
+      response.status(503).json({ error: 'server_not_configured', message: unconfigured.reason });
+    });
+  }
+
   if (auth) {
     app.use(helmet());
-    app.use(
-      cors({
-        // Sends CORS headers only to the client origin; other origins get none.
-        origin: (origin, callback) => callback(null, origin === auth.clientOrigin),
-        credentials: true,
-      }),
-    );
+    app.use(clientCors(auth.clientOrigin, auth.loopbackAliases));
     app.use(express.json({ limit: '100kb' }));
     app.use(
       session({
