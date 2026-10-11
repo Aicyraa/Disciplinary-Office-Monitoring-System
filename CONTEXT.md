@@ -96,6 +96,7 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 - Diff base for the human: `git diff c_v1...integrate/2026-10-12` (local `main` is far behind).
 - Human to do before merging: (1) add `STORAGE_BUCKET` to SPEC 6.1 and CLAUDE.md section 8; (2) run the two HUMAN CHECKs above (storage presign, auth login curl); (3) delete the worktrees and `worktree-*` branches after merging.
 - Still open from reviews: `trust proxy` and secure cookies behind a proxy; change-password throttle; password max length; session-id-change test; `requireStudent` API test with the first student route; no test of `createS3Storage`.
+- Step 3 update: `worktree-handbook-student-readonly` was created by fast-forwarding to `worktree-integrate-finish` (4a2984d), so it already contains steps 1-2 and needed no merge. It is reviewed (PASS, then PASS again after fixes); it is the current integration tip (`git log --oneline -1` on that branch). Human fast-forwards `integrate/2026-10-12` to it: `git merge --ff-only worktree-handbook-student-readonly`. Final reviewer run on that tip: 12 files / 155 tests, lint, typecheck, build clean.
 
 ---
 
