@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { beforeAll, describe, expect, test } from 'vitest';
-import { buildHarnessApp, signedInAgent, STAFF, STAFF_TEMP, STUDENT_A, STUDENT_B } from '../testing/harness.js';
+import { buildHarnessApp, signedInAgent, STAFF, STUDENT_A, STUDENT_B, STUDENT_TEMP } from '../testing/harness.js';
 import { createMemoryStudentViewRepo } from './memory-repo.js';
 import type { CaseRecord, CaseSanctionRecord } from './repo.js';
 
@@ -116,10 +116,9 @@ describe('/me access control', () => {
     expect((await agent.get(path)).status).toBe(403);
   });
 
-  test('is 403 password_change_required for a student account flagged must-change', async () => {
-    // STAFF_TEMP has the flag; the guard order (password gate before role) must hold for any role.
-    const agent = await signedInAgent(built(), STAFF_TEMP.email);
-    const response = await agent.get('/me/cases');
+  test.each(paths)('%s is 403 password_change_required for a student flagged must-change', async (path) => {
+    const agent = await signedInAgent(built(), STUDENT_TEMP.email);
+    const response = await agent.get(path);
     expect(response.status).toBe(403);
     expect(response.body.error).toBe('password_change_required');
   });

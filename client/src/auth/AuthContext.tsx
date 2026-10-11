@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { AuthUser } from '../../../shared/types';
-import { api, ApiError } from '../lib/api';
+import { api, ApiError, setSessionEndedHandler } from '../lib/api';
 
 export type AuthState =
   | { status: 'loading' }
@@ -36,6 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // A 401 on any data request means the session ended; drop to the login screen instead of showing errors.
+  useEffect(() => {
+    setSessionEndedHandler(() => setState((current) => (current.status === 'authenticated' ? { status: 'anonymous' } : current)));
+    return () => setSessionEndedHandler(null);
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {

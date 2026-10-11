@@ -14,6 +14,8 @@ export const STUDENT_A = { id: '2025-0000001', email: 'ana.cruz@students.nu-fair
 export const STUDENT_B = { id: '2025-0000002', email: 'ben.lee@students.nu-fairview.edu.ph' };
 export const STAFF = { id: 'E001', email: 'officer@nu-fairview.edu.ph' };
 export const STAFF_TEMP = { id: 'E002', email: 'temp@nu-fairview.edu.ph' };
+/** A student whose password was reset by staff and must be changed before anything else. */
+export const STUDENT_TEMP = { id: '2025-0000003', email: 'tem.po@students.nu-fairview.edu.ph' };
 
 const ROUNDS = 4;
 
@@ -40,6 +42,7 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
     account('student', STUDENT_B.id, STUDENT_B.email),
     account('staff', STAFF.id, STAFF.email),
     account('staff', STAFF_TEMP.id, STAFF_TEMP.email, true),
+    account('student', STUDENT_TEMP.id, STUDENT_TEMP.email, true),
   ]);
   return createApp({
     auth: {

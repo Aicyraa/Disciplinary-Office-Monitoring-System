@@ -30,7 +30,9 @@ export function navFor(role: AccountRole): NavItem[] {
   return role === 'staff' ? STAFF_NAV : STUDENT_NAV;
 }
 
-const linkBase = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium';
+// The sidebar is dark, so its focus ring is white (the default primary ring would be invisible on it).
+const linkBase =
+  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-white';
 
 function SideLink({ item }: { item: NavItem }) {
   return (

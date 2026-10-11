@@ -14,6 +14,24 @@ const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 /** Session cookie auth: every request carries credentials. */
 export const http = axios.create({ baseURL, withCredentials: true });
 
+// Sign-in itself and the startup session probe answer 401 as part of normal use; everything else that
+// answers 401 means the session ended mid-use (expired or account deactivated).
+const AUTH_PATHS = ['/auth/login', '/auth/me'];
+let onSessionEnded: (() => void) | null = null;
+
+/** Registers the one callback that runs when a signed-in session is rejected by the API. */
+export function setSessionEndedHandler(handler: (() => void) | null): void {
+  onSessionEnded = handler;
+}
+
+http.interceptors.response.use(undefined, (error: unknown) => {
+  if (error instanceof AxiosError && error.response?.status === 401) {
+    const path = error.config?.url ?? '';
+    if (!AUTH_PATHS.includes(path)) onSessionEnded?.();
+  }
+  return Promise.reject(error);
+});
+
 /** An API error reduced to what the UI needs. */
 export class ApiError extends Error {
   readonly status: number;
@@ -27,11 +45,21 @@ export class ApiError extends Error {
   }
 }
 
+/** Plain-language fallback when the API sends a status without a message. */
+export function defaultMessage(status: number): string {
+  if (status === 401) return 'Your session has ended. Please sign in again.';
+  if (status === 403) return 'You do not have access to this page.';
+  if (status === 404) return 'We could not find what you were looking for.';
+  if (status === 429) return 'Too many requests. Please wait a moment and try again.';
+  return 'Something went wrong.';
+}
+
 export function toApiError(error: unknown): ApiError {
   if (error instanceof AxiosError) {
     const body = error.response?.data as { error?: string; message?: string } | undefined;
     if (error.response) {
-      return new ApiError(error.response.status, body?.message ?? 'Something went wrong.', body?.error ?? null);
+      const { status } = error.response;
+      return new ApiError(status, body?.message ?? defaultMessage(status), body?.error ?? null);
     }
     return new ApiError(0, 'Cannot reach the server. Check your connection and try again.', null);
   }

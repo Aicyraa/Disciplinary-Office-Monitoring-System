@@ -53,7 +53,10 @@ body {
   user-select: none;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+/* In the base layer so utilities such as focus-visible:outline-white can override it (unlayered CSS would win). */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
 }
