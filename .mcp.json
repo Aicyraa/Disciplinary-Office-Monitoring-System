@@ -14,6 +14,10 @@
       "type": "stdio",
       "command": "npx",
       "args": ["@playwright/mcp@latest", "--headless", "--isolated"]
+    },
+    "Neon": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://mcp.neon.tech/mcp"]
     }
   }
 }
