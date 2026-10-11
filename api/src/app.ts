@@ -5,6 +5,10 @@ import helmet from 'helmet';
 import type { HealthResponse } from '../../shared/types.js';
 import { createAuthRouter, type LoginRateLimitOptions } from './auth/routes.js';
 import type { AuthService } from './auth/service.js';
+import { createHandbookRouter } from './handbook/routes.js';
+import type { HandbookRepo } from './handbook/repo.js';
+import { createMeRouter } from './me/routes.js';
+import type { StudentViewRepo } from './me/repo.js';
 
 export interface AppDeps {
   /** Omitted in the smoke test: the app then serves only /health and needs no database. */
@@ -18,9 +22,16 @@ export interface AppDeps {
     secureCookies?: boolean;
     loginRateLimit?: LoginRateLimitOptions;
   };
+  /** Read-side repositories. Routes mount only when `auth` is also given (they need the session). */
+  data?: {
+    handbook: HandbookRepo;
+    studentViews: StudentViewRepo;
+    /** Injected so tests control "today" (Asia/Manila). */
+    now?: () => Date;
+  };
 }
 
-export function createApp({ auth }: AppDeps = {}) {
+export function createApp({ auth, data }: AppDeps = {}) {
   const app = express();
 
   app.get('/health', (_request, response) => {
@@ -54,6 +65,11 @@ export function createApp({ auth }: AppDeps = {}) {
       }),
     );
     app.use(createAuthRouter({ service: auth.service, loginRateLimit: auth.loginRateLimit }));
+
+    if (data) {
+      app.use(createHandbookRouter({ repo: data.handbook }));
+      app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
+    }
   }
 
   return app;

@@ -1,0 +1,64 @@
+import bcrypt from 'bcryptjs';
+import request from 'supertest';
+import { createApp } from '../app.js';
+import { createMemoryAccountRepo } from '../auth/memory-repo.js';
+import { createAuthService } from '../auth/service.js';
+import type { HandbookRepo } from '../handbook/repo.js';
+import { createMemoryHandbookRepo } from '../handbook/memory-repo.js';
+import type { StudentViewRepo } from '../me/repo.js';
+import { createMemoryStudentViewRepo } from '../me/memory-repo.js';
+
+/** Fake accounts and an app wired with in-memory repositories. Test-only; never imported by production code. */
+export const PASSWORD = 'Passw0rd1';
+export const STUDENT_A = { id: '2025-0000001', email: 'ana.cruz@students.nu-fairview.edu.ph' };
+export const STUDENT_B = { id: '2025-0000002', email: 'ben.lee@students.nu-fairview.edu.ph' };
+export const STAFF = { id: 'E001', email: 'officer@nu-fairview.edu.ph' };
+export const STAFF_TEMP = { id: 'E002', email: 'temp@nu-fairview.edu.ph' };
+
+const ROUNDS = 4;
+
+export interface HarnessOptions {
+  handbook?: HandbookRepo;
+  studentViews?: StudentViewRepo;
+  now?: () => Date;
+}
+
+export function buildHarnessApp(options: HarnessOptions = {}) {
+  const passwordHashed = bcrypt.hashSync(PASSWORD, ROUNDS);
+  const account = (role: 'student' | 'staff', id: string, email: string, mustChangePassword = false) => ({
+    role,
+    id,
+    email,
+    firstName: 'Fake',
+    lastName: id,
+    passwordHashed,
+    mustChangePassword,
+    isActive: true,
+  });
+  const repo = createMemoryAccountRepo([
+    account('student', STUDENT_A.id, STUDENT_A.email),
+    account('student', STUDENT_B.id, STUDENT_B.email),
+    account('staff', STAFF.id, STAFF.email),
+    account('staff', STAFF_TEMP.id, STAFF_TEMP.email, true),
+  ]);
+  return createApp({
+    auth: {
+      service: createAuthService({ repo, rounds: ROUNDS }),
+      sessionSecret: 'test-secret-test-secret-test-secret-1',
+      clientOrigin: 'http://localhost:5173',
+      loginRateLimit: { windowMs: 60_000, limit: 1000 },
+    },
+    data: {
+      handbook: options.handbook ?? createMemoryHandbookRepo(),
+      studentViews: options.studentViews ?? createMemoryStudentViewRepo(),
+      now: options.now,
+    },
+  });
+}
+
+export async function signedInAgent(app: ReturnType<typeof createApp>, email: string) {
+  const agent = request.agent(app);
+  const response = await agent.post('/auth/login').send({ email, password: PASSWORD });
+  if (response.status !== 200) throw new Error(`Test sign-in failed for ${email}: ${response.status}`);
+  return agent;
+}

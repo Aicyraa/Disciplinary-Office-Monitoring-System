@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+
+/* SPEC 9 design tokens. */
+@theme {
+  --font-sans: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-primary: #35408e;
+  --color-primary-active: #262f73;
+  --color-gold: #f2d46b;
+  --color-ink: #1c2445;
+  --color-body: #2e3646;
+  --color-muted: #5b6576;
+  --color-page: #f2f5f5;
+  --color-line: #dde3e8;
+  --color-line-strong: #c9d1d9;
+  --color-danger: #b42318;
+  --color-success: #1e6b3e;
+
+  /* Responsive modes: bottom tab bar under 720, icon rail 720-1100, full sidebar above. */
+  --breakpoint-rail: 720px;
+  --breakpoint-full: 1100px;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-page);
+  color: var(--color-body);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

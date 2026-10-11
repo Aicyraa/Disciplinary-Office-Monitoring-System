@@ -4,6 +4,8 @@ import { Pool } from 'pg';
 import { app as healthOnlyApp, createApp } from './app.js';
 import { createPrismaAccountRepo } from './auth/prisma-repo.js';
 import { createAuthService } from './auth/service.js';
+import { createPrismaHandbookRepo } from './handbook/prisma-repo.js';
+import { createPrismaStudentViewRepo } from './me/prisma-repo.js';
 import { createPrismaClient } from './prisma.js';
 
 const port = Number(process.env.SERVER_PORT ?? process.env.PORT ?? 3000);
@@ -22,10 +24,12 @@ function buildApp() {
 
   const PgStore = connectPgSimple(session);
   const sessionStore = new PgStore({ pool: new Pool({ connectionString: DATABASE_URL }), createTableIfMissing: true });
-  const service = createAuthService({ repo: createPrismaAccountRepo(createPrismaClient()) });
+  const prisma = createPrismaClient();
+  const service = createAuthService({ repo: createPrismaAccountRepo(prisma) });
 
   return createApp({
     auth: { service, sessionSecret: SESSION_SECRET, clientOrigin, sessionStore, secureCookies: isProduction },
+    data: { handbook: createPrismaHandbookRepo(prisma), studentViews: createPrismaStudentViewRepo(prisma) },
   });
 }
 

@@ -8,6 +8,7 @@ This file is the parallel dev team's only notes file. It records what changed (f
 |---|---|---|---|---|---|---|---|---|
 | foundation-storage | worktree-foundation-storage | .claude/worktrees/foundation-storage | Build step 1 (SPEC 6.1; FEATURE-RULES 3.7): storage interface, S3 impl, in-memory fake, pure upload validator | storage + validator tests green; lint, typecheck, test, build green; seed counts verified on dev | api/src/storage/*, api/src/files/validate*, vitest.config.mjs | none | 1 | reviewed (PASS) |
 | auth | worktree-auth | .claude/worktrees/auth | Build step 2 (SPEC 4.8; FEATURE-RULES 3.1): passport-local login, sessions, role guards, change/reset password, login rate limit, CORS | API-level tests for login, generic error, domain gate, rate limit, guards, reset and forced change; lint, typecheck, test, build green | api/src/auth/*, api/src/app.ts, api/src/server.ts, shared/types.ts, vitest.config.mjs | none | 2 | reviewed (PASS after fixes) |
+| handbook-student-readonly | worktree-handbook-student-readonly | .claude/worktrees/handbook-student-readonly | Build step 3 (SPEC 4.9, 3, 5, 7; FEATURE-RULES 3.2, 3.12): read-only handbook API, `/me/*` student read APIs, client login + shell + 7 student pages | API-level tests for handbook visibility and own-rows-only; lint, typecheck, test, build green | api/src/handbook/*, api/src/me/*, api/src/codes.ts, api/src/testing/harness.ts, api/src/app.ts, api/src/server.ts, shared/types.ts, client/src/**, client/vite.config.ts, client/index.html, .env.example | none (builds on auth) | 3 | review |
 
 <!-- Per-task sections go below, laid out as:
 
@@ -95,6 +96,24 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 - Diff base for the human: `git diff c_v1...integrate/2026-10-12` (local `main` is far behind).
 - Human to do before merging: (1) add `STORAGE_BUCKET` to SPEC 6.1 and CLAUDE.md section 8; (2) run the two HUMAN CHECKs above (storage presign, auth login curl); (3) delete the worktrees and `worktree-*` branches after merging.
 - Still open from reviews: `trust proxy` and secure cookies behind a proxy; change-password throttle; password max length; session-id-change test; `requireStudent` API test with the first student route; no test of `createS3Storage`.
+
+---
+
+
+
+## handbook-student-readonly branch worktree-handbook-student-readonly
+
+**Dev**
+- API: `GET /handbook`, `GET /handbook/:id` (any signed-in role, password settled; `is_system` entries hidden from list and 404 by id; sanctions ordered by offense in the pure mapper). Student-only `/me/cases`, `/me/cases/:id` (timeline + sanctions), `/me/sanctions`, `/me/appointments` (`upcoming`/`history` bucket by Asia/Manila date), `/me/clearance?academic_year=&semester=` (default newest term; malformed term is 400). The student id always comes from the session; another student's case is a 404 identical to a missing one. Employee ids, `claimed_*`, `reported_by` and `submission_ref` are never in responses (asserted).
+- Code: `api/src/handbook/*`, `api/src/me/*` (repo interface + in-memory fake + Prisma implementation + pure `views.ts`), `api/src/codes.ts` (V/H/S/C display codes), `api/src/testing/harness.ts` (fake accounts + app wiring for tests), `createApp({ data })`, `server.ts` wiring. Shared DTO types added to `shared/types.ts`.
+- Client: Tailwind v4 tokens (`index.css`), Vite plugin, Google Fonts links; `AuthProvider`, route guards (`resolveAccess`: loading / login / forced password change / allow), responsive shell (bottom tab bar under 720, icon rail 720-1100, sidebar above 1100), Login, forced Change password, Student dashboard, My violations (stepper + timeline), My sanctions (4-step tracker, Minor/Major filter), Appointments (Upcoming/History), Clearance (term switcher), Handbook (search + severity filter), Inbox (honest empty state until step 6), staff landing + handbook. `VITE_API_URL` added to `.env.example`.
+- Evidence: `npm test` 11 files / 141 tests pass (55 existed after steps 1-2; 51 added by the API half, 106 total at that point; 35 more added by the client half), `npm run lint`, `typecheck` (api + client), `build` (api tsc, client vite 374 kB JS / 16 kB CSS) clean.
+- Assumptions to confirm: `assigned` and `scheduled` are not in SPEC 9's pill list, so they reuse the pending (yellow) and validated (blue) tones. Sanction templates on the Student Handbook page and proof upload are not built (steps 5 and 8). `App.test.tsx` is unchanged and still green: SSR has no `window`, so `App` falls back to `MemoryRouter` there.
+- Not verified (needs live DB / API / browser): `createPrismaHandbookRepo` and `createPrismaStudentViewRepo` against Neon (relation include names are type-checked by `tsc`, not run); every page against the real API; three-width layout check in a browser (screens other than Login need the live API).
+- HUMAN CHECK: with the dev branch env set, `npm run dev`, open `http://localhost:5173`, sign in with the dev student account -> dashboard loads, Handbook lists entries and no "3 minor offense"; resize under 720 px -> bottom tab bar, 720-1100 -> icon rail.
+- Not done (out of scope for step 3): staff pages (steps 4-10), notifications/inbox data (step 6), template downloads (step 8).
+
+(reviewer fills this)
 
 ---
 

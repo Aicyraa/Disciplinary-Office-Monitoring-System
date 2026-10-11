@@ -1,0 +1,167 @@
+import type { PrismaClient } from '../../generated/prisma/client.js';
+import type { AppointmentStatus, CaseSanctionStatus, CaseStatus, Severity } from '../../../shared/types.js';
+import type { CaseRecord, StudentViewRepo } from './repo.js';
+
+type Db = Pick<
+  PrismaClient,
+  'disciplinary_cases' | 'case_sanctions' | 'appointments' | 'clearances'
+>;
+
+const CURRENT = 'handbook_entries_disciplinary_cases_handbook_entry_idTohandbook_entries';
+const ORIGINAL = 'handbook_entries_disciplinary_cases_original_handbook_entry_idTohandbook_entries';
+
+const caseInclude = {
+  [CURRENT]: { include: { violations: true } },
+  [ORIGINAL]: { include: { violations: true } },
+} as const;
+
+type CaseRow = {
+  disciplinary_case_id: number;
+  status: string;
+  case_date: Date;
+  is_escalated: boolean;
+  resolved_without_sanction: boolean;
+  date_resolved: Date | null;
+  [CURRENT]: { handbook_section: string; violations: { violation_type: string; severity: string } };
+  [ORIGINAL]: { violations: { violation_type: string } } | null;
+};
+
+function toCaseRecord(row: CaseRow): CaseRecord {
+  return {
+    caseId: row.disciplinary_case_id,
+    status: row.status as CaseStatus,
+    caseDate: row.case_date,
+    isEscalated: row.is_escalated,
+    resolvedWithoutSanction: row.resolved_without_sanction,
+    dateResolved: row.date_resolved,
+    handbookSection: row[CURRENT].handbook_section,
+    violationType: row[CURRENT].violations.violation_type,
+    severity: row[CURRENT].violations.severity as Severity,
+    originalViolationType: row[ORIGINAL]?.violations.violation_type ?? null,
+  };
+}
+
+/** Prisma-backed student views. Every query is scoped by the student id passed in from the session. */
+export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
+  return {
+    async listCases(studentId) {
+      const rows = await db.disciplinary_cases.findMany({
+        where: { student_id: studentId },
+        include: caseInclude,
+        orderBy: { case_date: 'desc' },
+      });
+      return rows.map((row) => toCaseRecord(row as unknown as CaseRow));
+    },
+
+    async getCase(studentId, caseId) {
+      const row = await db.disciplinary_cases.findFirst({
+        where: { disciplinary_case_id: caseId, student_id: studentId },
+        include: { ...caseInclude, case_status_history: { orderBy: { date_updated: 'asc' } } },
+      });
+      if (!row) return null;
+      return {
+        ...toCaseRecord(row as unknown as CaseRow),
+        history: row.case_status_history.map((entry) => ({
+          eventType: entry.event_type,
+          statusAfter: entry.status_after as CaseStatus | null,
+          remarks: entry.remarks,
+          date: entry.date_updated,
+        })),
+      };
+    },
+
+    async listSanctions(studentId, options) {
+      const rows = await db.case_sanctions.findMany({
+        where: {
+          disciplinary_cases: {
+            student_id: studentId,
+            ...(options?.caseId === undefined ? {} : { disciplinary_case_id: options.caseId }),
+          },
+        },
+        include: {
+          sanctions: true,
+          disciplinary_cases: { include: { [CURRENT]: { include: { violations: true } } } },
+          case_sanction_history: { orderBy: { date_logged: 'asc' } },
+        },
+        orderBy: { date_assigned: 'desc' },
+      });
+      return rows.map((row) => {
+        const entry = (row.disciplinary_cases as unknown as CaseRow)[CURRENT];
+        return {
+          caseSanctionId: row.case_sanction_id,
+          caseId: row.disciplinary_case_id,
+          caseSeverity: entry.violations.severity as Severity,
+          sanctionId: row.sanction_id,
+          sanctionType: row.sanctions.sanction_type,
+          description: row.sanctions.description,
+          status: row.status as CaseSanctionStatus,
+          dateAssigned: row.date_assigned,
+          dueDate: row.due_date,
+          dateSubmitted: row.date_submitted,
+          dateCompleted: row.date_completed,
+          staffNote: row.staff_note,
+          complianceNote: row.compliance_note,
+          history: row.case_sanction_history.map((event) => ({
+            eventType: event.event_type,
+            remarks: event.remarks,
+            byStaff: event.employee_id !== null,
+            date: event.date_logged,
+          })),
+        };
+      });
+    },
+
+    async listAppointments(studentId) {
+      const rows = await db.appointments.findMany({
+        where: { student_id: studentId },
+        orderBy: { start_date: 'desc' },
+      });
+      return rows.map((row) => ({
+        appointmentId: row.appointment_id,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        purpose: row.purpose,
+        notes: row.notes,
+        status: row.status as AppointmentStatus,
+        cancelReason: row.cancel_reason,
+      }));
+    },
+
+    async listClearanceTerms(studentId) {
+      const rows = await db.clearances.findMany({
+        where: { student_id: studentId },
+        select: { academic_year: true, semester: true, status: true },
+      });
+      return rows.map((row) => ({
+        academicYear: row.academic_year,
+        semester: row.semester,
+        status: row.status as 'pending' | 'cleared',
+      }));
+    },
+
+    async getClearance(studentId, academicYear, semester) {
+      const row = await db.clearances.findUnique({
+        where: {
+          student_id_academic_year_semester: { student_id: studentId, academic_year: academicYear, semester },
+        },
+        include: {
+          clearance_requirements: { include: { requirements: true }, orderBy: { clearance_requirement_id: 'asc' } },
+        },
+      });
+      if (!row) return null;
+      return {
+        clearanceId: row.clearance_id,
+        academicYear: row.academic_year,
+        semester: row.semester,
+        status: row.status as 'pending' | 'cleared',
+        items: row.clearance_requirements.map((item) => ({
+          requirementId: item.requirement_id,
+          label: item.requirements.requirement_label,
+          status: item.status as 'pending' | 'completed',
+          remarks: item.remarks,
+          dateCompleted: item.date_completed,
+        })),
+      };
+    },
+  };
+}
