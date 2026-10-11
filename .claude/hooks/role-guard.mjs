@@ -16,6 +16,7 @@ const SERENA_EDIT_TOOLS = [
   'mcp__serena__rename_symbol',
   'mcp__serena__safe_delete_symbol',
 ];
+const NEON_PREFIX = 'mcp__claude_ai_Neon__';
 const TEST_MODE = process.env.ROLE_GUARD_TEST === '1';
 
 function block(message) {
@@ -161,6 +162,25 @@ function checkBash(role, rules, root, cwd, command) {
   }
 }
 
+// Neon MCP: team roles need to be listed in neon.allowedRoles, and SQL tools must name the
+// development project and branch explicitly (the MCP would otherwise fall back to the default branch).
+function checkNeon(role, neon, tool, args) {
+  if (TEAM_ROLES.includes(role) && !(neon.allowedRoles ?? []).includes(role)) {
+    block(`${role} may not use the Neon MCP (${tool})`);
+  }
+  if (tool.startsWith(`${NEON_PREFIX}run_sql`)) {
+    const projectId = process.env.NEON_DEV_PROJECT_ID || neon.projectId;
+    const devBranchId = process.env.NEON_DEV_BRANCH_ID || neon.devBranchId;
+    if (!projectId || !devBranchId) {
+      block('Neon SQL is blocked: set neon.projectId and neon.devBranchId in .claude/hooks/role-rules.json');
+    }
+    const argProject = args.projectId ?? args.project_id;
+    const argBranch = args.branchId ?? args.branch_id;
+    if (argProject !== projectId) block(`Neon SQL must name the development project (${projectId}); got ${argProject ?? 'no projectId'}`);
+    if (argBranch !== devBranchId) block(`Neon SQL must name the development branch (${devBranchId}); got ${argBranch ?? 'no branchId'}`);
+  }
+}
+
 function main() {
   const input = JSON.parse(readFileSync(0, 'utf8'));
   const role = input.agent_type;
@@ -169,10 +189,16 @@ function main() {
     appendFileSync(process.env.ROLE_GUARD_DEBUG_FILE, `agent_type=${role ?? '(none)'} tool=${input.tool_name} cwd=${input.cwd}\n`);
   }
 
-  if (!TEAM_ROLES.includes(role)) return; // ordinary session: layers 1 and 3 decide
-
   const here = path.dirname(fileURLToPath(import.meta.url));
   const config = JSON.parse(readFileSync(path.join(here, 'role-rules.json'), 'utf8'));
+
+  // Neon MCP guard applies to every session, team role or not.
+  if (typeof input.tool_name === 'string' && input.tool_name.startsWith(NEON_PREFIX)) {
+    checkNeon(role, config.neon ?? {}, input.tool_name, input.tool_input ?? {});
+  }
+
+  if (!TEAM_ROLES.includes(role)) return; // ordinary session: layers 1 and 3 decide
+
   const rules = { ...config.roles[role], globalDenyFragments: config.globalDenyFragments };
   if (!config.roles[role]) block(`no rules defined for role ${role}`);
 

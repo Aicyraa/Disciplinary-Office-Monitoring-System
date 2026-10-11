@@ -1,6 +1,12 @@
 {
   "_comment": "Data for role-guard.mjs. bashAllow entries are JS regexes matched against one shell segment (anchored by the script). editable: ['**'] means every path; [] means none. denyEdit always wins. branchGated: git verbs that need the current branch to start with commitBranchPrefix.",
   "globalDenyFragments": ["--output", "--ext-diff", "--textconv", "--git-dir", "--work-tree", "--exec", "--upload-pack"],
+  "neon": {
+    "_comment": "Neon MCP guard. projectId is the Neon PROJECT id (crimson-frost-...). devBranchId is the development BRANCH id, which looks like br-xxx-xxx-12345678 (Neon console > Branches). Both are not secrets. If either is empty, every run_sql tool is blocked (fail closed). Env NEON_DEV_PROJECT_ID / NEON_DEV_BRANCH_ID override.",
+    "projectId": "crimson-frost-74744443",
+    "devBranchId": "br-snowy-night-b30mkui0",
+    "allowedRoles": ["lead", "dev", "reviewer"]
+  },
   "roles": {
     "lead": {
       "editable": ["CONTEXT.md", ".gitignore"],
