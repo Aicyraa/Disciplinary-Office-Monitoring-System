@@ -17,10 +17,15 @@ The prototype is **front-end only**: state lives in memory, the date is fixed at
 | 4 | Clearance | **Manual** (staff mark items). No auto-computation |
 | 5 | Student statement | **Removed** from the case screen |
 | 6 | Appointments | 6-working-day window (Mon–Sat, Sundays skipped), 7:00 AM–5:00 PM, starting on the date staff assign |
-| 7 | Email / notifications | **Power Automate (Premium)** sends them from an NU Microsoft 365 shared mailbox. Two flows: Flow 1 (form → API), Flow 2 (one dynamic notification flow that takes parameters). See section 6.3 and `POWER-AUTOMATE.md` |
-| 8 | Gate form | **Stays a web form in the app** (public). It posts to the API (captcha + rate limit); after the commit the API triggers Power Automate **Flow 1**, which notifies the student and staff |
+| 7 | Email / notifications | **Power Automate (Premium)** sends them from the flow owner's own mailbox (decision 15), not a shared mailbox. Two flows: Flow 1 (form → API), Flow 2 (one dynamic notification flow that takes parameters). See section 6.3 and `POWER-AUTOMATE.md` |
+| 8 | Gate form | **Stays a web form in the app** (public). It posts to the API (bot protection per decision 12 + rate limit); after the commit the API triggers Power Automate **Flow 1**, which notifies the student and staff |
 | 9 | Time zone | Asia/Manila. Store UTC (`timestamptz`), display in Manila time |
 | 10 | Escalation | 3 minors of any kind; the 3rd converts into the Major "3 minor offense"; the 2 earlier minors are flagged escalated (section 4.2) |
+| 11 | Power Automate trust | Power Automate only issues a **signed trigger URL** per flow (no secret exists). The URL is the credential (`PA_NOTIFY_URL`, `PA_GATE_URL`), kept server-side. **The flow never calls the API**: it answers in its HTTP Response (`sent` / `failed`) and the API sets `email_status`. No callback, no tunnel, no `x-api-key`, no `PA_SHARED_SECRET`, no `/integrations/*` endpoints. Every outbound body is `{ "type": ..., "payload": {...} }` (`POWER-AUTOMATE.md` section 4) |
+| 12 | Gate-form protection | **No captcha and no third-party service.** The public endpoint is protected by a per-IP rate limit and a form-timing token (signed when the form opens; rejected if submitted under 3 seconds or over 30 minutes later), plus validation, a body-size limit and the duplicate unique index. All checks sit behind one `verifyHuman()` function so a captcha can be added later without changing the form flow |
+| 13 | Accounts and ids | Accounts are **added manually** (SQL seed file with bcrypt hashes; no create-account screen in version 1). Student id format is `YYYY-NNNNNNN`: 4 digits, a dash, 7 digits (11 digits in total, regex `^\d{4}-\d{7}$`), e.g. `2023-1030333`. Display codes are a letter plus the numeric id padded to **3 digits** (`S001`, `V001`, `C001`); ids above 999 simply grow (`S1000`) |
+| 14 | Offense number and retry cap | **Offense number** of a case = 1 + the number of the same student's earlier cases (by `case_date`, then id) for the same violation that are `validated`, `for_sanction` or `resolved`; `reported` and `rejected` never count. It selects the `handbook_entry_sanctions` rows offered to staff (4.3). **Notification retry cap:** the in-API sweep retries `pending` emails for 24 hours after `date_created`, then marks them `failed` (no schema change) |
+| 15 | Email sender | The **flow owner's own account** sends every email (their mail connection in "Send an email (V2)"). No shared mailbox, no "send as", no NU IT request. `SDO_STAFF_MAILBOX` is only the address that **receives** staff alerts |
 
 ---
 
@@ -30,7 +35,7 @@ The prototype is **front-end only**: state lives in memory, the date is fixed at
 |---|---|---|
 | **Student** | Login → student app (7 pages) | NU student email + password |
 | **Staff (SDO officer)** | Login → staff app (10 pages) | NU staff email + password |
-| **Gate guard / anyone** | Public web "Violation Form" (3 steps) → API → Flow 1 | none (captcha + rate limit) |
+| **Gate guard / anyone** | Public web "Violation Form" (3 steps) → API → Flow 1 | none (rate limit + form-timing token) |
 
 Core loop: report → staff validate → (3 minors roll into a Major) → staff assign sanction(s) with a due date → student uploads proof → staff open every file and verify (or return) → staff resolve the case → staff update the clearance checklist. **Every status change writes a timeline entry, creates an in-app notification, and sends an email.**
 
@@ -72,7 +77,7 @@ Core loop: report → staff validate → (3 minors roll into a Major) → staff 
 
 ### ID strategy (workbook codes like V001 / S001)
 - **Primary keys are numeric identity columns** the database maintains (`GENERATED ALWAYS AS IDENTITY`). Nothing is typed by hand, nothing collides, joins are fast, and renaming never matters. Hand-maintained text ids like `V001` break when two people add a row at once and when a number gets reused.
-- **Display codes are derived, not stored**: the app formats them (`V` + id padded to 3, `S001`, `C0001`) when it needs to show one. The seed keeps workbook numbers (V001 → 1, S001 → 1), so the codes you already know stay the same.
+- **Display codes are derived, not stored**: the app formats them (letter + id padded to 3 digits: `V001`, `S001`, `C001`; see decision 13) when it needs to show one. The seed keeps workbook numbers (V001 → 1, S001 → 1), so the codes you already know stay the same.
 - `student_id` and `employee_id` stay text because they are real-world identifiers (school ID numbers) that people type.
 
 ### Changes to your existing tables
@@ -130,6 +135,7 @@ pending_verification ──verify──▶ completed
 pending_verification ──return (reason)──▶ returned ──(student re-uploads)──▶ pending_verification
 ```
 - Staff pick the sanction(s) from the ones the handbook allows for that violation and offense number, set a **due date** (flexible), and add optional instructions (`staff_note`).
+- **Offense number (decision 14):** computed by the API when staff open the assign step, never typed: 1 + the count of the same student's earlier cases for the same violation with status `validated`, `for_sanction` or `resolved` (ordered by `case_date`, then id). A converted Major ("3 minor offense") counts against H068, not against the original violation. If a violation has no `handbook_entry_sanctions` row for that offense number, offer the highest defined offense number for it.
 - Student proof rules: PDF/DOCX only, ≤ 10 MB each, max **5** files; allowed while `assigned` or `returned`; while `pending_verification` the student may replace a file or remove one but **not the last one**; if staff already reviewed, those actions are rejected with "already reviewed".
 - **Verify is blocked until every file has `date_viewed`** (staff opened it). The UI shows "n of m viewed".
 - "Late by N days" is derived from `due_date`, not stored.
@@ -145,12 +151,12 @@ pending_verification ──return (reason)──▶ returned ──(student re-u
 - Staff assign a student, a **start date** (today … +60 days, not Sunday), a purpose and optional notes. `end_date` = start + 5 more working days (Sundays skipped). Hours are 7:00 AM–5:00 PM for the whole window (shown in the UI, not stored).
 - The database rejects overlapping live (`scheduled`/`rescheduled`) windows for the same student.
 - Changing the start date → `rescheduled`; staff can mark `completed` or `cancelled` (reason required). All logged in `appointment_history` and notified.
-- A scheduled job sends a reminder notification the day before the start date.
+- A job inside the API (an interval started in `server.ts`, see `POWER-AUTOMATE.md` section 5) sends a reminder notification the day before the start date, with idempotency key `appt:<id>:reminder`.
 
 ### 4.6 Notifications
 - Helper: `notify({recipient, kind, title, message, link, idempotencyKey})`. If `idempotency_key` already exists, do nothing. Example keys: `san:12:completed`, `case:7:resolved`, `appt:3:new`.
 - Student notifications use `recipient_type = 'student'` + `student_id`. All staff share **one** mailbox (`recipient_type = 'staff'`, `student_id` NULL), matching your "single department" rule.
-- **Order: commit first, notify second.** The API writes the DB change and the `notifications` row (`email_status = 'pending'`) in one transaction, then calls Power Automate **Flow 2**. Flow 2 sends the email and calls the API back with `sent` or `failed`. Rows left `pending` are retried. Details and payloads in `POWER-AUTOMATE.md`.
+- **Order: commit first, notify second.** The API writes the DB change and the `notifications` row (`email_status = 'pending'`) in one transaction, then, after commit and in the background, sends the `{ "type", "payload" }` envelope to Power Automate **Flow 2**. Flow 2 sends the email and answers in its HTTP Response with `sent` or `failed`; the API sets `email_status` from that reply (decision 11). Timeouts and non-2xx leave the row `pending`, and an in-API sweep retries it. Details and payloads in `POWER-AUTOMATE.md`.
 - Inbox query for a student = their notifications, newest first.
 - Deep link `link_type + link_id` maps to a page: case, sanction, appointment, student, clearance, inbox.
 
@@ -167,12 +173,14 @@ There is no separate announcements feature. Notifications carry every admin upda
 Staff create or edit a violation (name unique, category Minor/Major, section, description, sanction per offense step). A violation is keyed by id, so renaming never breaks cases. Show "used in N cases".
 
 ### 4.10 Gate reports (public web form → API → Flow 1)
-Fields: student ID, name, program, year level; select ≥ 1 violation (picked from the handbook, `is_system` entries excluded). The form posts to `POST /public/gate-reports`, protected by a captcha token (Turnstile/hCaptcha), per-IP rate limit and validation.
+Fields: student ID, name, program, year level; select ≥ 1 violation (picked from the handbook, `is_system` entries excluded). The form posts to `POST /public/gate-reports`, protected by `verifyHuman()` (decision 12): a signed form-start token that must be between 3 seconds and 30 minutes old (`GET /public/gate-form-token` issues it when the form opens), a per-IP rate limit, field validation and a body-size limit. Every failure returns the same generic error. Student-ID format is an open item (section 11).
 
 **No separate table.** In one transaction the API inserts one `disciplinary_cases` row per selected violation with `source='gate'`, `status='reported'`, and a shared `submission_ref` (uuid) that groups the rows of one form submit (for the "report received" email and the staff view). Then it writes timeline entries and notifications and calls **Flow 1**.
 - If the typed ID matches a student, `student_id` is filled. If not, `student_id` stays NULL and the typed values stay in `claimed_student_id`, `claimed_name`, `claimed_program`, `claimed_year`. The DB forbids `validated` or later without a matched `student_id`; staff can only reject such a case, or fix the student link first.
 - Duplicate rule (enforced by a unique index): same `claimed_student_id` + same violation + same Manila calendar day → rejected; return the existing reference.
 - Staff-recorded cases use `source='staff'` and `reported_by_employee_id`.
+
+**Form-timing token (stateless).** `GET /public/gate-form-token` returns `{ token }`, an HMAC-signed timestamp (signed with `SESSION_SECRET`, nothing stored). The form sends it back with the submit. The API rejects a missing, tampered, too-fresh (under 3 s) or expired (over 30 min) token with the same generic error. Rate limit: per IP, for example 5 submits per 10 minutes, and a looser limit on the token endpoint.
 
 ---
 
@@ -215,11 +223,11 @@ Note on CORS and egress (from your Neon search): the CORS text applies to the **
 Neon Postgres, run `db/schema.sql` then `db/seed.sql` in the SQL editor (or via migrations). `btree_gist` is used by the appointment-overlap rule. If your ORM cannot express the exclusion constraint, keep it in a raw SQL migration.
 
 ### 6.3 Notifications and email (decision 7: Power Automate Premium)
-- Two flows: **Flow 1** (gate report submitted → notify student and staff) and **Flow 2** (dynamic notification: HTTP trigger, takes parameters, sends the email, calls the API back). Optional **Flow 3** (scheduled retry sweep) if your API host sleeps when idle.
-- Power Automate **never writes to the database**; it calls the API (`POWER-AUTOMATE.md` section 1). The API pre-renders the subject and HTML body, so wording lives in your repo.
-- Sending from an **NU shared mailbox** through Microsoft 365 also settles the sender-domain question: you don't need your own domain. You do need NU IT to create the mailbox and allow "send as" for the flow owner, and the flow should be owned by an office/service account, not a student account.
-- Secrets: `PA_NOTIFY_URL` (Flow 2 trigger URL) and `PA_SHARED_SECRET` live in the root `.env`, never under a `VITE_` prefix.
-- Your API can call Flow 2 from `localhost` (outbound). A tunnel is only needed for the calls into your API (Flow 2's result callback, and Flow 1); production needs a public HTTPS API address.
+- Two flows: **Flow 1** (gate report submitted → notify student and staff) and **Flow 2** (dynamic notification: HTTP trigger, takes parameters, sends the email, answers with a Response). No Flow 3: the retry sweep runs inside the API.
+- Power Automate **never writes to the database and never calls the API** (`POWER-AUTOMATE.md` sections 0 and 1). The API pre-renders the subject and HTML body, so wording lives in your repo. Every request body is `{ "type", "payload" }`.
+- **Sender (decision 15):** emails are sent by the flow owner's own account, through that account's mail connection in the flow ("Send an email (V2)"). No shared mailbox and no NU IT request are needed. Consequences: recipients see the owner's name and address in `From`, replies go to that mailbox, and if the account loses its license, is disabled or graduates, emails stop (notifications stay `pending`, then `failed` after 24 hours). Add a co-owner and plan a handover to an office account before real use.
+- Secrets: `PA_NOTIFY_URL` (Flow 2 trigger URL) and `PA_GATE_URL` (Flow 1 trigger URL) live in the root `.env`, never under a `VITE_` prefix. The signed URL is the only credential Power Automate provides; there is no shared secret.
+- Your API calls the flows from `localhost` (outbound only). No tunnel is needed because nothing calls into your API.
 
 ---
 
@@ -245,22 +253,21 @@ GET|POST /clearances ...   POST /clearances/:id/requirements/:rid/complete | /re
 GET|POST|PATCH /appointments ...   POST /appointments/:id/complete | /cancel
 GET  /me/notifications     POST /me/notifications/:id/read
 
-POST /public/gate-reports                          (public: captcha + rate limit; then triggers Flow 1)
+GET  /public/gate-form-token                       (public: issues the signed form-timing token)
+POST /public/gate-reports                          (public: verifyHuman + rate limit; then triggers Flow 1)
 
-# Power Automate only (shared-secret header, outside the login session)
-POST /integrations/notifications/:id/result
-POST /integrations/notifications/result
-POST /integrations/run-reminders                    (scheduled flow: retries, reminders, overdue)
+# No /integrations/* endpoints: Power Automate never calls the API (decision 11).
+# Retries and reminders run as an in-API job.
 ```
 Authorization: a student reads only their own cases, sanctions, appointments, clearance and notifications. Staff are one department and see everything (your ERD rule).
 
 ---
 
 ## 8. Data to prepare before launch
-1. Real **student accounts** (id, name, program, year, NU email) and **staff accounts**, created through the app so passwords are hashed.
+1. Real **student accounts** (id, name, program, year, NU email) and **staff accounts**, added manually with bcrypt-hashed passwords (decision 13). `db/seed-dev-accounts.sql` holds two **development-only** accounts; copy its pattern for real ones and never run it on production.
 2. Confirm the 67 handbook entries and the sanction mapping, and **write the sanction templates** (text and files) for each of the 10 sanctions.
 3. Current **term** and the default clearance checklist.
-4. Email sender setup (6.3) and the shared staff mailbox address.
+4. Email sender setup (6.3, decision 15) and the address that receives staff alerts (`SDO_STAFF_MAILBOX`).
 5. Assets: `assets/seal.png`, `assets/hero.png`.
 
 ---
@@ -279,10 +286,10 @@ Authorization: a student reads only their own cases, sanctions, appointments, cl
 3. Handbook + read-only student pages on real data.
 4. Case workflow + escalation service. **Write unit tests for 4.2 first**, including the threshold.
 5. Sanctions + proof upload/verify.
-6. Notifications table + idempotency + the Power Automate integration (Flow 2, callback, retry); then Flow 1 with the gate form.
+6. Notifications table + idempotency + the Power Automate integration (Flow 2, the `{type, payload}` helper, in-API retry sweep); then Flow 1 with the gate form.
 7. Appointments → Clearance.
 8. Sanction templates and handbook admin.
-9. Public gate form + captcha + rate limit + Flow 1 (last: needs the abuse protection).
+9. Public gate form + `verifyHuman()` (form-timing token + rate limit) + Flow 1 (last: needs the abuse protection).
 10. Polish: empty/error states, accessibility, PWA manifest.
 
 ### Your existing repo (`Aicyraa/Disciplinary-Office-Monitoring-System`)
@@ -290,12 +297,16 @@ Already there: Express 5 + TypeScript 7 API, Prisma 7.10 (pg adapter) on Neon, R
 - **Use Prisma, not Drizzle.** Apply `db/schema.sql` + `db/seed.sql` to Neon, then run `prisma db pull` to generate the models (Prisma cannot express the appointment-overlap exclusion constraint, the CHECK constraints or partial indexes; keep them in the SQL file / a hand-written migration, and don't let `db push` overwrite them). Run live schema operations only when you decide to, as your `AGENTS.md` already requires.
 - `connect-pg-simple` creates its own `session` table; it is infrastructure and not part of the ERD.
 - Add `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` and `multer` for files (section 6.1). Use one private bucket (`assets` already exists) with the key prefixes `proof/` and `templates/`.
-- Add `PA_NOTIFY_URL`, `PA_SHARED_SECRET`, the S3 variables and `SDO_STAFF_MAILBOX` to `.env.example` (fake values), per your env rules.
+- Add `PA_NOTIFY_URL`, `PA_GATE_URL`, `SDO_STAFF_MAILBOX`, `APP_BASE_URL` and the S3 variables to `.env.example` (fake values), per your env rules.
 
 ---
 
 ## 11. Still open
-1. **NU IT items** are for production hand-over only (`POWER-AUTOMATE.md` section 5); nothing blocks development.
-2. **CORS + transfer limits** for Neon Object Storage (6.1): verify with a test upload.
+1. ~~NU IT items~~ **Settled (decision 15):** the flow owner's own account is the sender; no shared mailbox. Remaining production hand-over risk: moving ownership off a personal account (`POWER-AUTOMATE.md` section 6).
+2. **Bucket smoke test (6.1), run 2026-10-12 on the dev branch** (`api/scripts/storage-smoke.ts`): upload, direct read, 60 s presigned GET, private-bucket refusal and cleanup all passed. The bucket answers `Access-Control-Allow-Origin: *` on GET and on the OPTIONS preflight, so a browser can `fetch` a presigned URL directly (DOCX preview with `mammoth` needs no API proxy). Still unverified: the 60 s expiry (`--expiry` not run), whether bucket downloads count toward the free plan's transfer limit (check the console usage page after real traffic), and a real in-browser `fetch` from `localhost:5173`.
 3. Confirm the ERD (two attributes added since the Lucid version: `violations.is_system`, `disciplinary_cases.original_handbook_entry_id`).
-4. **Parked for later (not in version 1):** the Power Automate growth path in `POWER-AUTOMATE.md` section 8 (scheduled reminders, backup export, Teams alerts, weekly digest, document generation, student import).
+4. ~~Student ID format~~ **Settled (decision 13):** `YYYY-NNNNNNN`, regex `^\d{4}-\d{7}$`. The prototype's 6-digit regex is wrong; the gate form, API validation and `varchar(20)` column all use the 11-character format.
+5. ~~Offense number~~ **Settled (decision 14, rule in 4.3).**
+6. ~~Account creation~~ **Settled (decision 13):** accounts are added manually through SQL (`db/seed-dev-accounts.sql` pattern, bcrypt hashes). No create-account screen or endpoint in version 1. The temp-password reset flow (4.8) still applies.
+7. ~~Notification retry cap~~ **Settled (decision 14, `POWER-AUTOMATE.md` section 5).**
+8. **Parked for later (not in version 1):** the Power Automate growth path in `POWER-AUTOMATE.md` section 8 (scheduled reminders, backup export, Teams alerts, weekly digest, document generation, student import).

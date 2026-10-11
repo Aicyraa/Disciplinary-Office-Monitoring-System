@@ -2,144 +2,173 @@
 
 Your stack (from the repo): **Express 5 + TypeScript API**, **Prisma 7 on Neon**, React 19 + Vite SPA, passport-local + express-session + connect-pg-simple, bcryptjs, helmet, express-rate-limit. Power Automate (PA) Premium adds the HTTP trigger/action and sends mail through the NU Microsoft 365 tenant.
 
+## 0. Trust model (decision 11)
+
+Power Automate gives you **one thing per flow: a signed trigger URL**. There is no shared secret and no API key.
+- **The trigger URL is the credential.** Store it as `PA_NOTIFY_URL` (Flow 2) and `PA_GATE_URL` (Flow 1) in the root `.env`. Treat each like a password: never under a `VITE_` key, never in Git, never in logs.
+- **The flow never calls the API.** The flow does its work and answers in its own HTTP **Response**. The API reads that response to set `email_status`. So there is no callback URL, no tunnel, no `x-api-key`, no `PA_SHARED_SECRET`, and no `/integrations/*` endpoints.
+- Trigger setting: "Who can trigger the flow" = **Anyone**. This is safe only because the URL carries a signature and stays server-side.
+
 ## 1. Principle: the API is the only writer to the database
 
-PA never writes to Postgres directly. It calls the Express API. Reasons:
+PA never writes to Postgres directly. Reasons:
 - All rules (escalation, status checks, the "open every file before verify" gate, overlap checks, idempotency) live in one tested place. PA can't run a database transaction.
 - No database credentials in PA. A leaked flow can't read or delete the data.
 - Neon scales to zero; the API deals with cold starts and retries once instead of every flow.
 
 ## 2. Ordering: commit first, notify second
 
-Your sketch was **Admin input → PA → notify student → process database**. I recommend swapping the last two:
-
 ```
 Admin action in the web app
   → API validates + writes to the DB (one transaction) incl. a `notifications` row (email_status = 'pending')
-  → API calls Flow 2 (HTTP trigger) with the notification
-  → Flow 2 emails / Teams-messages the student
-  → Flow 2 calls the API back: "sent" or "failed"
+  → COMMIT
+  → in the background, API POSTs the envelope to the flow's trigger URL
+  → flow sends the email and answers with a Response: {"status":"sent"} or {"status":"failed","error":"..."}
+  → API updates notifications.email_status / date_email_sent
 ```
-Why: if you notify first and the database write then fails, the student is told about something that never happened, and PA cannot roll the email back. With commit-first, the worst case is "saved but not yet emailed", which the `pending` status exposes and a retry fixes. The `idempotency_key` on `notifications` makes retries safe.
+Why: if you notify first and the database write then fails, the student is told about something that never happened, and PA cannot roll the email back. With commit-first, the worst case is "saved but not yet emailed", which `pending` exposes and a retry fixes. The `idempotency_key` on `notifications` makes retries safe on the API side.
 
 ## 3. The two flows
 
-### Flow 1 — "SDO Gate Report Submitted" (form submission → notifications)
-The **web gate form stays** in your app. It posts to your API, not to Power Automate (a Power Automate trigger URL put in browser code would be public and spammable).
+Both flows receive the **same envelope** (section 4). Only `type` and `payload` differ.
+
+### Flow 1 — "SDO Gate Report Submitted"
+The **web gate form stays** in your app. It posts to your API, never to Power Automate (a trigger URL in browser code would be public and spammable).
 
 ```
 Visitor submits the web gate form
-  → POST /public/gate-reports on your API   (captcha + rate limit + validation)
-  → API inserts one disciplinary_cases row per violation (source='gate', shared submission_ref) + timeline + notification rows (one transaction)
-  → API calls Flow 1 (HTTP trigger) with the submission
-  → Flow 1 sends: (a) "report received" email to the student (if the ID matched a student), (b) alert to the SDO mailbox / Teams channel
-  → Flow 1 calls the API back with sent / failed per message
+  → POST /public/gate-reports on your API   (bot checks + rate limit + validation, see SPEC 4.10)
+  → API inserts one disciplinary_cases row per violation (source='gate', shared submission_ref) + timeline + notification rows (one transaction), COMMIT
+  → API POSTs the envelope (type "report") to PA_GATE_URL
+  → Flow 1 sends: (a) "report received" email to the student (only if the ID matched), (b) alert to the staff alert address
+  → Flow 1 answers with the Response
 ```
 | Step | Action | Notes |
 |---|---|---|
-| 1 | Trigger: **When an HTTP request is received** | respond `202` right away |
-| 2 | Condition: `x-api-key` header = secret | reject otherwise |
-| 3 | **Condition**: `student_matched` | yes → email the student; no → skip (staff alert says "ID not on file") |
+| 1 | Trigger: **When an HTTP request is received** | Method POST |
+| 2 | **Parse JSON** on the body | schema = the envelope, section 4 |
+| 3 | **Condition**: `payload.student_matched` | yes → email the student; no → skip (staff alert says "ID not on file") |
 | 4 | **Send an email (V2)** to the student | reference number, violations listed, "waiting for staff review" |
-| 5 | **Send an email / Post in Teams** to staff | link to the case in the staff app |
-| 6 | **HTTP callback** to the API | `{ "status": "sent" | "failed" }` per recipient; wrap steps 4–5 in a Scope for failure handling |
+| 5 | **Send an email (V2)** to the staff alert address (`SDO_STAFF_MAILBOX`, set in the flow) | link to the case in the staff app |
+| 6 | **Response** (200) | wrap steps 3–5 in a Scope; on success `{"status":"sent"}`, on failure (Configure run after: failed / timed out) `{"status":"failed","error":"<message>"}` |
 
-Payload:
+Flow 1 payload (`type` = `"report"`):
 ```json
 {
-  "reference": "3f0c2c1e-8a47-4b8e-9d59-1f2a6b7c9d10",   // submission_ref (uuid) of the form submit
-  "student_matched": true,
-  "student_email": "student@students.nu-fairview.edu.ph",
-  "student_name": "Darlwyn Jee Daguman",
-  "violations": ["Improper Uniform", "No ID"],
-  "submitted_at": "2026-10-11T08:00:00Z",
-  "case_url": "https://app.example.edu/staff/cases/17",
-  "callback_url": "https://api.example.edu/integrations/notifications/result"
+  "type": "report",
+  "payload": {
+    "reference": "3f0c2c1e-8a47-4b8e-9d59-1f2a6b7c9d10",
+    "student_matched": true,
+    "student_email": "student@students.nu-fairview.edu.ph",
+    "student_name": "Darlwyn Jee Daguman",
+    "violations": ["Improper Uniform", "No ID"],
+    "submitted_at": "2026-10-11T08:00:00Z",
+    "case_url": "https://app.example.edu/staff/cases/17"
+  }
 }
 ```
-Because the API commits first, a submission is never lost if Power Automate is down; the notifications simply stay `pending` and are retried.
+`reference` is the form submit's `submission_ref` (uuid). Because the API commits first, a submission is never lost if Power Automate is down; the notifications stay `pending` and the API retries.
 
-Public endpoint hardening (`POST /public/gate-reports`): Cloudflare Turnstile (or hCaptcha) token verified server-side, `express-rate-limit` per IP, `express-validator` for fields, body-size limit, the duplicate rule (same typed student ID + violation + Manila day, enforced by a unique index), and generic error messages.
-
-> Flow 1 and Flow 2 do almost the same job (send a message, report back). You can keep both as requested: Flow 1 = form submissions, Flow 2 = every admin-triggered notification. If you ever want to cut maintenance, Flow 1 can simply become a call to Flow 2.
+> Flow 1 and Flow 2 do almost the same job. You can keep both (Flow 1 = form submissions, Flow 2 = every admin-triggered notification). If you ever want to cut maintenance, Flow 1 can simply become a call to Flow 2.
 
 ### Flow 2 — "SDO Notify (dynamic)" (one flow, takes parameters)
-Trigger: **When an HTTP request is received** (Premium). Method POST. Immediately respond `202 Accepted` with a **Response** action so the API never waits for the email.
+Trigger: **When an HTTP request is received** (Premium), method POST. The API pre-renders subject and HTML, so email wording lives in your repo and is versioned.
 
-Request schema (the API pre-renders the text, so email wording lives in your repo and is versioned):
+Payload (`type` = one of the notification kinds):
 ```json
 {
-  "notification_id": 123,
-  "idempotency_key": "san:12:completed",
-  "channel": "email",                      
-  "to": "student@students.nu-fairview.edu.ph",
-  "cc": [],
-  "subject": "Sanction S-12 verified",
-  "html_body": "<p>Hi Jee, your sanction was verified…</p>",
-  "kind": "sanction",
-  "link_url": "https://app.example.edu/sanctions/12",
-  "callback_url": "https://api.example.edu/integrations/notifications/123/result"
+  "type": "sanction",
+  "payload": {
+    "notification_id": 123,
+    "idempotency_key": "san:12:completed",
+    "channel": "email",
+    "to": "student@students.nu-fairview.edu.ph",
+    "cc": [],
+    "subject": "Sanction S012 verified",
+    "html_body": "<p>Hi Jee, your sanction was verified.</p>",
+    "link_url": "https://app.example.edu/sanctions/12"
+  }
 }
 ```
 Steps:
-1. **Condition**: header `x-api-key` equals the secret (anyone with the trigger URL could otherwise send mail as the SDO).
-2. **Response 202**.
-3. **Switch on `channel`**: `email` → **Send an email from a shared mailbox (V2)** (SDO mailbox); `teams` (optional later) → **Post message in a chat/channel**.
-4. **Scope (try/catch)**: on success → **HTTP POST callback** `{ "status": "sent" }`; on failure (Configure run after: failed/timed out) → callback `{ "status": "failed", "error": "<message>" }`.
+1. **Parse JSON** on the body (schema = envelope).
+2. **Switch on `payload.channel`**: `email` → **Send an email (V2)** using the flow owner's own mail connection (SPEC decision 15); `teams` (optional later) → **Post message in a chat/channel**.
+3. **Scope (try/catch)**: on success → **Response 200** `{"status":"sent"}`; on failure (Configure run after: failed / timed out) → **Response 200** `{"status":"failed","error":"<message>"}`.
 
-API side: `POST /integrations/notifications/:id/result` (same shared secret) sets `email_status` and `date_email_sent`.
+A synchronous Response must finish within PA's HTTP limit (about 2 minutes); sending one email takes seconds. The API does not make the user wait for it (section 2).
 
-Why this is "dynamic": the **same** flow handles every notification kind (case validated, sanction assigned, appointment moved, clearance change, password reset…). Only the parameters change. You do not need a flow per message type.
+Why this is "dynamic": the **same** flow handles every notification kind (case validated, sanction assigned, appointment moved, clearance change, password reset…). Only the parameters change.
 
-## 4. How the API triggers Flow 2
-- Store the Flow 2 URL as `PA_NOTIFY_URL` (it contains a signature, so treat it like a password; never put it under a `VITE_` key).
-- After the DB commit, `POST` the notification JSON to `PA_NOTIFY_URL`. If PA answers non-2xx or times out, leave `email_status = 'pending'` and retry (3 attempts with backoff).
-- Rows still `pending` after that are picked up by a retry sweep. If your host sleeps when idle (free tiers), add a tiny optional **Flow 3: Recurrence (every 10 min) → POST `/integrations/notifications/retry-pending`**.
-- **Bulk sends:** there is no announcement feature, so every notification has one recipient. If you ever mass-notify (for example a term-start reminder), batch ~50 recipients in BCC per Flow 2 call; inbox rows stay one per student.
+## 4. Helper function rules (any code that calls Power Automate)
 
-## 5. Things to check in your tenant (I can't verify these from here)
-1. **Trigger access.** You tested the trigger with curl from outside the tenant ("anyone"), so the API can call it. Because anyone with the URL can fire it, the `x-api-key` check (step 1 of each flow) is the real guard; keep the URL out of the client and Git.
-2. **Shared mailbox.** Ask NU IT for an SDO shared mailbox and make sure the flow owner has "send as". This also settles the email-sender decision (6.3 in the spec): you send from NU's own domain.
+All outbound calls go through **one** helper, for example `api/src/integrations/power-automate.ts` exporting `sendToPowerAutomate(type, payload)`. No other file calls `fetch` against a PA URL.
+
+**The request body is exactly two top-level keys, `type` and `payload`, nothing else:**
+```json
+{
+  "type": "sanction",
+  "payload": { }
+}
+```
+Rules:
+1. `type` is a closed union exported from `shared/types.ts` (import with `import type`), equal to the `notifications.kind` values: `report`, `case`, `esc`, `sanction`, `appt`, `clr`, `account`, `newviol`. A new type means a spec change, not an ad-hoc string.
+2. `payload` is a plain JSON object built by a **pure builder function per `type`** (so tests need no network and no database). Never spread request bodies or DB rows into it.
+3. The flow reads `triggerBody()?['type']` and `triggerBody()?['payload']?['<field>']`. Each flow's Parse JSON schema must declare both keys.
+4. The helper reads the URL lazily from env (`PA_NOTIFY_URL`, or `PA_GATE_URL` for `type: "report"` from the gate form), uses a 10-second timeout, and never throws into the business transaction.
+5. It returns `{ outcome: 'sent' | 'failed' | 'unknown' }`: HTTP 200 with `status:"sent"` → `sent`; 200 with `status:"failed"` → `failed`; network error, timeout, non-2xx or unparsable body → `unknown` (row stays `pending`).
+6. It never logs the URL or `html_body`.
+7. Send happens **after commit**, in the background (not inside the user's request).
+8. Tests (API level, fake `fetch`): body has exactly `type` + `payload`; each outcome maps to the right `email_status`; the call happens only after the transaction committed; an unknown `type` fails type-check.
+
+## 5. Retries, sweeps and reminders (inside the API, version 1)
+
+- On `unknown`, the row stays `email_status = 'pending'` and the helper retries up to 3 times with backoff.
+- A **sweep** inside the API (a `setInterval` started in `api/src/server.ts`, never in `app.ts`, no new dependency) re-sends `pending` rows older than a few minutes, and sends the **day-before appointment reminder** with an idempotency key such as `appt:3:reminder`.
+- Rows still `pending` 24 hours after `date_created` are marked `failed` (SPEC decision 14; no schema change).
+- Caveat: a free host that sleeps when idle stops the sweep. On `localhost` it runs while the API runs. Production decides the host.
+- Known risk: if the flow sent the email but the response timed out, a retry sends a **duplicate email**. PA cannot dedupe on `idempotency_key`. Accepted for version 1.
+- Bulk sends: every notification has one recipient. If you ever mass-notify, batch ~50 recipients in BCC per call; inbox rows stay one per student.
+
+## 6. Things to check in your tenant (I can't verify these from here)
+1. **Trigger access.** The trigger must allow "Anyone" so the API (outside the tenant) can call it. The signed URL is the guard; keep it out of the client and Git. If it leaks, regenerate the URL (re-save the trigger) and update `.env`.
+2. **Sender account.** Emails come from the flow owner's own mailbox (SPEC decision 15). The "Send an email (V2)" action uses whatever mail connection is signed in on the flow, so check in the flow's connections that it is the account you intend. Recipients see that name and address in `From`, and replies land in that mailbox. NU may filter or flag mail sent to students from a personal-looking sender; test with a real student address early.
 3. **Flow owner.** Flows run as the account that owns them. If that student account loses its license or graduates, notifications stop. Use a service or office account, or co-own the flow with a staff account.
-4. **Premium trial / license.** If the trial ends, HTTP triggers stop working: the API keeps saving and notifications stay `pending` (nothing is lost). Demo before it ends, or re-send pending rows afterwards via the retry endpoint.
+4. **Premium trial / license.** If the trial ends, HTTP triggers stop working: the API keeps saving and notifications stay `pending` (nothing is lost). Demo before it ends, or let the sweep re-send afterwards.
 5. **Limits.** Premium has per-user daily request limits and per-flow throttles; check your plan's numbers before a bulk notice.
-6. **Reachability in development.** Your API calling Flow 2's HTTP trigger works fine from `localhost` (outbound request to a public URL). A tunnel (Dev Tunnels / ngrok / cloudflared) is only needed where PA must call **into** your API: Flow 2's result callback and Flow 1. While developing you can skip the callback (email still sends; `email_status` stays `pending`), and test Flow 1's endpoint by sending the same JSON with curl. Production needs a public HTTPS API address either way.
+6. **Reachability in development.** Your API calls the trigger URL outbound from `localhost`, which just works. **No tunnel is needed**, because PA never calls into your API.
 
-## 6. Why not let PA write to the database directly?
+## 7. Why not let PA write to the database directly?
 It is possible with the PostgreSQL connector, but I'd avoid it: there is no transaction across several tables, the escalation rule and the status gates would have to be re-implemented in flow actions, and Neon requires SSL/SNI settings that connectors have historically handled poorly. If you do use it, restrict it to a **read-only** role.
 
-## 7. API endpoints added for PA
+## 8. API endpoints for PA
 ```
-POST /public/gate-reports                             (web gate form → API; captcha + rate limit; the API then triggers Flow 1)
-POST /integrations/notifications/:id/result           (Flow 2 → API, x-api-key)
-POST /integrations/notifications/result               (Flow 1 → API, x-api-key; body lists results)
-POST /integrations/notifications/retry-pending        (optional Flow 3, x-api-key)
+POST /public/gate-reports      (web gate form → API; bot checks + rate limit; the API then triggers Flow 1)
 ```
-These sit outside the session/passport login. Protect them with `PA_SHARED_SECRET` (env, not `VITE_`), rate limiting (already in your dependencies), and body-size limits. Rotate the secret by updating the env var and the two flows together.
+That is the only PA-related route. Version 1 has **no** `/integrations/*` endpoints.
 
-## 8. Growth path — what else Power Automate can do for this system
+## 9. Growth path (parked, not in version 1)
 
-Rule for all of these: the flow **schedules or sends**; the **API decides and writes**. A scheduled flow calls an API endpoint; the API creates idempotent notifications and triggers Flow 2.
+Rule for all of these: the flow **schedules or sends**; the **API decides and writes**. A scheduled flow would have to call into the API, which needs a public API address and an authentication choice, so revisit the trust model (section 0) first.
 
-### Worth doing first (high value, low effort)
-1. **One scheduled "reminders & retry" flow** (Recurrence, e.g. every 30 min or hourly) → `POST /integrations/run-reminders`. The API then, with idempotency keys so nothing repeats: retries `pending` notifications, sends the **appointment reminder** the day before a window opens, warns students **3 days before a sanction due date** and on the day it becomes overdue, and flags **overdue sanctions** to staff. This replaces the optional retry flow and the "7:00 AM reminder" the prototype faked.
-2. **Nightly backup export.** Neon's Free plan keeps only ~6 hours of restore history. A scheduled flow calls an API export endpoint (or runs read-only queries) and saves CSV/Excel into SharePoint or OneDrive. Cheap insurance for discipline records.
-3. **Teams channel alerts for staff** (new gate report, proof uploaded, Major escalation) with a deep link to the case. Teams reaches staff faster than an email inbox. Add `channel: "teams"` to Flow 2's switch.
-4. **Failure alerting.** Turn on run-failure notifications for every flow, and add a daily check: if `notifications` has rows `pending` for more than an hour, email the owner.
+### Worth doing first
+1. **Scheduled "reminders & retry" flow** (Recurrence) — replaces the in-API sweep of section 5 if the host sleeps. Also: warn students 3 days before a sanction due date and on the day it becomes overdue; flag overdue sanctions to staff.
+2. **Nightly backup export.** Neon's Free plan keeps only ~6 hours of restore history. Export CSV/Excel into SharePoint or OneDrive.
+3. **Teams channel alerts for staff** (new gate report, proof uploaded, Major escalation). Add `channel: "teams"` to Flow 2's switch.
+4. **Failure alerting.** Turn on run-failure notifications for every flow; daily check for `notifications` rows `pending` for more than an hour.
 
 ### Worth doing next
-5. **Weekly digest to the SDO**: open cases older than N days, sanctions waiting for verification, overdue sanctions, appointments this week. Scheduled flow → API summary endpoint → HTML email.
-6. **Auto-generated documents.** Fill a Word template (violation slip, written warning, appointment notice, clearance certificate) with case data, save the PDF to SharePoint, and attach it to the email. Fits S001 and S002 ("issued by the SDO") exactly. Check each connector's license tier before committing.
-7. **Term rollover / student import.** The registrar's Excel list (SharePoint) → flow → `POST /integrations/students/import`, which creates or updates accounts, sets temp passwords with `must_change_password`, and opens the new term's clearances. This removes manual account entry.
-8. **Teams direct message to students** as a second channel for urgent items (sanction returned, appointment tomorrow).
+5. **Weekly digest to the SDO** (open cases, sanctions awaiting verification, overdue sanctions, appointments this week).
+6. **Auto-generated documents** (violation slip, written warning, appointment notice, clearance certificate) from Word templates. Check each connector's license tier.
+7. **Term rollover / student import** from the registrar's Excel list.
+8. **Teams direct message to students** for urgent items.
 
 ### Later / only if needed
-9. **Approvals**: a Teams or email approval for decisions that need a second signature (for example a Major sanction). The flow records the decision through the API.
-10. **Reporting dashboards** in Power BI over a read-only copy of the data.
+9. **Approvals** for decisions that need a second signature.
+10. **Reporting dashboards** in Power BI over a read-only copy.
 
 ### Keep it maintainable
-- Use a **Solution** (not loose flows) so you can export, import and version the flows, and use **environment variables** for the API base URL and secrets, so you don't edit each flow when the URL changes.
+- Use a **Solution** (not loose flows) so you can export, import and version the flows; use **environment variables** for settings.
 - Add a **co-owner** (a staff account) to every flow.
 - Keep flows generic: one notify flow with parameters, not one flow per message. Put wording and rules in the API repo where they are tested and versioned.
-- Always return `202` quickly and use callbacks; set retry policies on every outgoing HTTP action; make every API endpoint idempotent.
-- Watch your plan's daily request limits before adding high-volume flows (bulk notices, frequent recurrences). Prefer batching and an hourly cadence over every-minute polling.
+- Set retry policies on every outgoing HTTP action; make every API endpoint idempotent.
+- Watch your plan's daily request limits before adding high-volume flows.

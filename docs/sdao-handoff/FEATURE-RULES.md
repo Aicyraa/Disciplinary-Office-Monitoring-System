@@ -9,7 +9,7 @@ For each feature: the spec section to read, and the rules that must not be broke
 - Two account tables with text ids (`student_accounts.student_id`, `employee_accounts.employee_id`). Passwords hashed (bcryptjs is already installed; Argon2id is also acceptable). ≥ 8 chars, at least one letter and one digit.
 - Login accepts only `@students.nu-fairview.edu.ph` / `@nu-fairview.edu.ph` emails; one generic error message; rate-limit login.
 - Staff reset creates a one-time `Temp-####`, stores only its hash, sets `must_change_password = true`, and shows it to staff once. The user must set a new password at next sign-in (cannot equal the temp one). "Forgot password" stays in person.
-- Role guard on every route: students see only their own rows; staff see all. Seed has no accounts (the workbook had plain-text passwords): accounts are created through the app.
+- Role guard on every route: students see only their own rows; staff see all. `seed.sql` has no accounts (the workbook had plain-text passwords): accounts are added manually with bcrypt hashes (SPEC decision 13; dev pattern in `db/seed-dev-accounts.sql`). There is no create-account screen. Student ids match `^\d{4}-\d{7}$`.
 
 ### 3.2 Handbook and violations (SPEC 4.9, 3)
 - `violations` (name unique, category Minor/Major) and `handbook_entries` (section, description, allowed sanction per offense step via `handbook_entry_sanctions`).
@@ -28,7 +28,7 @@ For each feature: the spec section to read, and the rules that must not be broke
 - Public form → `POST /public/gate-reports` → API inserts **one `disciplinary_cases` row per selected violation directly** (no separate submissions table), sharing a `submission_ref`. Typed values go to `claimed_student_id/name/program/year`; `student_id` is filled only when the typed ID matches.
 - Duplicate guard is a unique index: same typed ID + violation + Manila day. Return the existing reference.
 - Validate/reject act on every case with the same `submission_ref`.
-- Public endpoint hardening is required: captcha token verified server-side, per-IP `express-rate-limit`, `express-validator`, body-size limit, generic errors. Build the form last (SPEC 10 step 9).
+- Public endpoint hardening is required, behind one `verifyHuman()` function (SPEC decision 12): signed form-timing token from `GET /public/gate-form-token` (HMAC with `SESSION_SECRET`, stateless; reject if missing, tampered, younger than 3 s or older than 30 min), per-IP `express-rate-limit` on both the token and submit routes, `express-validator`, body-size limit, one generic error for every failure. No captcha and no third-party service. Each check gets an API-level test. Build the form last (SPEC 10 step 9).
 
 ### 3.5 Escalation (SPEC 4.2) — write unit tests first
 - Count a student's cases that are validated or later, **Minor**, not rejected, `is_escalated = false`. Different violation types count together. The threshold lives in **one config function**.
@@ -40,18 +40,19 @@ For each feature: the spec section to read, and the rules that must not be broke
 - Student proof: PDF/DOCX only, ≤ 10 MB each, max 5 files; allowed while `assigned` or `returned`; while pending verification they may replace or remove a file but never the last one; rejected with "already reviewed" if staff already reviewed.
 - **Verify is blocked until staff opened every file** (`date_viewed` set). "Late by N days" is derived, not stored.
 - Verify sets `date_completed` and `verified_by_employee_id`.
+- Offense number is computed by the API (SPEC 4.3, decision 14): 1 + the student's earlier `validated`/`for_sanction`/`resolved` cases for the same violation. It selects the allowed sanctions; never accept it from the client. Pure function, unit-tested.
 
 ### 3.7 Files and sanction templates (SPEC 6.1)
 - Bytes live in the Neon Object Storage **private** bucket; metadata in `files`. Keys: `proof/{case_sanction_id}/{uuid}.{ext}` and `templates/{sanction_id}/{uuid}.{ext}`.
 - Upload goes **through Express** (`multer`, memory storage, 10 MB limit, check magic bytes: PDF `%PDF`, DOCX `PK`). Do not use browser presigned PUT (bucket CORS unconfirmed). Download via a ~60-second presigned GET after an authorization check (owner student or any staff). Opening a proof as staff sets `date_viewed` / `viewed_by_employee_id`.
 - S3 client needs `forcePathStyle: true` and `requestChecksumCalculation: 'WHEN_REQUIRED'`. Env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`.
 - Each sanction has a template page (title, description, written requirements) with downloadable PDF/DOCX. Students download; staff manage them.
-- In-browser preview: PDF in an iframe, DOCX with `mammoth` (frontend only).
+- In-browser preview: PDF in an iframe, DOCX with `mammoth` (frontend only). The bucket returns permissive CORS headers (smoke test, SPEC 11 item 2), so the browser may `fetch` the presigned URL directly; no API proxy route is needed.
 
 ### 3.8 Appointments (SPEC 4.5)
 - Staff pick a student, a start date (today … +60 days, not Sunday), purpose, optional notes. `end_date` = start + 5 more working days (Sundays skipped). 7:00 AM–5:00 PM is a UI display, not stored.
 - Overlapping live (`scheduled`/`rescheduled`) windows for one student are rejected by the database exclusion constraint (`btree_gist`). Map that error to a friendly message.
-- Status: `scheduled → rescheduled → completed / cancelled` (reason required). Everything is logged in `appointment_history` and notified. A reminder goes out the day before the start date (scheduled flow, later).
+- Status: `scheduled → rescheduled → completed / cancelled` (reason required). Everything is logged in `appointment_history` and notified. A reminder goes out the day before the start date (in-API job, key `appt:<id>:reminder`; see POWER-AUTOMATE section 5).
 
 ### 3.9 Clearance (SPEC 4.4) — manual
 - One `clearances` row per student and term (`academic_year` = start year, `semester` 1–3). Default checklist = `requirements WHERE is_default`; staff can add/remove custom items per student.
@@ -65,10 +66,11 @@ For each feature: the spec section to read, and the rules that must not be broke
 
 ### 3.11 Power Automate integration (POWER-AUTOMATE.md)
 - **The API is the only database writer.** Power Automate never gets DB credentials.
-- **Commit first, notify second:** write the DB change and the `notifications` row (`email_status='pending'`) in one transaction, then POST to Flow 2 (`PA_NOTIFY_URL`). Flow 2 emails and calls back `…/integrations/notifications/:id/result` with `sent`/`failed`. Rows left `pending` are retried; nothing is lost if Power Automate is down or the Premium trial ends.
-- Flow 1 = gate report submitted (called by the API after commit). Flow 2 = generic notify flow taking parameters; the API pre-renders subject and HTML, so wording lives in this repo.
-- Integration endpoints sit outside the session login and require the `x-api-key` header (`PA_SHARED_SECRET`). Never put the flow URL or secret under a `VITE_` key or in Git.
-- Growth ideas (reminders flow, backups, Teams alerts) are parked for later. Do not build them in version 1.
+- **Commit first, notify second:** write the DB change and the `notifications` row (`email_status='pending'`) in one transaction, then, after commit and in the background, POST to Flow 2 (`PA_NOTIFY_URL`). Flow 2 emails and answers in its HTTP Response (`{"status":"sent"}` or `{"status":"failed","error":...}`); the API sets `email_status` from that reply. Timeouts, network errors and non-2xx leave the row `pending` for the in-API sweep; nothing is lost if Power Automate is down or the Premium trial ends. **Retry cap:** rows still `pending` 24 hours after `date_created` are marked `failed` (SPEC decision 14); test it with a fake clock.
+- Flow 1 = gate report submitted (called by the API after commit, `PA_GATE_URL`, `type: "report"`). Flow 2 = generic notify flow taking parameters; the API pre-renders subject and HTML, so wording lives in this repo.
+- **Trust model (SPEC decision 11):** the signed trigger URL is the only credential. There is no `PA_SHARED_SECRET`, no `x-api-key`, no callback, no tunnel and no `/integrations/*` endpoint. Never put a flow URL under a `VITE_` key, in Git or in logs.
+- **One helper, one envelope.** All outbound calls go through `sendToPowerAutomate(type, payload)` and the body is exactly `{ "type": "sanction", "payload": { ... } }` (example `type`). `type` is the closed union of `notifications.kind` values in `shared/types.ts`; `payload` is built by a pure per-type builder. Rules and tests: `POWER-AUTOMATE.md` section 4.
+- Growth ideas (scheduled flows, backups, Teams alerts) are parked for later. Do not build them in version 1.
 
 ### 3.12 Students, dashboards and the rest of the screens (SPEC 5)
 - Student pages: Dashboard · Inbox · My Violations (4-stage stepper, timeline, remarks, sanction card with proof upload) · My Sanctions (stats, Minor/Major filter, 4-step tracker) · Appointments (Upcoming/History) · Clearance (term switcher) · Student Handbook (+ templates).

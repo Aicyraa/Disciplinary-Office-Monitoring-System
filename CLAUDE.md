@@ -8,22 +8,22 @@ Read order for every agent: this file, then your task row in `CONTEXT.md`, then 
 All paths are under `docs/sdao-handoff/`.
 - `SPEC.md` — final spec v2: decisions (section 0), data model (3), business rules (4), screens (5), storage/email (6), API sketch (7), design system (9), build order (10), open items (11).
 - `FEATURE-RULES.md` — the per-feature rules (3.1 to 3.12), moved out of this file. Read the one for your feature before coding.
-- `POWER-AUTOMATE.md` — the two Power Automate flows, payloads, API contract and shared-secret rules.
-- `db/schema.sql` — final PostgreSQL schema (23 tables). `db/seed.sql` — handbook, sanctions, programs, requirements.
+- `POWER-AUTOMATE.md` — the two Power Automate flows, the `{ "type", "payload" }` envelope, helper-function rules and the trust model (signed trigger URL, no shared secret, no callback).
+- `db/schema.sql` — final PostgreSQL schema (23 tables). `db/seed.sql` — handbook, sanctions, programs, requirements. `db/seed-dev-accounts.sql` — two development-only accounts (one student, one staff) with bcrypt hashes; never run on the production branch.
 - `design-reference/sdo-portal.source.html` — prototype in Claude Design's `<x-dc>` format. Not React: re-implement in this stack. Use it for layout and behavior, never copy its in-memory state, fixed date or plain-text passwords.
 - `assets/seal.png`, `assets/hero.png` — brand images.
 
 Rules for working from the spec:
 - Before building a feature, read its section in `SPEC.md` (`FEATURE-RULES.md` says which section, and lists the rules that must not be broken). Do not invent rules; if the spec is silent or ambiguous, ask.
 - The prototype is front-end only, so **every rule must be enforced by the API**, never only by the UI.
-- Settled decisions (SPEC section 0) are not reopened: snake_case, flexible sanction due date, manual clearance, no student statement, 6-working-day appointment windows (Mon–Sat, 7:00 AM–5:00 PM), Asia/Manila time (store UTC `timestamptz`), 3-minors-of-any-kind escalation, gate form stays a web form.
+- Settled decisions (SPEC section 0) are not reopened: snake_case, flexible sanction due date, manual clearance, no student statement, 6-working-day appointment windows (Mon–Sat, 7:00 AM–5:00 PM), Asia/Manila time (store UTC `timestamptz`), 3-minors-of-any-kind escalation, gate form stays a web form, Power Automate trust is the signed trigger URL (no shared secret, no callback), gate-form protection is a per-IP rate limit plus a form-timing token (no captcha).
 - Keep the schema and spec in sync: a schema change means updating `db/schema.sql` and the matching spec section in the same change.
 
 ## 2. What we are building
 Three audiences, one app:
 - **Student** — signs in with an NU student email; sees their own cases, sanctions, appointments, clearance, notifications, handbook. 7 pages.
 - **Staff (SDO officer)** — signs in with an NU staff email; runs the whole workflow. 10 pages. All staff share one inbox (single department).
-- **Public / gate** — a 3-step web "Violation Form", no login (captcha + rate limit).
+- **Public / gate** — a 3-step web "Violation Form", no login (per-IP rate limit + form-timing token, see SPEC 4.10; no captcha).
 
 Stack: Express 5 + TypeScript API, Prisma 7 on Neon Postgres, React 19 + Vite SPA, Neon Object Storage (S3-compatible, private bucket) for files, Power Automate Premium for email.
 
@@ -39,7 +39,7 @@ The generic flow, launch commands and the five roles are in the "Parallel dev te
 - `package.json` and the three lockfiles. If a task needs a dependency, write `DEPENDENCY: <package and why>` and stop.
 - `.env`, `.env.local`, `api/generated/**`, `skills-lock.json`, `.claude/**`, `CLAUDE.md`.
 
-**No live operations.** No agent runs `prisma:push`, `prisma:smoke`, migrations, SQL against Neon, Neon branch operations, bucket changes, or any call to a real Power Automate flow. Claude Code's permission rules deny them for every agent. Build and test against fakes. Whatever only a live database, bucket or flow can prove goes into the task's CONTEXT.md entry as `HUMAN CHECK: <exact command or click path> -> <expected result>` and under "Not verified".
+**No live operations.** No agent runs `prisma:push`, `prisma:smoke`, migrations, Neon branch create/delete/reset, bucket changes, SQL against any Neon branch other than the development branch, or any call to a real Power Automate flow. The one exception is the Neon MCP on the **development branch**: read-only inspection plus SQL there (see "Neon MCP and skills" in section 8). Claude Code's permission rules deny everything else for every agent. Build and test against fakes. Whatever only a live database, bucket or flow can prove goes into the task's CONTEXT.md entry as `HUMAN CHECK: <exact command or click path> -> <expected result>` and under "Not verified".
 
 **Shape code so tests need no database.**
 - Queries live in small repository functions that take a client or transaction as a parameter.
@@ -70,14 +70,14 @@ The per-feature rules that must not be broken live in `docs/sdao-handoff/FEATURE
 
 
 ## 5. Data model rules (SPEC 3, `db/schema.sql`)
-- 23 tables. Primary keys are **numeric identity columns**; only `student_accounts` and `employee_accounts` use text ids. Workbook codes (V001, S001, C0001) are display codes derived in the app, never stored or typed by hand.
+- 23 tables. Primary keys are **numeric identity columns**; only `student_accounts` and `employee_accounts` use text ids. Workbook codes (V001, S001, C001: letter plus the id padded to 3 digits) are display codes derived in the app, never stored or typed by hand. Student ids are `YYYY-NNNNNNN` (regex `^\d{4}-\d{7}$`).
 - Enums are CHECK constraints in SQL. Timestamps are `timestamptz` (UTC); display in Asia/Manila.
-- Prisma cannot express the appointment exclusion constraint, the CHECK constraints or the partial/expression indexes. Keep them in `schema.sql` / hand-written migrations. **`prisma db push` must never overwrite them.** Flow: apply `schema.sql` + `seed.sql`, then `prisma db pull`, then maintain Prisma models to match.
+- Prisma cannot express the appointment exclusion constraint, the CHECK constraints or the partial/expression indexes. Keep them in `schema.sql` / hand-written migrations. **`prisma db push` must never overwrite them.** Flow: apply `schema.sql` + `seed.sql`, then `prisma db pull`, then maintain Prisma models to match. Status: `schema.sql` is already applied on the Neon development branch and `api/prisma/schema.prisma` has the 23 models; confirm drift with the Neon MCP schema comparison before relying on either, and never re-run `schema.sql`.
 - `connect-pg-simple` creates its own `session` table; it is infrastructure, not part of the ERD.
 - The throwaway `ConnectionTest` model/table is setup scaffolding; remove it when the real models land (human confirms first).
 
 ## 6. Build order (SPEC 10)
-1. Neon: schema + seed, bucket and credentials, one upload/download smoke test. 2. Auth. 3. Handbook + read-only student pages. 4. Case workflow + escalation (tests first). 5. Sanctions + proof. 6. Notifications + Power Automate (Flow 2, callback, retry). 7. Appointments → Clearance. 8. Templates + handbook admin. 9. Public gate form + captcha + Flow 1. 10. Polish.
+1. Neon: schema + seed (schema already applied on dev), bucket and credentials, one upload/download smoke test. 2. Auth. 3. Handbook + read-only student pages. 4. Case workflow + escalation (tests first). 5. Sanctions + proof. 6. Notifications + Power Automate (Flow 2, the `{type, payload}` helper, in-API retry sweep). 7. Appointments → Clearance. 8. Templates + handbook admin. 9. Public gate form + bot protection + Flow 1. 10. Polish.
 Work one feature at a time; finish and verify it before the next.
 
 ## 7. Design and UI (from the prototype, SPEC 9)
@@ -111,22 +111,32 @@ Work one feature at a time; finish and verify it before the next.
 
 ### Configuration
 - The repo-root `.env` is the single env source for both packages; do not create `api/.env` or `client/.env`. `.env.example` (fake values only) documents the keys. Externally supplied variables win; a missing `.env` is not an error.
-- Keys in use: `CLIENT_PORT`, `SERVER_PORT`, `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (direct). To add (fake values in `.env.example`): `PA_NOTIFY_URL`, `PA_SHARED_SECRET`, `SDO_STAFF_MAILBOX`, the S3 variables above, and the captcha secret.
-- `.env`, `.claude/settings.local.json` and `.claude/worktrees/` are ignored local config. Never copy credentials into documentation or commits.
+- Keys in use: `CLIENT_PORT`, `SERVER_PORT`, `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (direct). To add (fake values in `.env.example`): `PA_NOTIFY_URL` (Flow 2 trigger URL), `PA_GATE_URL` (Flow 1 trigger URL), `SDO_STAFF_MAILBOX`, `APP_BASE_URL` (for links in emails), the S3 variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`). There is no `PA_SHARED_SECRET`: Power Automate only provides a signed trigger URL, which is itself the secret. Trigger URLs never get a `VITE_` prefix.- `.env`, `.claude/settings.local.json` and `.claude/worktrees/` are ignored local config. Never copy credentials into documentation or commits.
 - CORS: configure the `cors` package on the Express API to allow only the client origin. (CORS is not a database setting.)
 
 ### Prisma and Neon
 - API owns Prisma CLI, client and pg adapter, all pinned to 7.10.0 (Prisma 7 format; no 8.x release candidates, no v6 syntax). Generator `prisma-client`, `output = "../generated/prisma"`; datasource block has `provider` only; connection URLs live in `api/prisma.config.ts` (`DATABASE_URL_UNPOOLED` for the CLI). Prisma 7 does not load `.env`; scripts use `node --env-file-if-exists=../.env`.
 - Runtime uses the pooled `DATABASE_URL` through the pg adapter. `api/src/prisma.ts:createPrismaClient` is a lazy initializer; health/server do not construct it.
 - Scripts: `npm --prefix api run prisma:validate`, `prisma:generate`, `prisma:push` (live), `prisma:smoke` (live). Run `prisma:generate` before API typecheck/build on a fresh clone. `api/generated/prisma` is generated and ignored: never hand-edit or commit it.
-- **Live Prisma/Neon operations (`prisma:push`, `prisma:smoke`, migrations, applying SQL to Neon, branch operations, bucket changes) run only when the human explicitly asks.** Preview with `prisma migrate diff` first, and never accept data loss without confirmation. A skill suggesting a live operation is not permission. Claude Code's permission rules deny these commands for every agent; the human runs them in their own terminal.
+- **Live Prisma/Neon operations (`prisma:push`, `prisma:smoke`, migrations, applying SQL to Neon outside the dev branch, branch create/delete/reset, bucket changes) run only when the human explicitly asks.** Preview with `prisma migrate diff` first, and never accept data loss without confirmation. A skill suggesting a live operation is not permission. Claude Code's permission rules deny these commands for every agent; the human runs them in their own terminal. The Neon MCP exception below is the only live access agents have.
 - Neon free plan: 1 GB Postgres, 5 GB object storage, compute scales to zero after 5 minutes (expect a slow first request after idle; retry once on cold start).
+
+### Neon MCP and skills
+- **Server:** the Neon MCP is connected as a Claude web connector on the human's account, not in `.mcp.json` (no `Neon` entry there, no API key in the repo). Its tools are named `mcp__claude_ai_Neon__*`; the allow/deny rules in `.claude/settings.json` and `NEON_PREFIX` in `role-guard.mjs` use that exact prefix, and anything not listed is denied by default. The connection is unscoped and in write mode, so every call passes `project_id`. If the connector is disconnected, the human reconnects it in Claude web; do not work around it.
+- **Project facts (verified):** project `crimson-frost-74744443` ("DO System", `aws-ap-southeast-1`, Postgres 18, free plan, 6 h restore history). Branches: `production` (`br-summer-frost-b3c2sazu`, default) and `development` (`br-snowy-night-b30mkui0`). The dev branch no longer expires (verified 2026-10-12) and holds the schema, the seed and the two dev accounts from `db/seed-dev-accounts.sql`. A re-created branch needs a new `neon.devBranchId` in `role-rules.json`.
+- **Allowed:** read-only inspection (list/describe project and branch, list tables, describe table schema, compare schema, explain, slow queries) and SQL (`run_sql`, `run_sql_transaction`) on the **development branch only**. Every SQL call names `project_id` (`crimson-frost-74744443`) and the dev `branch_id`; `.claude/hooks/role-guard.mjs` blocks any other value and blocks all SQL while `neon.devBranchId` in `role-rules.json` is empty.
+- **Denied:** the production branch, project create/delete, branch create/delete/reset, connection-string retrieval, the migration prepare/complete tools, bucket changes, anything touching real student data. Production work is human-only.
+- **Use it for:** checking `db/schema.sql` and `api/prisma/schema.prisma` against the live dev branch before DB work, verifying seed counts (14 programs, 10 sanctions, 4 requirements, 68 violations, 68 handbook entries, 132 handbook-entry-sanction rows), and read queries that prove a rule. Tests still run against fakes, never against MCP.
+- **Keep in sync:** any DDL run through the MCP is mirrored in `db/schema.sql` and the matching SPEC section in the same change, then `prisma db pull` is the human's step. The MCP never replaces the CHECK constraints, partial indexes or the appointment exclusion constraint that live in `schema.sql`.
+- **Neon skills (load only when the task matches):** `neon-postgres` (pooled vs direct URLs, migrations, scale-to-zero), `neon-postgres-branches` (before any schema experiment), `neon-object-storage` (bucket, S3 client flags, presigned URLs), `neon-postgres-egress-optimizer` (query review). Not used: `neon-auth` (this app uses passport-local), `neon-functions`, and the Next.js/Vercel guidance in `neon`.
+- **Prisma skills:** `prisma-client-api` (queries, transactions, adapter), `prisma-cli` (generate, validate, db pull), `prisma-database-setup`, `prisma-orm-setup`, `prisma-upgrade-v7` (reference only; we are pinned to 7.10.0). `prisma-orm-setup` defaults new apps to Prisma 8: ignore that default, this repo stays on Prisma 7.10.0 with the pg adapter. `prisma-database-setup` and `prisma-postgres` are deprecated aliases. Not for this repo: `prisma-postgres-setup` (Prisma's own hosted Postgres), `prisma-compute`, `prisma-mongodb-upgrade`, `prisma-driver-adapter-implementation`. The `.claude/skills/prisma-*` entries are symlinks to `.agents/skills/` (restored locally from `skills-lock.json`, source `prisma/skills`); on a fresh clone restore them first. Any live command a Prisma skill suggests (`migrate`, `db push`, `prisma mcp`) is still human-only.
 
 ## 9. Working agreements
 - Do not add or upgrade dependencies without a checkpoint. The spec already approves `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `multer` and `mammoth`; confirm anything else. Team agents cannot edit package files; they report `DEPENDENCY:` and stop.
 - Do not store or log real credentials, student data or discipline records in tests, fixtures or docs. Use fake data.
 - Small, reviewable changes. After each task: run lint, typecheck, tests and build, and state what you could not verify (live DB, Power Automate, Neon bucket). Independent review (the reviewer agent) and human acceptance (the human reads the integration branch) remain required.
-- Do not build anything the spec marks parked or removed: notices/announcements, the student statement, auto-clearance, the Power Automate growth path.
+- Do not build anything the spec marks parked or removed: notices/announcements, the student statement, auto-clearance, the Power Automate growth path. (The prototype still shows notices; ignore them.)
+- **Power Automate helper rule.** Every outbound Power Automate call goes through one helper (`sendToPowerAutomate(type, payload)`) and the body is exactly `{ "type": "<notification kind, e.g. sanction>", "payload": { ... } }`, nothing else at the top level. `type` is the closed union of `notifications.kind` values from `shared/types.ts`; `payload` comes from a pure per-type builder. Full rules in `POWER-AUTOMATE.md` section 4.
 - README is a temporary description, not setup instructions.
 - Every agent ends its final chat message with "Concepts to check" (1 to 3 items, plain language, no formula-only explanations). It is chat output, not a file.
 
@@ -136,7 +146,7 @@ Work one feature at a time; finish and verify it before the next.
 - INSTALL_CMD: `npm ci`, `npm --prefix api ci`, `npm --prefix client ci`, then `npm --prefix api run prisma:generate` (local, no database access)
 - TEST_CMD: `npm test` · LINT_CMD: `npm run lint` · TYPECHECK_CMD: `npm run typecheck` · BUILD_CMD: `npm run build`
 - DEV_CMD: `npm run dev` (reviewer only)
-- Not available to any agent: `prisma:push`, `prisma:smoke`, migrations, Neon, bucket and Power Automate operations. Only the human runs those.
+- Not available to any agent: `prisma:push`, `prisma:smoke`, migrations, production-branch or branch-management Neon operations, bucket and Power Automate operations. Only the human runs those. Agents may use the Neon MCP read-only and dev-branch SQL only (section 8).
 
 ### Flow
 ```
@@ -166,6 +176,7 @@ Human:          git diff main...integrate/<date>, then merge to main yourself
 ### MCP usage
 - Serena symbol tools before reading whole files; `get_diagnostics_for_file` after edits. Only dev uses Serena editing tools.
 - Context7 before using any third-party API. Playwright is for the reviewer only.
+- Neon MCP (dev branch, read-only plus dev SQL) for lead, dev and reviewer; scout has no Neon access. Rules in section 8.
 - Each new worktree needs its own `npm ci` runs and `serena project index`.
 
 ### Permissions

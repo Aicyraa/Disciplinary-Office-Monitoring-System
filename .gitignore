@@ -1,6 +1,7 @@
 # Logs
 .agent-work
 .opencode
+docs
 logs
 *.log
 npm-debug.log*
