@@ -17,5 +17,6 @@ Return at most 10 lines, in this order:
 3. Test command and where tests live
 4. Conventions to follow
 5. Risks (shared modules, config, migrations, lockfiles, generated code, `db/schema.sql`, `shared/types.ts`)
+6. Hot files the task would touch (`CLAUDE.md` section 3) and the Prisma models it reads or writes
 
 Facts only, no design. If the task looks much larger than described, say so on the first line.

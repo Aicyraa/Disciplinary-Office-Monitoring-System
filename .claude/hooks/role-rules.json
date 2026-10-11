@@ -26,7 +26,7 @@
     },
     "dev": {
       "editable": ["**"],
-      "denyEdit": [".claude/**", "CLAUDE.md", "AGENTS.md", ".mcp.json", ".worktreeinclude", "opencode.json", ".opencode/**", ".git", ".git/**", ".env", ".env.local"],
+      "denyEdit": [".claude/**", "CLAUDE.md", "AGENTS.md", ".mcp.json", ".worktreeinclude", "opencode.json", ".opencode/**", ".git", ".git/**", ".env", ".env.local", ".env.*.local", "docs/sdao-handoff/**", "package.json", "**/package.json", "package-lock.json", "**/package-lock.json", "api/generated/**", "skills-lock.json"],
       "bashAllow": [
         "git status( .*)?",
         "git diff( .*)?",
@@ -38,6 +38,7 @@
         "npm ci",
         "npm --prefix (api|client) ci",
         "npm --prefix api run prisma:generate",
+        "npm --prefix api run prisma:validate",
         "npm test( .*)?",
         "npm run (lint|typecheck|build)( .*)?",
         "npm --prefix (api|client) (test|run (lint|typecheck|build))( .*)?"
@@ -55,6 +56,7 @@
         "git show( .*)?",
         "git merge-base( .*)?",
         "git branch --show-current",
+        "npm --prefix api run prisma:validate",
         "npm test( .*)?",
         "npm run (lint|typecheck|build|dev)( .*)?",
         "npm --prefix (api|client) (test|run (lint|typecheck|build|dev))( .*)?"
@@ -64,7 +66,7 @@
     },
     "integrator": {
       "editable": ["**"],
-      "denyEdit": [".claude/**", "CLAUDE.md", "AGENTS.md", ".mcp.json", ".git", ".git/**", ".env", ".env.local"],
+      "denyEdit": [".claude/**", "CLAUDE.md", "AGENTS.md", ".mcp.json", ".git", ".git/**", ".env", ".env.local", ".env.*.local", "docs/sdao-handoff/**", "**/package-lock.json", "api/generated/**"],
       "bashAllow": [
         "git status( .*)?",
         "git diff( .*)?",
@@ -80,6 +82,9 @@
         "git merge --abort",
         "git add(?!.* (-f|--force)( |$))( .*)?",
         "git commit( .*)?",
+        "npm ci",
+        "npm --prefix (api|client) ci",
+        "npm --prefix api run prisma:(generate|validate)",
         "npm test( .*)?",
         "npm run (lint|typecheck|build)( .*)?",
         "npm --prefix (api|client) (test|run (lint|typecheck|build))( .*)?"

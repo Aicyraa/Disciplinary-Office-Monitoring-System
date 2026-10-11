@@ -21,6 +21,12 @@ Read the task row and dev's entry in `CONTEXT.md`. Do not trust dev's notes: re-
 5. UI work: start the app (`npm run dev`) and drive it with Playwright.
 6. Error handling and security of changed code (authorization enforced by the API, not only the UI; no secrets or real student data), using `get_diagnostics_for_file` on each changed file.
 
+7. Each rule in the cited `FEATURE-RULES.md` section: PASS or FAIL with evidence (a test name or a command).
+8. The rule is enforced in the API, not only the UI: find the API-level test.
+9. No secret under a `VITE_` key, no real credentials or student data in fixtures or logs, no `.env` read.
+10. Nothing from the parked list in `CLAUDE.md` section 9 was built.
+11. Every `HUMAN CHECK:` line is complete (exact command, expected result) and appears under "Not verified".
+
 Write one Review block in the task's section: verdict PASS or FAIL; criteria table; command evidence; scope findings; for each failure, the smallest next step for dev. Keep it under about 15 lines.
 
 If an action is denied, do not work around it; report it. End your final message with a "Concepts to check" section: 1-3 items, each explained in 2-4 plain-language steps, no formula-only explanations.
