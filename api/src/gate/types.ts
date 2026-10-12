@@ -39,6 +39,8 @@ export interface GateTx {
     manilaDay: string,
   ): Promise<Array<{ handbookEntryId: number; submissionRef: string }>>;
   insertGateCase(input: NewGateCase): Promise<number>;
+  /** The display code of a submission (`GI-1042`): its rank among all submissions, by first case (codes.ts). */
+  submissionCode(submissionRef: string): Promise<string>;
   addHistory(input: { caseId: number; date: Date }): Promise<void>;
   /** Idempotent: an existing key is left alone. */
   addNotification(input: GateNotificationInput): Promise<void>;

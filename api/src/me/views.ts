@@ -1,10 +1,12 @@
 import type {
   CaseTimelineEntry,
+  ClearanceSlipView,
   ClearanceTermView,
   StudentAppointmentView,
   StudentCaseDetailView,
   StudentCaseView,
   StudentClearanceView,
+  StudentProfileView,
   StudentSanctionView,
 } from '@shared/types.js';
 import { displayCode } from '../codes.js';
@@ -16,6 +18,7 @@ import type {
   CaseSanctionRecord,
   ClearanceRecord,
   ClearanceTermRecord,
+  StudentProfileRecord,
 } from './repo.js';
 
 const iso = (date: Date): string => date.toISOString();
@@ -26,7 +29,7 @@ const dateOnly = (date: Date): string => date.toISOString().slice(0, 10);
 export function toCaseView(record: CaseRecord): StudentCaseView {
   return {
     id: record.caseId,
-    code: displayCode('C', record.caseId),
+    code: record.code,
     status: record.status,
     caseDate: iso(record.caseDate),
     violation: record.violationType,
@@ -49,7 +52,7 @@ export function toSanctionView(record: CaseSanctionRecord, today: string): Stude
   return {
     id: record.caseSanctionId,
     caseId: record.caseId,
-    caseCode: displayCode('C', record.caseId),
+    caseCode: record.caseCode,
     sanctionId: record.sanctionId,
     sanctionCode: displayCode('S', record.sanctionId),
     type: record.sanctionType,
@@ -101,6 +104,33 @@ export function toCaseDetailView(
   };
 }
 
+export function toProfileView(record: StudentProfileRecord): StudentProfileView {
+  return {
+    studentId: record.studentId,
+    firstName: record.firstName,
+    lastName: record.lastName,
+    email: record.email,
+    program: record.program,
+    yearLevel: record.yearLevel,
+    isActive: record.isActive,
+  };
+}
+
+export function toSlipView(profile: StudentProfileRecord, record: ClearanceRecord): ClearanceSlipView {
+  const done = record.items.map((item) => item.dateCompleted).filter((date): date is Date => date !== null);
+  const last = done.length > 0 ? new Date(Math.max(...done.map((date) => date.getTime()))) : null;
+  return {
+    student: toProfileView(profile),
+    academicYear: record.academicYear,
+    semester: record.semester,
+    clearedOn: last ? manilaToday(last) : '',
+    items: record.items.map((item) => ({
+      label: item.label,
+      dateCompleted: item.dateCompleted ? manilaToday(item.dateCompleted) : null,
+    })),
+  };
+}
+
 /** Calendar day in Asia/Manila as YYYY-MM-DD (SPEC decision: display in Manila time). */
 export function manilaToday(now: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -120,6 +150,7 @@ export function appointmentBucket(record: AppointmentRecord, today: string): 'up
 export function toAppointmentView(record: AppointmentRecord, today: string): StudentAppointmentView {
   return {
     id: record.appointmentId,
+    code: displayCode('A', record.appointmentId),
     startDate: dateOnly(record.startDate),
     endDate: dateOnly(record.endDate),
     purpose: record.purpose,

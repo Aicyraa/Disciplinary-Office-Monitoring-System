@@ -23,7 +23,7 @@ The prototype is **front-end only**: state lives in memory, the date is fixed at
 | 10 | Escalation | 3 minors of any kind; the 3rd converts into the Major "3 minor offense"; the 2 earlier minors are flagged escalated (section 4.2) |
 | 11 | Power Automate trust | Power Automate only issues a **signed trigger URL** per flow (no secret exists). The URL is the credential (`PA_NOTIFY_URL`, `PA_GATE_URL`), kept server-side. **The flow never calls the API**: it answers in its HTTP Response (`sent` / `failed`) and the API sets `email_status`. No callback, no tunnel, no `x-api-key`, no `PA_SHARED_SECRET`, no `/integrations/*` endpoints. Every outbound body is `{ "type": ..., "payload": {...} }` (`POWER-AUTOMATE.md` section 4) |
 | 12 | Gate-form protection | **No captcha and no third-party service.** The public endpoint is protected by a per-IP rate limit and a form-timing token (signed when the form opens; rejected if submitted under 3 seconds or over 30 minutes later), plus validation, a body-size limit and the duplicate unique index. All checks sit behind one `verifyHuman()` function so a captcha can be added later without changing the form flow |
-| 13 | Accounts and ids | Accounts are **added manually** (SQL seed file with bcrypt hashes; no create-account screen in version 1). Student id format is `YYYY-NNNNNNN`: 4 digits, a dash, 7 digits (11 digits in total, regex `^\d{4}-\d{7}$`), e.g. `2023-1030333`. Display codes are a letter plus the numeric id padded to **3 digits** (`S001`, `V001`, `C001`); ids above 999 simply grow (`S1000`) |
+| 13 | Accounts and ids | Accounts are **added manually** (SQL seed file with bcrypt hashes; no create-account screen in version 1). Student id format is `YYYY-NNNNNNN`: 4 digits, a dash, 7 digits (11 digits in total, regex `^\d{4}-\d{7}$`), e.g. `2023-1030333`. Display codes are derived, never stored: letter + hyphen + id padded to **3 digits** for sanctions, appointments, violations and handbook entries (`S-021`, `A-104`, `V-001`, `H-001`; ids above 999 simply grow); cases `SDO-<year>-<number>` with the number restarting every year (year of `case_date` in Asia/Manila, ranked by id); gate submissions `GI-<1000 + rank>` (UI-POLISH-SPEC decision 3) |
 | 14 | Offense number and retry cap | **Offense number** of a case = 1 + the number of the same student's earlier cases (by `case_date`, then id) for the same violation that are `validated`, `for_sanction` or `resolved`; `reported` and `rejected` never count. It selects the `handbook_entry_sanctions` rows offered to staff (4.3). **Notification retry cap:** the in-API sweep retries `pending` emails for 24 hours after `date_created`, then marks them `failed` (no schema change) |
 | 15 | Email sender | The **flow owner's own account** sends every email (their mail connection in "Send an email (V2)"). No shared mailbox, no "send as", no NU IT request. All employee accounts **recieves** the notifications both in-app and outlook address
 | 16 | Proof of sanctions | **Online only.** A student uploads files; staff open every file and then verify. No in-person "record compliance" path (4.3). Settled 2026-10-12 |
@@ -81,7 +81,7 @@ Core loop: report → staff validate → (3 minors roll into a Major) → staff 
 
 ### ID strategy (workbook codes like V001 / S001)
 - **Primary keys are numeric identity columns** the database maintains (`GENERATED ALWAYS AS IDENTITY`). Nothing is typed by hand, nothing collides, joins are fast, and renaming never matters. Hand-maintained text ids like `V001` break when two people add a row at once and when a number gets reused.
-- **Display codes are derived, not stored**: the app formats them (letter + id padded to 3 digits: `V001`, `S001`, `C001`; see decision 13) when it needs to show one. The seed keeps workbook numbers (V001 → 1, S001 → 1), so the codes you already know stay the same.
+- **Display codes are derived, not stored**: the app formats them (`V-001`, `S-021`, `A-104`, cases `SDO-2026-016`, gate submissions `GI-1042`; see decision 13) when it needs to show one. The seed keeps workbook numbers (V001 → 1, S001 → 1), so the numbers you already know stay the same.
 - `student_id` and `employee_id` stay text because they are real-world identifiers (school ID numbers) that people type.
 
 ### Changes to your existing tables
@@ -173,7 +173,7 @@ There is no separate announcements feature. Notifications carry every admin upda
 - Hash with Argon2id (or bcrypt). Rules: ≥ 8 characters, at least one letter and one digit.
 - Staff **reset** → generates a one-time `Temp-####`, stores its hash in `password_hashed`, sets `must_change_password = true`, shown to staff once. On next sign-in the user is forced to set a new password (it can't equal the temp one).
 - "Forgot password" stays in-person: the SDO office (Room 204) issues a temp password.
-- Login accepts only emails ending in `nu-fairview.edu.ph` / `students.nu-fairview.edu.ph`; generic error message on failure; add login rate limiting.
+- Login accepts only emails ending in `nu-fairview.edu.ph` / `students.nu-fairview.edu.ph`; generic error message on failure; add login rate limiting. **The role is the account table the address is found in**, not the domain: the address's own domain is looked up first, then the other table, so a staff account may use a student-domain address (the demo admin does). Accounts are added by hand, so the two tables never hold the same address.
 
 ### 4.9 Handbook admin
 Staff create or edit a violation (name unique, category Minor/Major, section, description, sanction per offense step). A violation is keyed by id, so renaming never breaks cases. Show "used in N cases".
@@ -246,12 +246,12 @@ GET  /handbook   GET /handbook/:id   (student + staff)
 POST /handbook   PATCH /handbook/:id          (staff: create and edit a violation; the category locks once cases use it)
 GET  /sanction-templates                      (any signed-in user: every sanction with its template text and file names)
 PUT  /sanction-templates/:sanctionId          (staff: title, description, requirements)
-POST /sanction-templates/:sanctionId/files    (staff, multipart, max 5 files)   DELETE /sanction-templates/files/:fileId
+POST /sanction-templates/:sanctionId/files    (staff, multipart, one file; a new upload replaces the old one)   DELETE /sanction-templates/files/:fileId
 GET  /sanction-templates/files/:fileId/url    (any signed-in user: 60 s download link)
 
 GET  /cases?status=&class=&q=&sort=&page=     (staff)     GET /me/cases (student)
 GET  /cases/:id                               (staff)     GET /me/cases/:id (student)
-POST /cases                                   (staff records violation)
+POST /cases                                   (staff records violation; optional remarks become the first log entry)
 POST /submissions/:id/validate | /reject      GET /submissions/:id/escalation-preview
 PATCH /cases/:id/student                      (staff links a reported case to a student id)
 GET  /cases/:id/sanction-options              (staff: offense number + allowed sanctions, computed by the API)
@@ -263,8 +263,12 @@ GET  /me/sanctions
 POST /files (multipart; this one request IS the submission)   GET /files/:id/url   DELETE /files/:id
 #   `:id` is the `case_sanction_files` id. A replace sends `replaceFileId` with exactly one file.
 POST /case-sanctions/:id/verify | /return       # no /submit and no /record-compliance (online proof only)
+GET  /case-sanctions?filter=active|pending_verification|overdue&page=   (staff queue, 20 per page, oldest due first; `counts` feed dashboard tiles and nav badges)
 
-GET  /students  GET /students/:id   POST /students/:id/reset-password
+GET  /students?q=&page=   GET /students/:id                  (staff: the student records; 20 per page)
+POST /staff/students/:studentId/reset-password                (staff: one-time temp password)
+GET  /me/profile                                              (student: own account details)
+GET  /me/clearance/slip?academic_year=&semester=              (student: slip data; 409 `not_cleared` until the term is cleared)
 GET  /clearances?status=&q=&page=   GET /clearances/:id   POST /clearances (studentId, academicYear, semester)
 POST /clearances/:id/requirements (label)   DELETE /clearances/:id/requirements/:rid
 POST /clearances/:id/requirements/:rid/complete (remarks) | /reverse (reason)   GET /me/clearance (student)

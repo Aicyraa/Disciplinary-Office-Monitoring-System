@@ -128,7 +128,7 @@ describe('staff: assign', () => {
     const response = await agent.get('/cases/1/sanction-options');
     expect(response.status).toBe(200);
     expect(response.body.data.options).toMatchObject({ offenseNumber: 1, offenseUsed: 1 });
-    expect(response.body.data.options.sanctions.map((s: { sanctionCode: string }) => s.sanctionCode)).toEqual(['S001', 'S002']);
+    expect(response.body.data.options.sanctions.map((s: { sanctionCode: string }) => s.sanctionCode)).toEqual(['S-001', 'S-002']);
   });
 
   test('assigns with a due date and the case becomes for_sanction', async () => {

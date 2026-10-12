@@ -39,6 +39,10 @@ const sanctionBase: CaseSanctionRecord = {
 const NOW = new Date('2026-10-11T20:00:00Z');
 
 const studentViews = createMemoryStudentViewRepo({
+  profiles: [
+    { studentId: STUDENT_A.id, firstName: 'Ana', lastName: 'Cruz', email: STUDENT_A.email, program: 'BS Information Technology', yearLevel: 2, isActive: true },
+    { studentId: STUDENT_B.id, firstName: 'Ben', lastName: 'Lee', email: STUDENT_B.email, program: 'BS Accountancy', yearLevel: 3, isActive: true },
+  ],
   cases: [
     {
       studentId: STUDENT_A.id,
@@ -130,7 +134,7 @@ describe('GET /me/cases', () => {
     const agent = await signedInAgent(built(), STUDENT_A.email);
     const response = await agent.get('/me/cases');
     expect(response.status).toBe(200);
-    expect(response.body.data.cases.map((c: { code: string }) => c.code)).toEqual(['C003', 'C001', 'C002']);
+    expect(response.body.data.cases.map((c: { code: string }) => c.code)).toEqual(['SDO-2026-003', 'SDO-2026-001', 'SDO-2026-002']);
   });
 
   test('shows rejected cases and converted majors with their original minor', async () => {
@@ -158,7 +162,7 @@ describe('GET /me/cases/:id', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.case.timeline.map((t: { eventType: string }) => t.eventType)).toEqual(['reported', 'sanction_assigned']);
     expect(response.body.data.case.sanctions).toHaveLength(1);
-    expect(response.body.data.case.sanctions[0]).toMatchObject({ id: 7, sanctionCode: 'S003', dueDate: '2026-09-20', staffNote: 'Bring a signed slip.' });
+    expect(response.body.data.case.sanctions[0]).toMatchObject({ id: 7, sanctionCode: 'S-003', dueDate: '2026-09-20', staffNote: 'Bring a signed slip.' });
   });
 
   test("another student's case is a 404, indistinguishable from a missing one", async () => {
@@ -315,5 +319,42 @@ describe('GET /me/clearance', () => {
     const empty = buildHarnessApp({ studentViews: createMemoryStudentViewRepo(), now: () => NOW });
     const agent = await signedInAgent(empty, STUDENT_A.email);
     expect((await agent.get('/me/clearance')).body).toEqual({ ok: true, data: { terms: [], clearance: null } });
+  });
+});
+
+describe('GET /me/clearance/slip', () => {
+  test('a cleared term returns the slip data with the date the last requirement was done', async () => {
+    const agent = await signedInAgent(built(), STUDENT_A.email);
+    const response = await agent.get('/me/clearance/slip').query({ academic_year: '2025', semester: '2' });
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toContain('no-store');
+    expect(response.body.data.slip).toEqual({
+      student: expect.objectContaining({ studentId: STUDENT_A.id, firstName: 'Ana', program: 'BS Information Technology' }),
+      academicYear: 2025,
+      semester: 2,
+      clearedOn: '2026-03-01',
+      items: [{ label: 'Library', dateCompleted: '2026-03-01' }],
+    });
+  });
+
+  test('a term that is not cleared is refused with 409 not_cleared', async () => {
+    const agent = await signedInAgent(built(), STUDENT_A.email);
+    const response = await agent.get('/me/clearance/slip').query({ academic_year: '2026', semester: '1' });
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('not_cleared');
+  });
+
+  test('another student term, a missing term and bad parameters', async () => {
+    const agent = await signedInAgent(built(), STUDENT_B.email);
+    expect((await agent.get('/me/clearance/slip').query({ academic_year: '2025', semester: '2' })).status).toBe(404);
+    expect((await agent.get('/me/clearance/slip')).status).toBe(400);
+    expect((await agent.get('/me/clearance/slip').query({ academic_year: '2025', semester: '4' })).status).toBe(400);
+  });
+
+  test('staff and signed-out visitors cannot read a slip', async () => {
+    const app = built();
+    expect((await request(app).get('/me/clearance/slip').query({ academic_year: '2025', semester: '2' })).status).toBe(401);
+    const staff = await signedInAgent(app, STAFF.email);
+    expect((await staff.get('/me/clearance/slip').query({ academic_year: '2025', semester: '2' })).status).toBe(403);
   });
 });

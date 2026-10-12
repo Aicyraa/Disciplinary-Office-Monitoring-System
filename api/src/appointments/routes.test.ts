@@ -175,6 +175,7 @@ describe('GET /appointments', () => {
     expect(upcoming.body.data.total).toBe(1);
     expect(upcoming.body.data.appointments[0]).toMatchObject({
       id: 1,
+      code: 'A-001',
       student: { id: STUDENT_A.id, name: 'Ana Cruz' },
       bucket: 'upcoming',
       assignedBy: 'Officer One',

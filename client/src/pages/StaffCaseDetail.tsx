@@ -267,7 +267,7 @@ function Details({ detail }: { detail: StaffCaseDetail }) {
     ['Student', whoLabel(detail)],
     ['Violation', `${detail.violation} (${detail.section})`],
     ['Reported', formatDate(detail.caseDate)],
-    ['Source', detail.source === 'gate' ? 'Gate report' : 'Recorded by staff'],
+    ['Source', detail.source === 'gate' ? `Gate report${detail.submissionCode ? ` · ${detail.submissionCode}` : ''}` : 'Recorded by staff'],
   ];
   if (detail.claimed?.program || detail.claimed?.year) {
     rows.push(['Typed on the form', [detail.claimed.program, detail.claimed.year].filter(Boolean).join(' · ')]);
@@ -331,7 +331,7 @@ function History({ detail }: { detail: StaffCaseDetail }) {
           <li key={`${entry.date}-${index}`}>
             <div className="text-sm font-medium text-ink">
               {statusLabel(entry.eventType)}
-              {entry.statusAfter ? ` → ${statusLabel(entry.statusAfter)}` : ''}
+              {entry.statusAfter ? ` → ${statusLabel(entry.statusAfter, 'case')}` : ''}
             </div>
             {entry.remarks ? <div className="text-sm">{entry.remarks}</div> : null}
             <div className="text-xs text-muted">
@@ -366,7 +366,7 @@ export function CaseDetailPage() {
               actions={
                 <div className="flex gap-2">
                   <StatusPill status={detail.severity} />
-                  <StatusPill status={detail.status} />
+                  <StatusPill status={detail.status} kind="case" />
                 </div>
               }
             />

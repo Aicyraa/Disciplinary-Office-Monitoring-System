@@ -1,17 +1,22 @@
+import { assignCaseCodes } from '../codes.js';
 import type {
   AppointmentRecord,
   CaseHistoryRecord,
   CaseRecord,
   CaseSanctionRecord,
   ClearanceRecord,
+  StudentProfileRecord,
+  StudentSummaryRecord,
   StudentViewRepo,
 } from './repo.js';
 
 type Owned<T> = { studentId: string } & T;
 
 export interface MemoryStudentData {
-  cases?: Array<Owned<CaseRecord> & { history?: CaseHistoryRecord[] }>;
-  sanctions?: Array<Owned<CaseSanctionRecord>>;
+  profiles?: StudentProfileRecord[];
+  /** The display code is derived from the dates by the fake, like the real repository does. */
+  cases?: Array<Owned<Omit<CaseRecord, 'code'>> & { history?: CaseHistoryRecord[] }>;
+  sanctions?: Array<Owned<Omit<CaseSanctionRecord, 'caseCode'>>>;
   appointments?: Array<Owned<AppointmentRecord>>;
   clearances?: Array<Owned<ClearanceRecord>>;
 }
@@ -33,24 +38,27 @@ export function createMemoryStudentViewRepo(data: MemoryStudentData = {}): Stude
   const sanctions = data.sanctions ?? [];
   const appointments = data.appointments ?? [];
   const clearances = data.clearances ?? [];
+  const profiles = data.profiles ?? [];
+  const codes = assignCaseCodes(cases.map((row) => ({ id: row.caseId, caseDate: row.caseDate })));
+  const codeOf = (caseId: number): string => codes.get(caseId) ?? `SDO-0000-${String(caseId).padStart(3, '0')}`;
 
   return {
     async listCases(studentId) {
       return cases
         .filter((row) => row.studentId === studentId)
-        .map((row) => strip(row, 'history') as CaseRecord)
+        .map((row) => ({ ...(strip(row, 'history') as Omit<CaseRecord, 'code'>), code: codeOf(row.caseId) }))
         .sort((a, b) => b.caseDate.getTime() - a.caseDate.getTime());
     },
     async getCase(studentId, caseId) {
       const row = cases.find((candidate) => candidate.studentId === studentId && candidate.caseId === caseId);
       if (!row) return null;
       const history = [...(row.history ?? [])].sort((a, b) => a.date.getTime() - b.date.getTime());
-      return { ...(strip(row, 'history') as CaseRecord), history };
+      return { ...(strip(row, 'history') as Omit<CaseRecord, 'code'>), code: codeOf(row.caseId), history };
     },
     async listSanctions(studentId, options) {
       return sanctions
         .filter((row) => row.studentId === studentId && (options?.caseId === undefined || row.caseId === options.caseId))
-        .map((row) => strip(row) as CaseSanctionRecord)
+        .map((row) => ({ ...(strip(row) as Omit<CaseSanctionRecord, 'caseCode'>), caseCode: codeOf(row.caseId) }))
         .sort((a, b) => b.dateAssigned.getTime() - a.dateAssigned.getTime());
     },
     async listAppointments(studentId) {
@@ -63,6 +71,28 @@ export function createMemoryStudentViewRepo(data: MemoryStudentData = {}): Stude
       return clearances
         .filter((row) => row.studentId === studentId)
         .map((row) => ({ academicYear: row.academicYear, semester: row.semester, status: row.status }));
+    },
+    async getProfile(studentId) {
+      const found = profiles.find((profile) => profile.studentId === studentId);
+      return found ? { ...found } : null;
+    },
+    async searchStudents({ q, page, pageSize }) {
+      const needle = q?.toLowerCase() ?? null;
+      const matches = profiles
+        .filter((p) =>
+          needle === null
+            ? true
+            : [p.studentId, `${p.firstName} ${p.lastName}`, p.email, p.program].some((text) => text.toLowerCase().includes(needle)),
+        )
+        .sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
+      const openStatuses = ['reported', 'validated', 'for_sanction'];
+      const activeStatuses = ['assigned', 'pending_verification', 'returned'];
+      const rows: StudentSummaryRecord[] = matches.slice((page - 1) * pageSize, page * pageSize).map((p) => ({
+        ...p,
+        openCases: cases.filter((c) => c.studentId === p.studentId && openStatuses.includes(c.status)).length,
+        activeSanctions: sanctions.filter((s) => s.studentId === p.studentId && activeStatuses.includes(s.status)).length,
+      }));
+      return { total: matches.length, rows };
     },
     async getClearance(studentId, academicYear, semester) {
       const row = clearances.find(

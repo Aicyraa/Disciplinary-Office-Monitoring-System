@@ -38,6 +38,7 @@ export type ApiErrorCode =
   | 'invalid_input'
   | 'not_found'
   | 'invalid_status'
+  | 'not_cleared'
   // cases
   | 'student_not_found'
   | 'violation_not_found'
@@ -259,6 +260,8 @@ export type StudentCaseDetailView = StudentCaseView & {
 
 export type StudentAppointmentView = {
   id: number;
+  /** Display code, `A-104`. */
+  code: string;
   startDate: string;
   endDate: string;
   purpose: string;
@@ -282,6 +285,8 @@ export type AppointmentHistoryEntry = {
 /** What staff see (SPEC 5): every appointment of every student, with its log. */
 export type StaffAppointmentView = {
   id: number;
+  /** Display code, `A-104`. */
+  code: string;
   student: { id: string; name: string };
   startDate: string;
   endDate: string;
@@ -365,6 +370,51 @@ export type StudentClearanceView = ClearanceTermView & {
   items: ClearanceItemView[];
 };
 
+/** A student's own account details (read-only), and the head of a staff student record. */
+export type StudentProfileView = {
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  program: string;
+  yearLevel: number;
+  isActive: boolean;
+};
+
+/** One row of the staff Students list (SPEC 5). */
+export type StaffStudentRow = StudentProfileView & {
+  /** Cases that are reported, validated or for_sanction. */
+  openCases: number;
+  /** Sanctions that are assigned, pending verification or returned. */
+  activeSanctions: number;
+};
+
+export type StaffStudentListResponse = {
+  students: StaffStudentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+/** A student's record as staff see it: the same views the student sees, plus the account details. */
+export type StaffStudentRecord = {
+  profile: StudentProfileView;
+  cases: StudentCaseView[];
+  sanctions: StudentSanctionView[];
+  appointments: StudentAppointmentView[];
+  clearanceTerms: ClearanceTermView[];
+};
+
+/** What the printable clearance slip shows. Only produced for a cleared term (UI-POLISH-SPEC decision 2). */
+export type ClearanceSlipView = {
+  student: StudentProfileView;
+  academicYear: number;
+  semester: number;
+  /** Date the last requirement was completed, YYYY-MM-DD (Asia/Manila). */
+  clearedOn: string;
+  items: Array<{ label: string; dateCompleted: string | null }>;
+};
+
 export type StudentClearanceResponse = {
   /** Newest first. */
   terms: ClearanceTermView[];
@@ -374,6 +424,33 @@ export type StudentClearanceResponse = {
 // ---- Staff case workflow (SPEC 4.1, 4.2, 4.10; FEATURE-RULES 3.3, 3.5) -----------------------------
 
 export type CaseSource = 'gate' | 'staff';
+
+/** One sanction in the staff queue (SPEC 5: sanctions waiting for verification, overdue ones). */
+export type StaffSanctionQueueRow = {
+  id: number;
+  caseId: number;
+  caseCode: string;
+  sanctionCode: string;
+  type: string;
+  status: CaseSanctionStatus;
+  student: { id: string; name: string } | null;
+  /** YYYY-MM-DD */
+  dueDate: string;
+  dateSubmitted: string | null;
+  /** Derived, never stored: whole days past the due date (0 when on time). */
+  lateByDays: number;
+  /** Past its due date and not yet verified. */
+  overdue: boolean;
+};
+
+export type StaffSanctionQueueResponse = {
+  sanctions: StaffSanctionQueueRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Whole-system counts, whatever the filter: for dashboard tiles and navigation badges. */
+  counts: { pendingVerification: number; overdue: number; active: number };
+};
 
 export type StaffCaseRow = {
   id: number;
@@ -391,6 +468,8 @@ export type StaffCaseRow = {
   claimed: { studentId: string | null; name: string | null; program: string | null; year: string | null } | null;
   /** Cases from one gate submit share this reference; validate and reject act on all of them. */
   submissionRef: string | null;
+  /** Display code of the gate submission, `GI-1042`; null for staff-recorded cases. */
+  submissionCode: string | null;
   /** This minor was counted into a 3-minor Major case. */
   isEscalated: boolean;
   /** Set on a converted Major case: the violation it was reported as. */

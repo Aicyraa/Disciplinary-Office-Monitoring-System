@@ -1,8 +1,16 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import type { CaseSanctionStatus, CaseStatus, Severity, StaffCaseDetail, StaffCaseRow } from '@shared/types.js';
-import { displayCode } from '../codes.js';
+import { displayCode, parseCaseCode } from '../codes.js';
+import { findCaseIdByCode, loadCaseCodes, loadSubmissionCodes } from './code-sql.js';
+import { lateByDays } from '../sanctions/rules.js';
 import { toStaffSanctionView } from '../sanctions/views.js';
-import { CASE_PAGE_SIZE, parseCaseCode, type CaseListFilter, type CaseQueries } from './queries.js';
+import {
+  ACTIVE_SANCTION_STATUSES,
+  CASE_PAGE_SIZE,
+  SANCTION_QUEUE_PAGE_SIZE,
+  type CaseListFilter,
+  type CaseQueries,
+} from './queries.js';
 import type { CaseRecord, CaseSanctionRecord, CaseStore, CaseTx, HandbookEntryLite } from './types.js';
 
 const CURRENT = 'handbook_entries_disciplinary_cases_handbook_entry_idTohandbook_entries';
@@ -125,6 +133,9 @@ function createTx(db: Prisma.TransactionClient): CaseTx {
   });
 
   return {
+    async caseCode(caseId) {
+      return (await loadCaseCodes(db, [caseId])).get(caseId) ?? `SDO-0000-${String(caseId).padStart(3, '0')}`;
+    },
     async lockStudent(studentId) {
       // Serialises escalation counting for this student across concurrent validations.
       await db.$queryRaw`SELECT student_id FROM student_accounts WHERE student_id = ${studentId} FOR UPDATE`;
@@ -389,10 +400,10 @@ type ListRow = CaseRow & {
   student_accounts: { first_name: string; last_name: string } | null;
 };
 
-function toRow(row: ListRow): StaffCaseRow {
+function toRow(row: ListRow, code: string, submissionCode: string | null): StaffCaseRow {
   return {
     id: row.disciplinary_case_id,
-    code: displayCode('C', row.disciplinary_case_id),
+    code,
     status: row.status as CaseStatus,
     severity: row[CURRENT].violations.severity as Severity,
     violation: row[CURRENT].violations.violation_type,
@@ -408,22 +419,22 @@ function toRow(row: ListRow): StaffCaseRow {
         ? { studentId: row.claimed_student_id, name: row.claimed_name, program: row.claimed_program, year: row.claimed_year }
         : null,
     submissionRef: row.submission_ref,
+    submissionCode,
     isEscalated: row.is_escalated,
     convertedFrom: row[ORIGINAL]?.violations.violation_type ?? null,
   };
 }
 
-function listWhere(filter: CaseListFilter): Prisma.disciplinary_casesWhereInput {
+function listWhere(filter: CaseListFilter, codeCaseId: number | null): Prisma.disciplinary_casesWhereInput {
   const and: Prisma.disciplinary_casesWhereInput[] = [];
   if (filter.status) and.push({ status: filter.status });
   if (filter.severity) and.push({ [CURRENT]: { violations: { severity: filter.severity } } });
   const needle = filter.q?.trim();
   if (needle) {
-    const code = parseCaseCode(needle);
     const contains = { contains: needle, mode: 'insensitive' as const };
     and.push({
       OR: [
-        ...(code === null ? [] : [{ disciplinary_case_id: code }]),
+        ...(codeCaseId === null ? [] : [{ disciplinary_case_id: codeCaseId }]),
         { student_id: contains },
         { claimed_student_id: contains },
         { claimed_name: contains },
@@ -437,11 +448,13 @@ function listWhere(filter: CaseListFilter): Prisma.disciplinary_casesWhereInput 
 
 /** Prisma-backed staff queries. Staff see every case (one department), so there is no student scope here. */
 export function createPrismaCaseQueries(
-  db: Pick<PrismaClient, 'disciplinary_cases'>,
+  db: Pick<PrismaClient, 'disciplinary_cases' | 'case_sanctions' | '$queryRaw'>,
 ): CaseQueries {
   return {
     async list(filter) {
-      const where = listWhere(filter);
+      const parsed = filter.q ? parseCaseCode(filter.q) : null;
+      const codeCaseId = parsed ? await findCaseIdByCode(db, parsed.year, parsed.ordinal) : null;
+      const where = listWhere(filter, codeCaseId);
       const [rows, total] = await Promise.all([
         db.disciplinary_cases.findMany({
           where,
@@ -452,7 +465,70 @@ export function createPrismaCaseQueries(
         }),
         db.disciplinary_cases.count({ where }),
       ]);
-      return { rows: rows.map((row) => toRow(row as unknown as ListRow)), total };
+      const codes = await loadCaseCodes(db, rows.map((row) => row.disciplinary_case_id));
+      const refs = [...new Set(rows.flatMap((row) => (row.submission_ref ? [row.submission_ref] : [])))];
+      const submissionCodes = await loadSubmissionCodes(db, refs);
+      return {
+        rows: rows.map((row) =>
+          toRow(
+            row as unknown as ListRow,
+            codes.get(row.disciplinary_case_id) ?? '',
+            row.submission_ref ? (submissionCodes.get(row.submission_ref) ?? null) : null,
+          ),
+        ),
+        total,
+      };
+    },
+
+    async sanctionQueue({ filter, page, today }) {
+      const activeWhere = { status: { in: [...ACTIVE_SANCTION_STATUSES] } };
+      const overdueWhere = { ...activeWhere, due_date: { lt: new Date(`${today}T00:00:00Z`) } };
+      const where =
+        filter === 'pending_verification' ? { status: 'pending_verification' } : filter === 'overdue' ? overdueWhere : activeWhere;
+      const [rows, total, pendingVerification, overdue, active] = await Promise.all([
+        db.case_sanctions.findMany({
+          where,
+          include: {
+            sanctions: true,
+            disciplinary_cases: { select: { student_id: true, student_accounts: { select: { first_name: true, last_name: true } } } },
+          },
+          orderBy: [{ due_date: 'asc' }, { case_sanction_id: 'asc' }],
+          skip: (page - 1) * SANCTION_QUEUE_PAGE_SIZE,
+          take: SANCTION_QUEUE_PAGE_SIZE,
+        }),
+        db.case_sanctions.count({ where }),
+        db.case_sanctions.count({ where: { status: 'pending_verification' } }),
+        db.case_sanctions.count({ where: overdueWhere }),
+        db.case_sanctions.count({ where: activeWhere }),
+      ]);
+      const codes = await loadCaseCodes(db, [...new Set(rows.map((row) => row.disciplinary_case_id))]);
+      return {
+        sanctions: rows.map((row) => {
+          const dueDate = row.due_date.toISOString().slice(0, 10);
+          const status = row.status as CaseSanctionStatus;
+          const owner = row.disciplinary_cases.student_accounts;
+          return {
+            id: row.case_sanction_id,
+            caseId: row.disciplinary_case_id,
+            caseCode: codes.get(row.disciplinary_case_id) ?? '',
+            sanctionCode: displayCode('S', row.sanction_id),
+            type: row.sanctions.sanction_type,
+            status,
+            student:
+              row.disciplinary_cases.student_id && owner
+                ? { id: row.disciplinary_cases.student_id, name: `${owner.first_name} ${owner.last_name}` }
+                : null,
+            dueDate,
+            dateSubmitted: row.date_submitted ? row.date_submitted.toISOString() : null,
+            lateByDays: lateByDays({ dueDate, status, today }),
+            overdue: status !== 'completed' && dueDate < today,
+          };
+        }),
+        total,
+        page,
+        pageSize: SANCTION_QUEUE_PAGE_SIZE,
+        counts: { pendingVerification, overdue, active },
+      };
     },
 
     async detail(caseId, today) {
@@ -479,7 +555,11 @@ export function createPrismaCaseQueries(
       const asMajor = row[AS_MAJOR] as Array<{ minor_case_id: number }>;
       const asMinor = row[AS_MINOR] as { major_case_id: number } | null;
       const detail: StaffCaseDetail = {
-        ...toRow(row as unknown as ListRow),
+        ...toRow(
+          row as unknown as ListRow,
+          (await loadCaseCodes(db, [caseId])).get(caseId) ?? '',
+          row.submission_ref ? ((await loadSubmissionCodes(db, [row.submission_ref])).get(row.submission_ref) ?? null) : null,
+        ),
         resolvedWithoutSanction: row.resolved_without_sanction,
         dateResolved: row.date_resolved?.toISOString() ?? null,
         timeline: row.case_status_history.map((entry) => ({

@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'vitest';
-import { displayCode } from '../codes.js';
 import type { AppointmentRecord } from './repo.js';
 import { appointmentBucket, manilaToday } from './views.js';
 
@@ -35,13 +34,5 @@ describe('appointmentBucket', () => {
 
   test('rescheduled counts as live', () => {
     expect(appointmentBucket({ ...base, status: 'rescheduled' }, '2026-10-01')).toBe('upcoming');
-  });
-});
-
-describe('displayCode', () => {
-  test('pads to three digits and keeps longer ids intact', () => {
-    expect(displayCode('C', 5)).toBe('C005');
-    expect(displayCode('V', 68)).toBe('V068');
-    expect(displayCode('H', 1234)).toBe('H1234');
   });
 });

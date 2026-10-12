@@ -8,6 +8,7 @@ import { useApi } from '../lib/useApi';
 interface Fields {
   studentId: string;
   handbookEntryId: string;
+  remarks: string;
 }
 
 export function RecordViolationPage() {
@@ -19,15 +20,15 @@ export function RecordViolationPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<Fields>({ defaultValues: { studentId: '', handbookEntryId: '' } });
+  } = useForm<Fields>({ defaultValues: { studentId: '', handbookEntryId: '', remarks: '' } });
 
-  const onSubmit = handleSubmit(async ({ studentId, handbookEntryId }) => {
+  const onSubmit = handleSubmit(async ({ studentId, handbookEntryId, remarks }) => {
     setFormError(null);
     setOutcome(null);
     try {
-      const result = await api.recordViolation(studentId.trim(), Number(handbookEntryId));
+      const result = await api.recordViolation(studentId.trim(), Number(handbookEntryId), remarks.trim());
       setOutcome({ caseId: result.caseId, converted: result.conversions.length > 0 });
-      reset({ studentId: '', handbookEntryId: '' });
+      reset({ studentId: '', handbookEntryId: '', remarks: '' });
     } catch (error) {
       setFormError(error instanceof ApiError ? error.message : 'Something went wrong. Try again.');
     }
@@ -74,6 +75,18 @@ export function RecordViolationPage() {
                 {errors.handbookEntryId ? (
                   <p className="mt-1 text-sm text-danger">{errors.handbookEntryId.message}</p>
                 ) : null}
+              </div>
+              <div>
+                <label htmlFor="remarks" className="mb-1 block text-sm font-medium text-ink">
+                  Remarks <span className="font-normal text-muted">(optional)</span>
+                </label>
+                <textarea
+                  id="remarks"
+                  className={`${fieldClass} min-h-20`}
+                  maxLength={1000}
+                  {...register('remarks', { maxLength: { value: 1000, message: 'Use up to 1000 characters.' } })}
+                />
+                {errors.remarks ? <p className="mt-1 text-sm text-danger">{errors.remarks.message}</p> : null}
               </div>
               {formError ? (
                 <p role="alert" className="text-sm font-medium text-danger">

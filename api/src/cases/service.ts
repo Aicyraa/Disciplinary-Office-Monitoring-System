@@ -1,4 +1,3 @@
-import { displayCode } from '../codes.js';
 import { planEscalations, type EscalationGroup } from './escalation.js';
 import type { CaseRecord, CaseStore, CaseTx } from './types.js';
 
@@ -29,7 +28,6 @@ export interface EscalationOutcome {
 export const MAX_TEXT_LENGTH = 1000;
 
 const fail = (code: CaseFailureCode, message: string): CaseFailure => ({ ok: false, code, message });
-const caseCode = (caseId: number): string => displayCode('C', caseId);
 
 /** Trimmed text, or null when it is empty or longer than the limit. */
 function cleanText(value: unknown): string | null {
@@ -45,6 +43,8 @@ export interface CaseService {
     employeeId: string;
     studentId: string;
     handbookEntryId: number;
+    /** Optional note recorded with the violation; it becomes the first entry of the remarks log. */
+    remarks?: unknown;
   }): Promise<CaseResult<{ caseId: number } & EscalationOutcome>>;
   previewEscalation(submissionRef: string): Promise<CaseResult<EscalationOutcome>>;
   validateSubmission(input: { employeeId: string; submissionRef: string }): Promise<CaseResult<{ caseIds: number[] } & EscalationOutcome>>;
@@ -78,8 +78,8 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
         await tx.updateCase(minorId, { isEscalated: true });
         await tx.insertEscalation(major.caseId, minorId);
       }
-      const linked = group.minorCaseIds.map(caseCode).join(' and ');
-      const majorCode = caseCode(major.caseId);
+      const linked = (await Promise.all(group.minorCaseIds.map((id) => tx.caseCode(id)))).join(' and ');
+      const majorCode = await tx.caseCode(major.caseId);
 
       await tx.addHistory({
         caseId: major.caseId,
@@ -148,7 +148,10 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
   }
 
   return {
-    async recordViolation({ employeeId, studentId, handbookEntryId }) {
+    async recordViolation({ employeeId, studentId, handbookEntryId, remarks }) {
+      const blank = remarks === undefined || remarks === null || (typeof remarks === 'string' && remarks.trim() === '');
+      const note = blank ? null : cleanText(remarks);
+      if (!blank && note === null) return fail('invalid_input', `Remarks must be text up to ${MAX_TEXT_LENGTH} characters.`);
       return store.transaction(async (tx) => {
         if (!(await tx.studentExists(studentId))) return fail('student_not_found', 'No student has that ID.');
         const entry = await tx.getHandbookEntry(handbookEntryId);
@@ -174,11 +177,14 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
           employeeId,
           date: at,
         });
+        if (note !== null) {
+          await tx.addHistory({ caseId, eventType: 'remark', statusAfter: 'validated', remarks: note, employeeId, date: at });
+        }
         await tx.addNotification({
           studentId,
           kind: 'newviol',
           title: 'New violation recorded',
-          message: `A ${entry.severity} violation, "${entry.violationType}", was recorded (case ${caseCode(caseId)}).`,
+          message: `A ${entry.severity} violation, "${entry.violationType}", was recorded (case ${await tx.caseCode(caseId)}).`,
           caseId,
           idempotencyKey: `case:${caseId}:recorded`,
         });
@@ -240,7 +246,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
             studentId: record.studentId as string,
             kind: 'case',
             title: 'Violation report validated',
-            message: `Case ${caseCode(record.caseId)} was validated by the SDO office.`,
+            message: `Case ${await tx.caseCode(record.caseId)} was validated by the SDO office.`,
             caseId: record.caseId,
             idempotencyKey: `case:${record.caseId}:validated`,
           });
@@ -277,7 +283,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
               studentId: record.studentId,
               kind: 'case',
               title: 'Violation report not verified',
-              message: `Case ${caseCode(record.caseId)} could not be verified. Reason: ${text}`,
+              message: `Case ${await tx.caseCode(record.caseId)} could not be verified. Reason: ${text}`,
               caseId: record.caseId,
               idempotencyKey: `case:${record.caseId}:rejected`,
             });
@@ -330,7 +336,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
             studentId: record.studentId,
             kind: 'case',
             title: 'Case resolved',
-            message: `Case ${caseCode(caseId)} is resolved.`,
+            message: `Case ${await tx.caseCode(caseId)} is resolved.`,
             caseId,
             idempotencyKey: `case:${caseId}:resolved`,
           });
@@ -356,7 +362,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
             studentId: record.studentId,
             kind: 'case',
             title: 'Case resolved',
-            message: `Case ${caseCode(caseId)} was resolved without a sanction. Reason: ${text}`,
+            message: `Case ${await tx.caseCode(caseId)} was resolved without a sanction. Reason: ${text}`,
             caseId,
             idempotencyKey: `case:${caseId}:resolved`,
           });
@@ -378,7 +384,7 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
             studentId: record.studentId,
             kind: 'case',
             title: 'New remark on your case',
-            message: `The SDO office added a remark to case ${caseCode(caseId)}: ${text}`,
+            message: `The SDO office added a remark to case ${await tx.caseCode(caseId)}: ${text}`,
             caseId,
             idempotencyKey: `case:${caseId}:remark:${at.getTime()}`,
           });

@@ -1,4 +1,5 @@
 import type { Severity } from '@shared/types.js';
+import { assignCaseCodes } from '../codes.js';
 import type { HandbookSanctionRow } from '../sanctions/rules.js';
 import type {
   CasePatch,
@@ -137,6 +138,10 @@ export function createMemoryCaseStore(seed: Partial<MemoryState> = {}): MemoryCa
         async lockSubmission() {
           store.calls.push('lockSubmission');
           runLockHook();
+        },
+        async caseCode(caseId) {
+          const codes = assignCaseCodes(working.cases.map((c) => ({ id: c.caseId, caseDate: c.caseDate })));
+          return codes.get(caseId) ?? `SDO-0000-${String(caseId).padStart(3, '0')}`;
         },
         async getCase(caseId) {
           store.calls.push('getCase');

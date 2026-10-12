@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { pillTone, statusLabel } from '../lib/format';
+import { pillTone, statusLabel, type StatusKind } from '../lib/format';
 import type { ApiResource } from '../lib/useApi';
 
 export function Icon({ name, className = '' }: { name: string; className?: string }) {
@@ -10,14 +10,14 @@ export function Icon({ name, className = '' }: { name: string; className?: strin
   );
 }
 
-export function StatusPill({ status, label }: { status: string; label?: string }) {
+export function StatusPill({ status, label, kind }: { status: string; label?: string; kind?: StatusKind }) {
   const tone = pillTone(status);
   return (
     <span
       className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap"
       style={{ backgroundColor: tone.bg, color: tone.fg }}
     >
-      {label ?? statusLabel(status)}
+      {label ?? statusLabel(status, kind)}
     </span>
   );
 }

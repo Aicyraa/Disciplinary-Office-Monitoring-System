@@ -26,6 +26,7 @@ import type { TemplateService } from './templates/service.js';
 import type { HandbookRepo } from './handbook/repo.js';
 import { errorHandler, notFoundHandler, sendError } from './http.js';
 import { createMeRouter } from './me/routes.js';
+import { createStudentsRouter } from './students/routes.js';
 import type { InboxStore } from './notifications/inbox.js';
 import { createNotificationsRouter } from './notifications/routes.js';
 import { createSanctionRouter } from './sanctions/routes.js';
@@ -149,6 +150,7 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
       app.use(createHandbookRouter({ repo: data.handbook, admin: data.handbookAdmin?.service }));
       if (data.templates) app.use(createTemplateRouter(data.templates));
       app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
+      app.use(createStudentsRouter({ repo: data.studentViews, now: data.now }));
       if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));
       if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
       if (data.appointments) app.use(createAppointmentRouter({ ...data.appointments, now: data.now }));

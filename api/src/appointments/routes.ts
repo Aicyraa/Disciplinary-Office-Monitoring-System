@@ -1,6 +1,7 @@
 import { Router, type Response } from 'express';
 import type { AuthUser, StaffAppointmentView } from '@shared/types.js';
 import { requireStaff } from '../auth/guards.js';
+import { displayCode } from '../codes.js';
 import { STUDENT_ID_PATTERN } from '../auth/policy.js';
 import { sendError, sendOk } from '../http.js';
 import { manilaToday } from '../me/views.js';
@@ -34,6 +35,7 @@ export function toStaffAppointmentView(row: AppointmentRow, today: string): Staf
   const live = row.status === 'scheduled' || row.status === 'rescheduled';
   return {
     id: row.appointmentId,
+    code: displayCode('A', row.appointmentId),
     student: { id: row.studentId, name: row.studentName },
     startDate: row.startDate,
     endDate: row.endDate,

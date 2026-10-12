@@ -10,7 +10,9 @@ import {
   toCaseDetailView,
   toCaseView,
   toClearanceView,
+  toProfileView,
   toSanctionView,
+  toSlipView,
 } from './views.js';
 
 export interface MeRouterOptions {
@@ -29,6 +31,15 @@ export function createMeRouter({ repo, now = () => new Date() }: MeRouterOptions
   router.use('/me', ...requireStudent);
 
   const studentId = (request: { user?: unknown }): string => (request.user as AuthUser).id;
+
+  router.get('/me/profile', async (request, response) => {
+    const profile = await repo.getProfile(studentId(request));
+    if (!profile) {
+      sendError(response, 404, 'not_found', 'Not found.');
+      return;
+    }
+    sendOk(response, { profile: toProfileView(profile) });
+  });
 
   router.get('/me/cases', async (request, response) => {
     const cases = await repo.listCases(studentId(request));
@@ -81,6 +92,29 @@ export function createMeRouter({ repo, now = () => new Date() }: MeRouterOptions
     const record = year === undefined || semester === undefined ? null : await repo.getClearance(owner, year, semester);
     const body: StudentClearanceResponse = { terms, clearance: record ? toClearanceView(record) : null };
     sendOk(response, body);
+  });
+
+  // The slip is data for a print-styled page. The API is the authority: nothing is returned until the term is cleared.
+  router.get('/me/clearance/slip', async (request, response) => {
+    const owner = studentId(request);
+    const { academic_year: yearParam, semester: semesterParam } = request.query;
+    const year = typeof yearParam === 'string' && /^\d{4}$/.test(yearParam) ? Number(yearParam) : undefined;
+    const semester = typeof semesterParam === 'string' && /^[1-3]$/.test(semesterParam) ? Number(semesterParam) : undefined;
+    if (year === undefined || semester === undefined) {
+      sendError(response, 400, 'invalid_input', 'academic_year (YYYY) and semester (1-3) are required.');
+      return;
+    }
+    const [record, profile] = await Promise.all([repo.getClearance(owner, year, semester), repo.getProfile(owner)]);
+    if (!record || !profile) {
+      sendError(response, 404, 'not_found', 'No clearance for that term.');
+      return;
+    }
+    if (record.status !== 'cleared') {
+      sendError(response, 409, 'not_cleared', 'The clearance slip is available once every requirement is completed.');
+      return;
+    }
+    response.set('Cache-Control', 'no-store');
+    sendOk(response, { slip: toSlipView(profile, record) });
   });
 
   return router;

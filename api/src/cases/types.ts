@@ -192,6 +192,8 @@ export interface CaseTx {
   /** Serialises decisions on one gate submission (advisory lock), including unmatched ones with no student. */
   lockSubmission(submissionRef: string): Promise<void>;
   getCase(caseId: number): Promise<CaseRecord | null>;
+  /** The display code of a case (`SDO-2026-016`): the number counts from 1 every year (see codes.ts). */
+  caseCode(caseId: number): Promise<string>;
   listStudentCases(studentId: string): Promise<CaseRecord[]>;
   listSubmission(submissionRef: string): Promise<CaseRecord[]>;
   studentExists(studentId: string): Promise<boolean>;

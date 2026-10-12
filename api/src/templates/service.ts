@@ -1,4 +1,4 @@
-import { MAX_FILES_PER_SANCTION, validateUpload, type UploadErrorCode } from '../files/validate.js';
+import { validateUpload, type UploadErrorCode } from '../files/validate.js';
 import { PRESIGN_TTL_SECONDS, templateKey, type ObjectStorage } from '../storage/types.js';
 import type { TemplateStore } from './types.js';
 
@@ -18,6 +18,8 @@ export interface TemplateUpload {
   bytes: Uint8Array;
 }
 
+/** A template holds one file; uploading again replaces it (UI-POLISH-SPEC decision 7). */
+export const FILES_PER_TEMPLATE = 1;
 export const MAX_TITLE_LENGTH = 200;
 export const MAX_DESCRIPTION_LENGTH = 2000;
 export const MAX_REQUIREMENTS_LENGTH = 4000;
@@ -42,7 +44,7 @@ function uploadMessage(code: UploadErrorCode, name: string): string {
     case 'too_large':
       return `${name} is larger than 10 MB.`;
     case 'too_many_files':
-      return `A template can have at most ${MAX_FILES_PER_SANCTION} files.`;
+      return 'A template holds one file. Upload a single file; it replaces the current one.';
     case 'content_mismatch':
       return `${name} does not look like a real PDF or DOCX file.`;
   }
@@ -107,18 +109,17 @@ export function createTemplateService({
     },
 
     async uploadFiles({ employeeId, sanctionId, files }) {
-      if (files.length === 0) return fail('invalid_input', 'Choose at least one file.');
-      if (files.length > MAX_FILES_PER_SANCTION) return fail('too_many_files', uploadMessage('too_many_files', ''));
+      if (files.length === 0) return fail('invalid_input', 'Choose a file.');
+      if (files.length > FILES_PER_TEMPLATE) return fail('too_many_files', uploadMessage('too_many_files', ''));
 
       // Phase 1 (short read): refuse early, before any bytes go to the bucket.
       const existing = await store.transaction(async (tx) => {
-        const template = await tx.getTemplate(sanctionId);
-        return template ? template.files.length : null;
+        return (await tx.getSanction(sanctionId)) !== null;
       });
-      if (existing === null) return fail('not_found', 'Sanction not found.');
+      if (!existing) return fail('not_found', 'Sanction not found.');
       const extensions: Array<'pdf' | 'docx'> = [];
-      for (const [index, file] of files.entries()) {
-        const result = validateUpload({ mimeType: file.mimeType, bytes: file.bytes, existingCount: existing + index });
+      for (const file of files) {
+        const result = validateUpload({ mimeType: file.mimeType, bytes: file.bytes, existingCount: 0 });
         if (!result.ok) return fail(result.code, uploadMessage(result.code, file.name));
         extensions.push(result.ext);
       }
@@ -136,17 +137,19 @@ export function createTemplateService({
         throw error;
       }
 
-      // Phase 3 (short write): re-check the count under the transaction, then insert the rows.
+      // Phase 3 (short write): replace whatever file is there, in one transaction.
       let outcome: TemplateResult<{ fileIds: number[] }>;
+      const replaced: string[] = [];
       try {
         outcome = await store.transaction(async (tx) => {
           const template = await tx.getTemplate(sanctionId);
           if (!template) return fail('not_found', 'Sanction not found.');
-          if (template.files.length + files.length > MAX_FILES_PER_SANCTION) {
-            return fail('too_many_files', uploadMessage('too_many_files', ''));
-          }
           const at = now();
           const templateId = await tx.ensureTemplate(sanctionId, employeeId, at);
+          for (const old of template.files) {
+            await tx.deleteFile(old.fileId);
+            replaced.push(old.storageKey);
+          }
           const ids: number[] = [];
           for (const [index, file] of files.entries()) {
             ids.push(
@@ -169,6 +172,8 @@ export function createTemplateService({
         throw error;
       }
       if (!outcome.ok) await discardObjects(stored);
+      // Committed: the replaced objects are removed best effort (a failure leaves an orphan, not an error).
+      else await discardObjects(replaced);
       return outcome;
     },
 

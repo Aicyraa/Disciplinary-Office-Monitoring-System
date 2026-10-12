@@ -1,3 +1,4 @@
+import { formatSubmissionCode } from '../codes.js';
 import type { GateEntry, GateNotificationInput, GateOptionsReader, GateStore, GateTx, NewGateCase } from './types.js';
 
 export interface MemoryGateState {
@@ -88,6 +89,12 @@ function createTx(state: MemoryGateState): GateTx {
       state.nextCaseId += 1;
       state.cases.push({ ...input, caseId });
       return caseId;
+    },
+    async submissionCode(submissionRef) {
+      const firstIds = new Map<string, number>();
+      for (const c of state.cases) firstIds.set(c.submissionRef, Math.min(firstIds.get(c.submissionRef) ?? Infinity, c.caseId));
+      const ranked = [...firstIds.entries()].sort((a, b) => a[1] - b[1]).map(([ref]) => ref);
+      return formatSubmissionCode(ranked.indexOf(submissionRef) + 1);
     },
     async addHistory({ caseId, date }) {
       state.history.push({ caseId, date });

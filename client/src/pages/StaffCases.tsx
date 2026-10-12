@@ -61,7 +61,7 @@ export function CasesPage() {
           <input
             id="case-search"
             type="search"
-            placeholder="Search student, violation or case code (C005)"
+            placeholder="Search student, violation or case code (SDO-2026-005)"
             className={fieldClass}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -83,7 +83,7 @@ export function CasesPage() {
             <option value="">All statuses</option>
             {STATUSES.map((value) => (
               <option key={value} value={value}>
-                {statusLabel(value)}
+                {statusLabel(value, 'case')}
               </option>
             ))}
           </select>
@@ -142,7 +142,7 @@ export function CasesPage() {
                       </div>
                       <div className="flex gap-2">
                         <StatusPill status={row.severity} />
-                        <StatusPill status={row.status} />
+                        <StatusPill status={row.status} kind="case" />
                       </div>
                     </Link>
                   </li>

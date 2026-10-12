@@ -58,7 +58,7 @@ describe('GET /sanction-templates (any signed-in user)', () => {
     const first = response.body.data.templates[0];
     expect(first).toMatchObject({
       sanctionId: 1,
-      sanctionCode: 'S001',
+      sanctionCode: 'S-001',
       type: 'Violation Slip',
       title: 'Violation slip',
       requirements: 'Sign',
@@ -88,15 +88,17 @@ describe('PUT /sanction-templates/:sanctionId', () => {
 });
 
 describe('files', () => {
-  test('staff upload PDF and DOCX in one request: 201, objects stored under templates/', async () => {
+  test('staff upload one file: 201, the object is stored under templates/, a second upload replaces it', async () => {
     const staff = await signedInAgent(build(), STAFF.email);
-    const response = await staff
-      .post('/sanction-templates/3/files')
-      .attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME })
-      .attach('files', docxBytes, { filename: 'b.docx', contentType: DOCX_MIME });
+    const response = await staff.post('/sanction-templates/3/files').attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME });
     expect(response.status).toBe(201);
-    expect(response.body.data.fileIds).toHaveLength(2);
+    expect(response.body.data.fileIds).toHaveLength(1);
     expect([...storage.objects.keys()].every((key) => key.startsWith('templates/3/'))).toBe(true);
+    const again = await staff.post('/sanction-templates/3/files').attach('files', docxBytes, { filename: 'b.docx', contentType: DOCX_MIME });
+    expect(again.status).toBe(201);
+    expect(storage.objects.size).toBe(1);
+    const list = await staff.get('/sanction-templates');
+    expect(list.body.data.templates.find((t: { sanctionId: number }) => t.sanctionId === 3).files).toHaveLength(1);
   });
 
   test.each([
@@ -119,10 +121,10 @@ describe('files', () => {
     expect(storage.objects.size).toBe(0);
   });
 
-  test('a sixth file is refused', async () => {
+  test('two files in one request are refused', async () => {
     const staff = await signedInAgent(build(), STAFF.email);
     let pending = staff.post('/sanction-templates/1/files');
-    for (let i = 0; i < 6; i += 1) pending = pending.attach('files', pdfBytes, { filename: `f${i}.pdf`, contentType: PDF_MIME });
+    for (let i = 0; i < 2; i += 1) pending = pending.attach('files', pdfBytes, { filename: `f${i}.pdf`, contentType: PDF_MIME });
     const response = await pending;
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('too_many_files');

@@ -1,10 +1,11 @@
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { AppointmentStatus, CaseSanctionStatus, CaseStatus, Severity } from '@shared/types.js';
-import type { CaseRecord, StudentViewRepo } from './repo.js';
+import { loadCaseCodes } from '../cases/code-sql.js';
+import type { CaseRecord, StudentProfileRecord, StudentViewRepo } from './repo.js';
 
 type Db = Pick<
   PrismaClient,
-  'disciplinary_cases' | 'case_sanctions' | 'appointments' | 'clearances'
+  'disciplinary_cases' | 'case_sanctions' | 'appointments' | 'clearances' | 'student_accounts' | '$queryRaw'
 >;
 
 const CURRENT = 'handbook_entries_disciplinary_cases_handbook_entry_idTohandbook_entries';
@@ -26,9 +27,10 @@ type CaseRow = {
   [ORIGINAL]: { violations: { violation_type: string } } | null;
 };
 
-function toCaseRecord(row: CaseRow): CaseRecord {
+function toCaseRecord(row: CaseRow, code: string): CaseRecord {
   return {
     caseId: row.disciplinary_case_id,
+    code,
     status: row.status as CaseStatus,
     caseDate: row.case_date,
     isEscalated: row.is_escalated,
@@ -41,6 +43,40 @@ function toCaseRecord(row: CaseRow): CaseRecord {
   };
 }
 
+type AccountRow = {
+  student_id: string;
+  student_email: string;
+  first_name: string;
+  last_name: string;
+  year_level: number;
+  is_active: boolean;
+  programs: { program_name: string };
+};
+
+const toProfile = (row: AccountRow): StudentProfileRecord => ({
+  studentId: row.student_id,
+  firstName: row.first_name,
+  lastName: row.last_name,
+  email: row.student_email,
+  program: row.programs.program_name,
+  yearLevel: row.year_level,
+  isActive: row.is_active,
+});
+
+/** Only the columns the profile needs: the password hash is never loaded. */
+const ACCOUNT_SELECT = {
+  student_id: true,
+  student_email: true,
+  first_name: true,
+  last_name: true,
+  year_level: true,
+  is_active: true,
+  programs: { select: { program_name: true } },
+} as const;
+
+const OPEN_CASE_STATUSES = ['reported', 'validated', 'for_sanction'];
+const ACTIVE_SANCTION_STATUSES = ['assigned', 'pending_verification', 'returned'];
+
 /** Prisma-backed student views. Every query is scoped by the student id passed in from the session. */
 export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
   return {
@@ -50,7 +86,8 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         include: caseInclude,
         orderBy: { case_date: 'desc' },
       });
-      return rows.map((row) => toCaseRecord(row as unknown as CaseRow));
+      const codes = await loadCaseCodes(db, rows.map((row) => row.disciplinary_case_id));
+      return rows.map((row) => toCaseRecord(row as unknown as CaseRow, codes.get(row.disciplinary_case_id) ?? ''));
     },
 
     async getCase(studentId, caseId) {
@@ -59,8 +96,9 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         include: { ...caseInclude, case_status_history: { orderBy: { date_updated: 'asc' } } },
       });
       if (!row) return null;
+      const code = (await loadCaseCodes(db, [caseId])).get(caseId) ?? '';
       return {
-        ...toCaseRecord(row as unknown as CaseRow),
+        ...toCaseRecord(row as unknown as CaseRow, code),
         history: row.case_status_history.map((entry) => ({
           eventType: entry.event_type,
           statusAfter: entry.status_after as CaseStatus | null,
@@ -86,11 +124,13 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         },
         orderBy: { date_assigned: 'desc' },
       });
+      const caseCodes = await loadCaseCodes(db, [...new Set(rows.map((row) => row.disciplinary_case_id))]);
       return rows.map((row) => {
         const entry = (row.disciplinary_cases as unknown as CaseRow)[CURRENT];
         return {
           caseSanctionId: row.case_sanction_id,
           caseId: row.disciplinary_case_id,
+          caseCode: caseCodes.get(row.disciplinary_case_id) ?? '',
           caseSeverity: entry.violations.severity as Severity,
           sanctionId: row.sanction_id,
           sanctionType: row.sanctions.sanction_type,
@@ -146,6 +186,55 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         semester: row.semester,
         status: row.status as 'pending' | 'cleared',
       }));
+    },
+
+    async getProfile(studentId) {
+      const row = await db.student_accounts.findUnique({
+        where: { student_id: studentId },
+        select: ACCOUNT_SELECT,
+      });
+      return row ? toProfile(row as unknown as AccountRow) : null;
+    },
+
+    async searchStudents({ q, page, pageSize }) {
+      const where = q
+        ? {
+            OR: [
+              { student_id: { contains: q, mode: 'insensitive' as const } },
+              { first_name: { contains: q, mode: 'insensitive' as const } },
+              { last_name: { contains: q, mode: 'insensitive' as const } },
+              { student_email: { contains: q, mode: 'insensitive' as const } },
+              { programs: { program_name: { contains: q, mode: 'insensitive' as const } } },
+            ],
+          }
+        : {};
+      const [total, accounts] = await Promise.all([
+        db.student_accounts.count({ where }),
+        db.student_accounts.findMany({
+          where,
+          select: ACCOUNT_SELECT,
+          orderBy: [{ last_name: 'asc' }, { first_name: 'asc' }, { student_id: 'asc' }],
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      ]);
+      const rows = await Promise.all(
+        accounts.map(async (account) => {
+          const [openCases, activeSanctions] = await Promise.all([
+            db.disciplinary_cases.count({
+              where: { student_id: account.student_id, status: { in: OPEN_CASE_STATUSES } },
+            }),
+            db.case_sanctions.count({
+              where: {
+                status: { in: ACTIVE_SANCTION_STATUSES },
+                disciplinary_cases: { student_id: account.student_id },
+              },
+            }),
+          ]);
+          return { ...toProfile(account as unknown as AccountRow), openCases, activeSanctions };
+        }),
+      );
+      return { total, rows };
     },
 
     async getClearance(studentId, academicYear, semester) {

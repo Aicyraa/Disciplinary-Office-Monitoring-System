@@ -58,7 +58,7 @@ export function StudentDashboard() {
                           key={c.id}
                           title={c.violation}
                           meta={`${c.code} · ${c.severity} · ${formatDate(c.caseDate)}`}
-                          right={<StatusPill status={c.status} />}
+                          right={<StatusPill status={c.status} kind="case" />}
                         />
                       ))}
                     </ul>
@@ -124,7 +124,7 @@ export function StudentDashboard() {
                           key={s.id}
                           title={s.type}
                           meta={`${s.sanctionCode} · due ${formatDate(s.dueDate)}`}
-                          right={<StatusPill status={s.status} />}
+                          right={<StatusPill status={s.status} kind="sanction" />}
                         />
                       ))}
                     </ul>
@@ -257,7 +257,7 @@ export function StaffHome() {
                         key={a.id}
                         title={a.student.name}
                         meta={`${formatDate(a.startDate)} to ${formatDate(a.endDate)} · ${a.purpose}`}
-                        right={<StatusPill status={a.status} />}
+                        right={<StatusPill status={a.status} kind="appointment" />}
                       />
                     ))}
                   </ul>
@@ -283,7 +283,7 @@ export function StaffHome() {
                           key={c.id}
                           title={c.student.name}
                           meta={`${formatTerm(c.academicYear, c.semester)} · ${done} of ${c.items.length} requirements done`}
-                          right={<StatusPill status={c.status} />}
+                          right={<StatusPill status={c.status} kind="clearance" />}
                         />
                       );
                     })}

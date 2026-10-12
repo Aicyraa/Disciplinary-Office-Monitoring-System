@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
+import { loadSubmissionCodes } from '../cases/code-sql.js';
 import type { GateOptionsReader, GateStore, GateTx } from './types.js';
 
 const MANILA_OFFSET = '+08:00';
@@ -62,6 +63,9 @@ function createTx(db: Prisma.TransactionClient): GateTx {
         select: { disciplinary_case_id: true },
       });
       return row.disciplinary_case_id;
+    },
+    async submissionCode(submissionRef) {
+      return (await loadSubmissionCodes(db, [submissionRef])).get(submissionRef) ?? '';
     },
     async addHistory({ caseId, date }) {
       // employee_id stays NULL: the gate form is the system, not a person (schema comment on the column).

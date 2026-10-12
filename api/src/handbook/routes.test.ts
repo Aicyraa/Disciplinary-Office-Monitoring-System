@@ -53,15 +53,15 @@ describe('GET /handbook', () => {
     const agent = await signedInAgent(built, STUDENT_A.email);
     const { entries: listed } = (await agent.get('/handbook')).body.data;
     expect(listed[0]).toMatchObject({
-      code: 'H001',
-      violationCode: 'V001',
+      code: 'H-001',
+      violationCode: 'V-001',
       violation: 'Improper uniform',
       severity: 'Minor',
       section: 'VI.D.1',
     });
     expect(listed[0].sanctions.map((s: { offenseNumber: number; sanctionCode: string }) => [s.offenseNumber, s.sanctionCode])).toEqual([
-      [1, 'S001'],
-      [2, 'S002'],
+      [1, 'S-001'],
+      [2, 'S-002'],
     ]);
   });
 });

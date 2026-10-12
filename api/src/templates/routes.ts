@@ -3,10 +3,10 @@ import multer, { MulterError } from 'multer';
 import type { AuthUser, SanctionTemplateView } from '@shared/types.js';
 import { requireAuth, requirePasswordChanged, requireStaff } from '../auth/guards.js';
 import { displayCode } from '../codes.js';
-import { MAX_FILE_BYTES, MAX_FILES_PER_SANCTION } from '../files/validate.js';
+import { MAX_FILE_BYTES } from '../files/validate.js';
 import { sendError, sendOk } from '../http.js';
 import type { TemplateReader } from './reader.js';
-import type { TemplateFailure, TemplateFailureCode, TemplateService } from './service.js';
+import { FILES_PER_TEMPLATE, type TemplateFailure, type TemplateFailureCode, type TemplateService } from './service.js';
 import type { TemplateRecord } from './types.js';
 
 export interface TemplateRouterOptions {
@@ -55,17 +55,17 @@ export function toTemplateView(record: TemplateRecord): SanctionTemplateView {
 /**
  * Sanction templates (SPEC 4.9, 6.1, 7): staff write the text and upload PDF/DOCX files; any signed-in user
  * reads them and downloads through a short-lived link. Uploads go through Express with memory storage, 10 MB per
- * file and at most 5 files; the service re-checks type, size, magic bytes and the per-template cap.
+ * file; a template holds one file and an upload replaces it; the service re-checks type, size and magic bytes.
  */
 export function createTemplateRouter({ service, reader }: TemplateRouterOptions): Router {
   const router = Router();
   const upload = multer({
     storage: multer.memoryStorage(),
     defParamCharset: 'utf8',
-    limits: { fileSize: MAX_FILE_BYTES, files: MAX_FILES_PER_SANCTION, fields: 5, parts: 12 },
+    limits: { fileSize: MAX_FILE_BYTES, files: FILES_PER_TEMPLATE, fields: 5, parts: 12 },
   });
   const receive = (request: Request, response: Response, next: NextFunction) => {
-    upload.array('files', MAX_FILES_PER_SANCTION)(request, response, (error: unknown) => {
+    upload.array('files', FILES_PER_TEMPLATE)(request, response, (error: unknown) => {
       if (!error) return next();
       let code: TemplateFailureCode = 'invalid_input';
       let message = 'The upload could not be read. Send the files again.';
@@ -75,7 +75,7 @@ export function createTemplateRouter({ service, reader }: TemplateRouterOptions)
           message = 'A file is larger than 10 MB.';
         } else if (error.code === 'LIMIT_UNEXPECTED_FILE' || error.code === 'LIMIT_FILE_COUNT') {
           code = 'too_many_files';
-          message = 'A template can have at most 5 files.';
+          message = 'A template holds one file. Upload a single file; it replaces the current one.';
         }
       }
       sendError(response, HTTP_STATUS[code], code, message);

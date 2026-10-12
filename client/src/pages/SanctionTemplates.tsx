@@ -3,7 +3,7 @@ import type { SanctionTemplateView } from '@shared/types';
 import { TemplateView } from '../components/TemplateDownloads';
 import { EmptyState, Icon, Resource, buttonClass, fieldClass } from '../components/ui';
 import { api, toApiError } from '../lib/api';
-import { ACCEPTED_EXTENSIONS, MAX_FILES, checkSelection, formatSize, uploadButtonLabel } from '../lib/files';
+import { ACCEPTED_EXTENSIONS, checkSelection, formatSize, uploadButtonLabel } from '../lib/files';
 import { useApi } from '../lib/useApi';
 
 type Notice = { tone: 'success' | 'error'; text: string };
@@ -83,15 +83,18 @@ function TextEditor({ template, onSaved }: { template: SanctionTemplateView; onS
   );
 }
 
+/** One file per template: choosing another file replaces the current one (UI-POLISH-SPEC decision 7). */
 function FileManager({ template, onChanged }: { template: SanctionTemplateView; onChanged: () => void }) {
-  const [selected, setSelected] = useState<File[]>([]);
+  const [selected, setSelected] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [percent, setPercent] = useState<number | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const pickRef = useRef<HTMLInputElement>(null);
+  const current = template.files[0] ?? null;
 
   async function upload() {
-    const problem = checkSelection(selected, template.files.length);
+    if (!selected) return;
+    const problem = checkSelection([selected], 0);
     if (problem) {
       setNotice({ tone: 'error', text: problem });
       return;
@@ -100,9 +103,9 @@ function FileManager({ template, onChanged }: { template: SanctionTemplateView; 
     setPercent(null);
     setNotice(null);
     try {
-      await api.uploadTemplateFiles(template.sanctionId, selected, setPercent);
-      setSelected([]);
-      setNotice({ tone: 'success', text: 'Files uploaded.' });
+      await api.uploadTemplateFiles(template.sanctionId, [selected], setPercent);
+      setSelected(null);
+      setNotice({ tone: 'success', text: current ? 'File replaced.' : 'File uploaded.' });
       onChanged();
     } catch (error) {
       setNotice({ tone: 'error', text: toApiError(error).message });
@@ -125,44 +128,36 @@ function FileManager({ template, onChanged }: { template: SanctionTemplateView; 
 
   return (
     <div className="mt-3 rounded-md border border-line-strong bg-page p-3">
-      <h4 className="text-sm font-semibold text-ink">Files</h4>
-      {template.files.length === 0 ? (
-        <p className="mt-1 text-sm text-muted">No file yet.</p>
+      <h4 className="text-sm font-semibold text-ink">File</h4>
+      {current ? (
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-sm">
+          <span>
+            {current.name} <span className="text-muted">({formatSize(current.sizeBytes)})</span>
+          </span>
+          <button
+            type="button"
+            aria-label={`Remove ${current.name}`}
+            className="min-h-11 rounded-md border border-line-strong bg-white px-3 text-xs font-medium text-danger"
+            onClick={() => void remove(current.id, current.name)}
+          >
+            Remove
+          </button>
+        </div>
       ) : (
-        <ul className="mt-1 space-y-1">
-          {template.files.map((file) => (
-            <li key={file.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>
-                {file.name} <span className="text-muted">({formatSize(file.sizeBytes)})</span>
-              </span>
-              <button
-                type="button"
-                aria-label={`Remove ${file.name}`}
-                className="rounded-md border border-line-strong bg-white px-2 py-0.5 text-xs font-medium text-danger"
-                onClick={() => void remove(file.id, file.name)}
-              >
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
+        <p className="mt-1 text-sm text-muted">No file yet.</p>
       )}
 
       <input
         ref={pickRef}
         type="file"
-        multiple
         accept={ACCEPTED_EXTENSIONS.join(',')}
         className="sr-only"
         tabIndex={-1}
-        aria-label={`Choose template files for ${template.type}`}
+        aria-label={`Choose the template file for ${template.type}`}
         onChange={(event) => {
-          const picked = Array.from(event.target.files ?? []);
+          const picked = event.target.files?.[0] ?? null;
           event.target.value = '';
-          setSelected((current) => [
-            ...current,
-            ...picked.filter((file) => !current.some((c) => c.name === file.name && c.size === file.size)),
-          ]);
+          if (picked) setSelected(picked);
           setNotice(null);
         }}
       />
@@ -171,36 +166,25 @@ function FileManager({ template, onChanged }: { template: SanctionTemplateView; 
           type="button"
           disabled={busy}
           onClick={() => pickRef.current?.click()}
-          className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-white px-3 py-1.5 text-sm font-medium text-ink disabled:opacity-50"
+          className="inline-flex min-h-11 items-center gap-1 rounded-md border border-line-strong bg-white px-3 text-sm font-medium text-ink disabled:opacity-50"
         >
           <Icon name="attach_file" className="text-base" />
-          Choose files
+          {current ? 'Choose a replacement' : 'Choose file'}
         </button>
-        <button type="button" disabled={busy || selected.length === 0} onClick={() => void upload()} className={buttonClass}>
-          {uploadButtonLabel({ count: selected.length, busy, percent })}
+        <button type="button" disabled={busy || !selected} onClick={() => void upload()} className={buttonClass}>
+          {uploadButtonLabel({ count: selected ? 1 : 0, busy, percent })}
         </button>
-        <span className="text-xs text-muted">
-          PDF or DOCX, up to 10 MB each, {MAX_FILES} files max.
-        </span>
+        <span className="text-xs text-muted">PDF or DOCX, up to 10 MB. One file; a new upload replaces it.</span>
       </div>
-      {selected.length > 0 ? (
-        <ul className="mt-2 space-y-1" aria-label="Files ready to upload">
-          {selected.map((file) => (
-            <li key={`${file.name}-${file.size}`} className="flex items-center justify-between gap-2 text-sm">
-              <span className="truncate">
-                {file.name} <span className="text-muted">({formatSize(file.size)})</span>
-              </span>
-              <button
-                type="button"
-                className="text-xs font-medium text-danger"
-                aria-label={`Do not upload ${file.name}`}
-                onClick={() => setSelected((current) => current.filter((c) => c !== file))}
-              >
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
+      {selected ? (
+        <p className="mt-2 text-sm" aria-label="File ready to upload">
+          <span className="truncate">
+            {selected.name} <span className="text-muted">({formatSize(selected.size)})</span>
+          </span>{' '}
+          <button type="button" className="text-xs font-medium text-danger" aria-label={`Do not upload ${selected.name}`} onClick={() => setSelected(null)}>
+            Clear
+          </button>
+        </p>
       ) : null}
       <Message notice={notice} />
     </div>

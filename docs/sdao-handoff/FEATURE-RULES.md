@@ -7,7 +7,7 @@ For each feature: the spec section to read, and the rules that must not be broke
 
 ### 3.1 Authentication and accounts (SPEC 4.8)
 - Two account tables with text ids (`student_accounts.student_id`, `employee_accounts.employee_id`). Passwords hashed (bcryptjs is already installed; Argon2id is also acceptable). ≥ 8 chars, at least one letter and one digit.
-- Login accepts only `@students.nu-fairview.edu.ph` / `@nu-fairview.edu.ph` emails; one generic error message; rate-limit login.
+- Login accepts only `@students.nu-fairview.edu.ph` / `@nu-fairview.edu.ph` emails; one generic error message; rate-limit login. The role comes from the account table the address is found in (a staff account may use a student-domain address), not from the domain.
 - Staff reset creates a one-time `Temp-####`, stores only its hash, sets `must_change_password = true`, and shows it to staff once. The user must set a new password at next sign-in (cannot equal the temp one). "Forgot password" stays in person.
 - Role guard on every route: students see only their own rows; staff see all. `seed.sql` has no accounts (the workbook had plain-text passwords): accounts are added manually with bcrypt hashes (SPEC decision 13; dev pattern in `db/seed-dev-accounts.sql`). There is no create-account screen. Student ids match `^\d{4}-\d{7}$`.
 
@@ -47,7 +47,7 @@ For each feature: the spec section to read, and the rules that must not be broke
 - Bytes live in the Neon Object Storage **private** bucket; metadata in `files`. Keys: `proof/{case_sanction_id}/{uuid}.{ext}` and `templates/{sanction_id}/{uuid}.{ext}`.
 - Upload goes **through Express** (`multer`, memory storage, 10 MB limit, check magic bytes: PDF `%PDF`, DOCX `PK`). Do not use browser presigned PUT (bucket CORS unconfirmed). Download via a ~60-second presigned GET after an authorization check (owner student or any staff). Opening a proof as staff sets `date_viewed` / `viewed_by_employee_id`.
 - S3 client needs `forcePathStyle: true` and `requestChecksumCalculation: 'WHEN_REQUIRED'`. Env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `STORAGE_BUCKET_FILES` (proof files) and `STORAGE_BUCKET_TEMPLATES` (templates, never a fallback to the files bucket). A storage failure answers 503 `storage_unavailable`.
-- Each sanction has a template page (title, description, written requirements) with downloadable PDF/DOCX. Students download; staff manage them.
+- Each sanction has a template page (title, description, written requirements) with **one** downloadable PDF/DOCX; uploading again replaces it and the old object is removed (UI-POLISH-SPEC decision 7). Students download; staff manage them.
 - In-browser preview: PDF in an iframe, DOCX with `mammoth` (frontend only). The bucket returns permissive CORS headers (smoke test, SPEC 11 item 2), so the browser may `fetch` the presigned URL directly; no API proxy route is needed.
 
 ### 3.8 Appointments (SPEC 4.5)

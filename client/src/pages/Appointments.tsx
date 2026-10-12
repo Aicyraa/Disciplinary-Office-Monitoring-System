@@ -44,7 +44,8 @@ export function AppointmentsPage() {
                 <li key={appointment.id} className="rounded-lg border border-line bg-white p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium text-ink">{appointment.purpose}</span>
-                    <StatusPill status={appointment.status} />
+                    <span className="ml-2 text-xs text-muted">{appointment.code}</span>
+                    <StatusPill status={appointment.status} kind="appointment" />
                   </div>
                   <p className="mt-1 text-sm text-muted">
                     {formatDate(appointment.startDate)} to {formatDate(appointment.endDate)}
