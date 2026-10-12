@@ -1,7 +1,6 @@
 # Logs
 .agent-work
-.opencode
-docs
+docs/sdao-handoff/db
 logs
 *.log
 npm-debug.log*
