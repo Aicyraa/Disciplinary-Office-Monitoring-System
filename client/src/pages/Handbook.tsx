@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { HandbookEntryView, Severity } from '@shared/types';
 import { useAuth } from '../auth/AuthContext';
 import { EmptyState, PageHeader, Resource, StatusPill, buttonClass, fieldClass } from '../components/ui';
@@ -99,7 +100,9 @@ export function HandbookPage() {
   const resource = useApi(() => api.handbook(), []);
   // Staff need the list of sanctions to pick from; everyone else skips the request.
   const sanctions = useApi(() => (isStaff ? api.sanctionTemplates() : Promise.resolve({ templates: [] })), [isStaff]);
-  const [tab, setTab] = useState<Tab>('violations');
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = params.get('tab') === 'templates' ? 'templates' : 'violations';
+  const setTab = (next: Tab) => setParams(next === 'templates' ? { tab: 'templates' } : {}, { replace: true });
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
   const [severity, setSeverity] = useState<'all' | Severity>('all');

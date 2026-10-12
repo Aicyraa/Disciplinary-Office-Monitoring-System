@@ -19,6 +19,8 @@ import type {
   StudentAppointmentView,
   StudentCaseDetailView,
   StudentCaseView,
+  StudentProfileView,
+  StaffSanctionQueueResponse,
   StudentClearanceResponse,
   StudentSanctionView,
 } from '@shared/types';
@@ -156,6 +158,7 @@ export const api = {
 
   handbook: () => get<{ entries: HandbookEntryView[] }>('/handbook'),
 
+  myProfile: () => get<{ profile: StudentProfileView }>('/me/profile'),
   myCases: () => get<{ cases: StudentCaseView[] }>('/me/cases'),
   myCase: (id: number) => get<{ case: StudentCaseDetailView }>(`/me/cases/${id}`),
   mySanctions: () => get<{ sanctions: StudentSanctionView[] }>('/me/sanctions'),
@@ -180,6 +183,12 @@ export const api = {
     return get<StaffCaseListResponse>('/cases', params);
   },
   staffCase: (id: number) => get<{ case: StaffCaseDetail }>(`/cases/${id}`),
+  sanctionQueue: (query: { filter?: 'active' | 'pending_verification' | 'overdue'; page?: number } = {}) => {
+    const params: Record<string, string | number> = {};
+    if (query.filter) params.filter = query.filter;
+    if (query.page) params.page = query.page;
+    return get<StaffSanctionQueueResponse>('/case-sanctions', params);
+  },
   recordViolation: (studentId: string, handbookEntryId: number, remarks?: string) =>
     post<{ caseId: number; conversions: EscalationConversion[] }>('/cases', {
       studentId,

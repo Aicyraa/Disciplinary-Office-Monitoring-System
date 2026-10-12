@@ -5,7 +5,7 @@ import type { AuthUser, HandbookEntryView } from '@shared/types';
 import { resolveAccess } from './App';
 import { AuthProvider } from './auth/AuthContext';
 import { StatusPill } from './components/ui';
-import { navFor } from './components/Shell';
+import { navGroups } from './lib/nav';
 import { filterEntries } from './pages/Handbook';
 import Login from './pages/Login';
 import { passwordRuleError } from './pages/ChangePassword';
@@ -37,9 +37,11 @@ describe('resolveAccess', () => {
   });
 });
 
-describe('navFor', () => {
+describe('navGroups destinations', () => {
+  const paths = (role: 'student' | 'staff') => navGroups(role).flatMap((group) => group.items.map((item) => item.to));
+
   test('students get the seven student pages', () => {
-    expect(navFor('student').map((item) => item.to)).toEqual([
+    expect(paths('student')).toEqual([
       '/',
       '/inbox',
       '/violations',
@@ -51,8 +53,17 @@ describe('navFor', () => {
   });
 
   test('staff get the case screens and no student-only pages', () => {
-    const paths = navFor('staff').map((item) => item.to);
-    expect(paths).toEqual(['/', '/inbox', '/record', '/cases', '/appointments', '/clearance', '/handbook']);
+    expect(paths('staff')).toEqual([
+      '/',
+      '/inbox',
+      '/record',
+      '/appointments/new',
+      '/cases',
+      '/appointments',
+      '/clearance',
+      '/handbook',
+      '/handbook?tab=templates',
+    ]);
   });
 });
 

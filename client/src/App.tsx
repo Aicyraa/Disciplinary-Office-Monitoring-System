@@ -3,6 +3,8 @@ import type { AccountRole } from '@shared/types';
 import { AuthProvider, useAuth, type AuthState } from './auth/AuthContext';
 import { Shell } from './components/Shell';
 import { LoadingState } from './components/ui';
+import { ToastProvider } from './components/feedback';
+import { AccountDetailsPage } from './pages/AccountDetails';
 import { AppointmentsPage } from './pages/Appointments';
 import ChangePassword from './pages/ChangePassword';
 import { ClearancePage } from './pages/Clearance';
@@ -11,7 +13,7 @@ import { HandbookPage } from './pages/Handbook';
 import GateReportPage from './pages/GateReport';
 import Login from './pages/Login';
 import { InboxPage } from './pages/Inbox';
-import { NotFoundPage } from './pages/Misc';
+import { NoAccessPage, NotFoundPage } from './pages/Misc';
 import { RecordViolationPage } from './pages/RecordViolation';
 import { StaffClearancePage } from './pages/StaffClearance';
 import { MakeAppointmentPage, StaffAppointmentsPage } from './pages/StaffAppointments';
@@ -48,7 +50,7 @@ function RequireAuth() {
 /** Pages for one role only (the `/me/*` API is 403 for staff, the case API is 403 for students). */
 function RoleOnly({ role }: { role: AccountRole }) {
   const { state } = useAuth();
-  if (state.status === 'authenticated' && state.user.role !== role) return <Navigate to="/" replace />;
+  if (state.status === 'authenticated' && state.user.role !== role) return <NoAccessPage />;
   return <Outlet />;
 }
 
@@ -81,6 +83,8 @@ function AppRoutes() {
           <Route index element={<Home />} />
           <Route path="handbook" element={<HandbookPage />} />
           <Route path="inbox" element={<InboxPage />} />
+          <Route path="account" element={<AccountDetailsPage />} />
+          <Route path="account/password" element={<ChangePassword />} />
           <Route path="appointments" element={<AppointmentsRoute />} />
           <Route path="clearance" element={<ClearanceRoute />} />
           <Route element={<RoleOnly role="student" />}>
@@ -107,7 +111,9 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppRoutes />
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );
