@@ -66,7 +66,7 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
             ) : null}
           </div>
         </div>
-        <StatusPill status={sanction.status} />
+        <StatusPill status={sanction.status} kind="sanction" />
       </div>
 
       {sanction.staffNote ? <p className="mt-2 text-sm">Instructions / note: {sanction.staffNote}</p> : null}

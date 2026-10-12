@@ -23,7 +23,7 @@ function Stepper({ status }: { status: string }) {
             aria-hidden="true"
           />
           <span className={`text-xs ${index === current ? 'font-semibold text-ink' : 'text-muted'}`}>
-            {statusLabel(stage)}
+            {statusLabel(stage, 'case')}
           </span>
         </li>
       ))}
@@ -49,7 +49,7 @@ function CaseRow({ record }: { record: StudentCaseView }) {
         </div>
         <div className="flex gap-2">
           <StatusPill status={record.severity} />
-          <StatusPill status={record.status} />
+          <StatusPill status={record.status} kind="case" />
         </div>
       </Link>
     </li>
@@ -87,7 +87,7 @@ function Detail({ record }: { record: StudentCaseDetailView }) {
         actions={
           <div className="flex gap-2">
             <StatusPill status={record.severity} />
-            <StatusPill status={record.status} />
+            <StatusPill status={record.status} kind="case" />
           </div>
         }
       />
@@ -112,7 +112,7 @@ function Detail({ record }: { record: StudentCaseDetailView }) {
             <li key={sanction.id} className="rounded-lg border border-line bg-white p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium text-ink">{sanction.type}</span>
-                <StatusPill status={sanction.status} />
+                <StatusPill status={sanction.status} kind="sanction" />
               </div>
               <p className="mt-1 text-sm text-muted">Due {formatDate(sanction.dueDate)}</p>
               {sanction.staffNote ? <p className="mt-1 text-sm">Note from the office: {sanction.staffNote}</p> : null}
@@ -127,7 +127,7 @@ function Detail({ record }: { record: StudentCaseDetailView }) {
           <li key={`${entry.date}-${index}`}>
             <div className="text-sm font-medium text-ink">
               {statusLabel(entry.eventType)}
-              {entry.statusAfter ? ` → ${statusLabel(entry.statusAfter)}` : ''}
+              {entry.statusAfter ? ` → ${statusLabel(entry.statusAfter, 'case')}` : ''}
             </div>
             {entry.remarks ? <div className="text-sm">{entry.remarks}</div> : null}
             <div className="text-xs text-muted">{formatDateTime(entry.date)}</div>

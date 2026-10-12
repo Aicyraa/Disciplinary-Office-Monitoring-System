@@ -4,20 +4,23 @@ import { ProofPanel } from '../components/ProofPanel';
 import { TemplateFileLinks, hasTemplateContent } from '../components/TemplateDownloads';
 import { Card, EmptyState, PageHeader, Resource, StatusPill } from '../components/ui';
 import { api } from '../lib/api';
-import { formatDate, SANCTION_STEPS, statusLabel } from '../lib/format';
+import { formatDate, SANCTION_STEP_LABELS, sanctionStepIndex, statusLabel } from '../lib/format';
 import { useApi } from '../lib/useApi';
 
 type Filter = 'all' | Severity;
 
+/** The status tiles at the top of the page, in the order a sanction travels. */
+const STATUS_TILES = ['assigned', 'pending_verification', 'returned', 'completed'] as const;
+
 function Tracker({ status }: { status: string }) {
-  const current = SANCTION_STEPS.indexOf(status as (typeof SANCTION_STEPS)[number]);
+  const current = sanctionStepIndex(status);
   return (
     <ol className="mt-3 grid grid-cols-4 gap-2" aria-label="Sanction progress">
-      {SANCTION_STEPS.map((step, index) => (
-        <li key={step} className="text-center">
+      {SANCTION_STEP_LABELS.map((label, index) => (
+        <li key={label} className="text-center">
           <span className={`block h-1.5 rounded-full ${index <= current ? 'bg-primary' : 'bg-line'}`} aria-hidden="true" />
           <span className={`mt-1 block text-[11px] ${index === current ? 'font-semibold text-ink' : 'text-muted'}`}>
-            {statusLabel(step)}
+            {label}
           </span>
         </li>
       ))}
@@ -53,7 +56,7 @@ function SanctionCard({
         </div>
         <div className="flex gap-2">
           <StatusPill status={sanction.severity} />
-          <StatusPill status={sanction.status} />
+          <StatusPill status={sanction.status} kind="sanction" />
         </div>
       </div>
       <p className="mt-2 text-sm">{sanction.description}</p>
@@ -93,10 +96,10 @@ export function SanctionsPage() {
           return (
             <>
               <div className="mb-4 grid grid-cols-2 gap-3 full:grid-cols-4">
-                {SANCTION_STEPS.map((step) => (
+                {STATUS_TILES.map((step) => (
                   <Card key={step}>
                     <div className="text-2xl font-bold text-ink">{count(step)}</div>
-                    <div className="text-sm text-muted">{statusLabel(step)}</div>
+                    <div className="text-sm text-muted">{statusLabel(step, 'sanction')}</div>
                   </Card>
                 ))}
               </div>

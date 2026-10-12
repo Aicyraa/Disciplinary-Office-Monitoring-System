@@ -204,7 +204,7 @@ function AppointmentCard({ appointment, today, onChanged }: { appointment: Staff
           </div>
           <div className="text-sm text-muted">{windowLabel(appointment)}</div>
         </div>
-        <StatusPill status={appointment.status} />
+        <StatusPill status={appointment.status} kind="appointment" />
       </div>
       <p className="mt-2 text-sm text-ink">{appointment.purpose}</p>
       {appointment.notes ? <p className="mt-1 text-sm text-muted">Notes: {appointment.notes}</p> : null}

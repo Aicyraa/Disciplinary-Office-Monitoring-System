@@ -306,7 +306,7 @@ function ClearanceCard({ clearance, onChanged }: { clearance: StaffClearanceView
           {hasWarning ? (
             <span className="rounded bg-[#FDECCB] px-1.5 py-0.5 text-xs font-semibold text-[#8A5A00]">Check open cases</span>
           ) : null}
-          <StatusPill status={clearance.status} />
+          <StatusPill status={clearance.status} kind="clearance" />
         </div>
       </div>
 

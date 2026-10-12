@@ -24,8 +24,12 @@ export function formatDate(value: string): string {
   }).format(new Date(dateOnly ? `${value}T00:00:00Z` : value));
 }
 
+const TERM_ORDINALS = ['1st', '2nd', '3rd'] as const;
+
+/** A term is one of three fixed terms of a school year: "1st Term 2026-2027" (design deck, UI-POLISH-SPEC 5). */
 export function formatTerm(academicYear: number, semester: number): string {
-  return `${academicYear}-${academicYear + 1}, Semester ${semester}`;
+  const ordinal = TERM_ORDINALS[semester - 1] ?? `${semester}th`;
+  return `${ordinal} Term ${academicYear}-${academicYear + 1}`;
 }
 
 export type PillTone = { bg: string; fg: string };
@@ -71,7 +75,39 @@ export function pillTone(status: string): PillTone {
   return TONES[status] ?? NEUTRAL;
 }
 
-export function statusLabel(status: string): string {
+/** What a status is the status of. The same stored word can mean different things (`completed`). */
+export type StatusKind = 'case' | 'sanction' | 'appointment' | 'clearance';
+
+/** The words of the design deck. The stored statuses never change; only what the person reads does. */
+const KIND_LABELS: Record<StatusKind, Record<string, string>> = {
+  case: {
+    reported: 'Pending review',
+    validated: 'Validated',
+    for_sanction: 'Sanction in progress',
+    resolved: 'Resolved',
+    rejected: 'Not verified',
+  },
+  sanction: {
+    assigned: 'In progress',
+    pending_verification: 'Pending verification',
+    returned: 'Returned',
+    completed: 'Cleared',
+  },
+  appointment: {
+    scheduled: 'Scheduled',
+    rescheduled: 'Rescheduled',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+  },
+  clearance: {
+    pending: 'In progress',
+    cleared: 'Cleared',
+  },
+};
+
+export function statusLabel(status: string, kind?: StatusKind): string {
+  const byKind = kind ? KIND_LABELS[kind][status] : undefined;
+  if (byKind) return byKind;
   if (LABELS[status]) return LABELS[status];
   const words = status.replace(/_/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
@@ -84,5 +120,15 @@ export function caseStageIndex(status: string): number {
   return CASE_STAGES.indexOf(status as (typeof CASE_STAGES)[number]);
 }
 
-/** The four steps of a sanction in the student tracker. */
-export const SANCTION_STEPS = ['assigned', 'pending_verification', 'returned', 'completed'] as const;
+/** The four steps of a sanction in the tracker (design deck): Assigned, In progress, Complied, Verified. */
+export const SANCTION_STEP_LABELS = ['Assigned', 'In progress', 'Complied', 'Verified'] as const;
+
+/**
+ * Where a sanction is on that tracker. A sanction the student is working on (`assigned`, or `returned` to fix) is at
+ * "In progress"; proof sent is "Complied"; verified by staff is "Verified".
+ */
+export function sanctionStepIndex(status: string): number {
+  if (status === 'completed') return 3;
+  if (status === 'pending_verification') return 2;
+  return 1;
+}

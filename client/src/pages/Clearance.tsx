@@ -52,7 +52,7 @@ export function ClearancePage() {
             <Card>
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="font-semibold text-ink">{formatTerm(clearance.academicYear, clearance.semester)}</span>
-                <StatusPill status={clearance.status} />
+                <StatusPill status={clearance.status} kind="clearance" />
               </div>
               <ul className="divide-y divide-line">
                 {clearance.items.map((item) => (

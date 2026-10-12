@@ -1,5 +1,14 @@
 import { describe, expect, test } from 'vitest';
-import { caseStageIndex, formatDate, formatDateTime, formatTerm, pillTone, statusLabel } from './format';
+import {
+  SANCTION_STEP_LABELS,
+  caseStageIndex,
+  formatDate,
+  formatDateTime,
+  formatTerm,
+  pillTone,
+  sanctionStepIndex,
+  statusLabel,
+} from './format';
 
 describe('pillTone (SPEC 9 colors)', () => {
   test.each([
@@ -37,6 +46,62 @@ describe('statusLabel', () => {
   });
 });
 
+describe('statusLabel by kind (the words of the design deck, stored statuses unchanged)', () => {
+  test.each([
+    ['reported', 'Pending review'],
+    ['validated', 'Validated'],
+    ['for_sanction', 'Sanction in progress'],
+    ['resolved', 'Resolved'],
+    ['rejected', 'Not verified'],
+  ])('case %s', (status, label) => {
+    expect(statusLabel(status, 'case')).toBe(label);
+  });
+
+  test.each([
+    ['assigned', 'In progress'],
+    ['pending_verification', 'Pending verification'],
+    ['returned', 'Returned'],
+    ['completed', 'Cleared'],
+  ])('sanction %s', (status, label) => {
+    expect(statusLabel(status, 'sanction')).toBe(label);
+  });
+
+  test('the same word can mean two things: completed is Cleared for a sanction and Completed for an appointment', () => {
+    expect(statusLabel('completed', 'sanction')).toBe('Cleared');
+    expect(statusLabel('completed', 'appointment')).toBe('Completed');
+  });
+
+  test.each([
+    ['scheduled', 'Scheduled'],
+    ['rescheduled', 'Rescheduled'],
+    ['cancelled', 'Cancelled'],
+  ])('appointment %s', (status, label) => {
+    expect(statusLabel(status, 'appointment')).toBe(label);
+  });
+
+  test('clearance pending reads In progress, cleared reads Cleared', () => {
+    expect(statusLabel('pending', 'clearance')).toBe('In progress');
+    expect(statusLabel('cleared', 'clearance')).toBe('Cleared');
+  });
+
+  test('without a kind the old generic wording stays', () => {
+    expect(statusLabel('for_sanction')).toBe('For sanction');
+  });
+});
+
+describe('sanction steps (Assigned, In progress, Complied, Verified)', () => {
+  test('labels', () => {
+    expect(SANCTION_STEP_LABELS).toEqual(['Assigned', 'In progress', 'Complied', 'Verified']);
+  });
+
+  test('an assigned or returned sanction is at In progress, proof sent is Complied, verified is Verified', () => {
+    expect(sanctionStepIndex('assigned')).toBe(1);
+    expect(sanctionStepIndex('returned')).toBe(1);
+    expect(sanctionStepIndex('pending_verification')).toBe(2);
+    expect(sanctionStepIndex('completed')).toBe(3);
+  });
+});
+
 describe('dates (Asia/Manila)', () => {
   test('a date-only value is a calendar day and never shifts', () => {
     expect(formatDate('2026-09-20')).toBe('Sep 20, 2026');
@@ -47,8 +112,10 @@ describe('dates (Asia/Manila)', () => {
     expect(formatDateTime('2026-10-11T20:00:00.000Z')).toContain('Oct 12, 2026');
   });
 
-  test('formatTerm shows the academic year span', () => {
-    expect(formatTerm(2026, 1)).toBe('2026-2027, Semester 1');
+  test('formatTerm names the term and the school year (a fixed list of three terms)', () => {
+    expect(formatTerm(2026, 1)).toBe('1st Term 2026-2027');
+    expect(formatTerm(2026, 2)).toBe('2nd Term 2026-2027');
+    expect(formatTerm(2025, 3)).toBe('3rd Term 2025-2026');
   });
 });
 
