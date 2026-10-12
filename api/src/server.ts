@@ -68,14 +68,20 @@ function buildApp(): Built {
   if (!flowsConfigured) {
     console.warn('PA_NOTIFY_URL is not set: notification emails are skipped (the in-app inbox still works).');
   }
+  // A cursor moves each pass past rows that stayed pending, so a few stuck rows cannot starve newer ones; at the
+  // end of the queue it wraps to the start, so the stuck rows are still retried.
+  let cursor = 0;
   const scheduler = createDeliveryScheduler({
     intervalMs: SWEEP_INTERVAL_MS,
-    run: () =>
-      deliverPending({
+    run: async () => {
+      const report = await deliverPending({
         store: createPrismaOutboxStore(prisma),
         send: createSendToPowerAutomate({ urls: urlsFromEnv }),
         appBaseUrl: clientOrigin,
-      }),
+        afterId: cursor,
+      });
+      cursor = report.examined < 50 ? 0 : report.lastId;
+    },
   });
   const caseStore = withAfterCommit(createPrismaCaseStore(prisma), scheduler.kick);
   const notificationWriter = createPrismaNotificationWriter(prisma);

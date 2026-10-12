@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { NotificationKind } from '@shared/types.js';
 import { createSendToPowerAutomate, type DeliveryOutcome } from '../integrations/power-automate.js';
-import { deliverPending, type OutboxStore, type PendingNotification, type Recipient } from './delivery.js';
+import { combineOutcomes, deliverPending, type OutboxStore, type PendingNotification, type Recipient } from './delivery.js';
 import { linkPath } from './links.js';
 import { buildNotifyPayload, escapeHtml, notifyPayloadBuilders, type NotifyInput } from './render.js';
 import { createDeliveryScheduler } from './scheduler.js';
@@ -86,6 +86,12 @@ describe('payload builders', () => {
   test('only an http(s) link is put into the email', () => {
     expect(buildNotifyPayload('case', { ...input, linkUrl: 'javascript:alert(1)' }).link_url).toBeNull();
     expect(buildNotifyPayload('case', { ...input, linkUrl: null }).html_body).not.toContain('<a ');
+  });
+
+  test('a line break in the title cannot become a second mail header', () => {
+    const subject = buildNotifyPayload('case', { ...input, title: 'Hello\r\nBcc: attacker@example.com' }).subject;
+    expect(subject).not.toMatch(/[\r\n]/);
+    expect(subject).toContain('Hello Bcc: attacker@example.com');
   });
 
   test('the subject is bounded', () => {
@@ -217,10 +223,10 @@ function memoryOutbox(rows: PendingNotification[], recipients: Record<string, Re
   const store: OutboxStore & { status: Map<number, string>; rows: PendingNotification[] } = {
     status,
     rows,
-    async listPending(limit) {
+    async listPending(limit, afterId) {
       return rows
-        .filter((r) => !status.has(r.notificationId))
-        .sort((a, b) => a.dateCreated.getTime() - b.dateCreated.getTime())
+        .filter((r) => !status.has(r.notificationId) && r.notificationId > afterId)
+        .sort((a, b) => a.notificationId - b.notificationId)
         .slice(0, limit);
     },
     async recipientsOf(r) {
@@ -345,7 +351,7 @@ describe('deliverPending', () => {
     expect(report.skipped).toBe(2);
   });
 
-  test('rows are sent oldest first and a batch is bounded', async () => {
+  test('rows are sent in id order and a batch is bounded', async () => {
     const rows = [3, 1, 2].map((n) =>
       row({ notificationId: n, idempotencyKey: `k${n}`, dateCreated: new Date(Date.UTC(2026, 9, 12, 3, n)) }),
     );
@@ -355,9 +361,89 @@ describe('deliverPending', () => {
       order.push(payload.notification_id);
       return 'sent' as const;
     });
-    await deliverPending({ store, send: send as never, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => NOW, batchSize: 2 });
+    const report = await deliverPending({ store, send: send as never, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => NOW, batchSize: 2 });
     expect(order).toEqual([1, 2]);
     expect(store.status.has(3)).toBe(false);
+    expect(report).toMatchObject({ examined: 2, lastId: 2 });
+  });
+
+  test('rows that stay pending cannot starve newer ones: the cursor moves past them, then wraps', async () => {
+    // 5 rows whose email never gets an answer, then one healthy row, with a batch of 3.
+    const stuck = [1, 2, 3, 4, 5].map((n) => row({ notificationId: n, idempotencyKey: `stuck${n}` }));
+    const healthy = row({ notificationId: 6, idempotencyKey: 'healthy' });
+    const store = memoryOutbox([...stuck, healthy], { '2025-0000001': [student] });
+    const send = vi.fn(async (_kind: NotificationKind, payload: { notification_id: number }) =>
+      payload.notification_id === 6 ? ('sent' as const) : ('unknown' as const),
+    );
+    const base = { store, send: send as never, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => NOW, batchSize: 3, maxAttempts: 1 };
+
+    let cursor = 0;
+    const first = await deliverPending({ ...base, afterId: cursor });
+    cursor = first.examined < 3 ? 0 : first.lastId; // 1..3 examined, none done
+    expect(store.status.has(6)).toBe(false);
+    const second = await deliverPending({ ...base, afterId: cursor });
+    cursor = second.examined < 3 ? 0 : second.lastId; // 4, 5, 6: the healthy row gets its turn
+    expect(store.status.get(6)).toBe('sent');
+    expect(second.sent).toBe(1);
+    // End of the queue: a short batch wraps the cursor to 0 so stuck rows are retried.
+    const third = await deliverPending({ ...base, afterId: cursor });
+    expect(third.examined).toBe(0);
+    expect(third.stillPending).toBe(0);
+  });
+
+  test('a long staff list is split into emails of at most 50 addresses, sent as separate requests', async () => {
+    const employees = Array.from({ length: 120 }, (_, i) => ({ email: `emp${i}@nu-fairview.edu.ph`, firstName: `E${i}` }));
+    const store = memoryOutbox([row({ recipientType: 'staff', studentId: null, linkType: 'case', linkId: 4 })], { staff: employees });
+    const sizes: number[] = [];
+    const send = vi.fn(async (_kind: NotificationKind, payload: { to: string }) => {
+      sizes.push(payload.to.split(';').length);
+      return 'sent' as const;
+    });
+    const report = await deliverPending({ store, send: send as never, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => NOW });
+    expect(sizes).toEqual([50, 50, 20]);
+    expect(report.sent).toBe(1);
+    expect(store.status.get(1)).toBe('sent');
+  });
+
+  test('if one group is undecided the notification stays pending and the remaining groups wait', async () => {
+    const employees = Array.from({ length: 60 }, (_, i) => ({ email: `emp${i}@nu-fairview.edu.ph`, firstName: `E${i}` }));
+    const store = memoryOutbox([row({ recipientType: 'staff', studentId: null })], { staff: employees });
+    const send = vi.fn(async () => 'unknown' as const);
+    const report = await deliverPending({ store, send, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => NOW, maxAttempts: 2 });
+    expect(send).toHaveBeenCalledTimes(2); // only the first group, twice
+    expect(report.stillPending).toBe(1);
+    expect(store.status.has(1)).toBe(false);
+  });
+
+  test('a row whose result cannot be recorded does not stop the rest of the pass', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const rows = [1, 2].map((n) => row({ notificationId: n, idempotencyKey: `k${n}` }));
+    const store = memoryOutbox(rows, { '2025-0000001': [student] });
+    const original = store.markResult.bind(store);
+    store.markResult = async (id, result, at) => {
+      if (id === 1) throw new Error('db hiccup');
+      await original(id, result, at);
+    };
+    const send = vi.fn(async () => 'sent' as const);
+    const report = await deliverPending({ store, send, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => NOW });
+    expect(store.status.get(2)).toBe('sent');
+    expect(report).toMatchObject({ sent: 1, stillPending: 1 });
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
+  });
+});
+
+describe('combineOutcomes', () => {
+  test.each([
+    [['sent', 'sent'], 'sent'],
+    [['sent', 'failed'], 'failed'],
+    [['sent', 'unknown'], 'unknown'],
+    [['failed', 'unknown'], 'unknown'],
+    [['skipped', 'skipped'], 'skipped'],
+    [['sent', 'skipped'], 'sent'],
+    [[], 'sent'],
+  ] as const)('%j -> %s', (outcomes, expected) => {
+    expect(combineOutcomes(outcomes)).toBe(expected);
   });
 });
 

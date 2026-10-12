@@ -21,7 +21,8 @@ interface NotificationRow {
 
 const audienceWhere = (audience: Audience): Prisma.notificationsWhereInput =>
   audience.kind === 'staff'
-    ? { recipient_type: 'staff' }
+    ? // student_id IS NULL matches the staff rows and lets the (student_id, is_read, date_created) index serve it.
+      { recipient_type: 'staff', student_id: null }
     : { recipient_type: 'student', student_id: audience.studentId };
 
 const toInboxRow = (row: NotificationRow): InboxRow => ({
@@ -93,10 +94,10 @@ export function createPrismaNotificationWriter(db: Pick<PrismaClient, 'notificat
 /** Prisma-backed outbox for the delivery sweep. Employee and student rows are read for the email address only. */
 export function createPrismaOutboxStore(db: Db): OutboxStore {
   return {
-    async listPending(limit) {
+    async listPending(limit, afterId) {
       const rows = await db.notifications.findMany({
-        where: { email_status: 'pending' },
-        orderBy: [{ date_created: 'asc' }, { notification_id: 'asc' }],
+        where: { email_status: 'pending', notification_id: { gt: afterId } },
+        orderBy: { notification_id: 'asc' },
         take: limit,
       });
       return rows.map(

@@ -35,6 +35,25 @@ export function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
+const LINE_BREAKS: ReadonlySet<number> = new Set([10, 13, 0x2028, 0x2029]);
+
+/** One line of text: every line-break character becomes a space, so a value can never start a second header. */
+export function oneLine(text: string): string {
+  let result = '';
+  let inBreak = false;
+  for (const character of text) {
+    if (LINE_BREAKS.has(character.codePointAt(0) ?? -1)) {
+      // A run of breaks (CR LF, blank lines) is one space.
+      if (!inBreak) result += ' ';
+      inBreak = true;
+    } else {
+      result += character;
+      inBreak = false;
+    }
+  }
+  return result;
+}
+
 /** Only http(s) links go into an email, whatever the configuration says. */
 function safeHref(url: string | null): string | null {
   if (url === null) return null;
@@ -74,7 +93,8 @@ function build(kind: NotificationKind): Builder {
       channel: 'email',
       to: input.to.join(';'),
       cc: [],
-      subject: `[SDO Portal] ${subjectPrefix}: ${input.title}`.slice(0, 200),
+      // A subject is one line: any line break in the title is flattened (header-injection defense in depth).
+      subject: `[SDO Portal] ${subjectPrefix}: ${oneLine(input.title)}`.slice(0, 200),
       html_body:
         `<p>${greeting}</p>` +
         `<p>${escapeHtml(intro)}</p>` +
