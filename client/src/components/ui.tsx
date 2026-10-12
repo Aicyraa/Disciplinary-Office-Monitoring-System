@@ -98,7 +98,7 @@ export function Resource<T>({
 }
 
 export const fieldClass =
-  'block w-full rounded-md border border-line-strong bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-primary';
+  'block min-h-11 w-full rounded-md border border-line-strong bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-primary';
 
 export const buttonClass =
-  'inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-active disabled:opacity-60';
+  'inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-active disabled:opacity-60';

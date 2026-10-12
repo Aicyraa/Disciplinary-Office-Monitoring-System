@@ -195,7 +195,7 @@ function UnreadToast() {
     >
       <Icon name="notifications" className="text-primary" />
       <span className="text-ink">{toast}</span>
-      <Link to="/inbox" onClick={dismissToast} className="font-medium text-primary underline">
+      <Link to="/inbox" onClick={dismissToast} className="inline-flex min-h-11 items-center px-1 font-medium text-primary underline">
         View
       </Link>
       <button type="button" onClick={dismissToast} aria-label="Dismiss" className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted hover:text-ink">
