@@ -3,6 +3,7 @@ import session from 'express-session';
 import { Pool } from 'pg';
 import { createApp } from './app.js';
 import { clientOriginFrom, defaultClientOrigin } from './cors.js';
+import { withExplicitSsl } from './db-url.js';
 import { createPrismaAccountRepo } from './auth/prisma-repo.js';
 import { createAuthService } from './auth/service.js';
 import { createPrismaCaseQueries, createPrismaCaseStore } from './cases/prisma-store.js';
@@ -11,7 +12,7 @@ import { createPrismaHandbookRepo } from './handbook/prisma-repo.js';
 import { createSendToPowerAutomate, urlsFromEnv } from './integrations/power-automate.js';
 import { createPrismaStudentViewRepo } from './me/prisma-repo.js';
 import { withAfterCommit } from './notifications/after-commit.js';
-import { deliverPending } from './notifications/delivery.js';
+import { deliverPending, type RetryEntry } from './notifications/delivery.js';
 import {
   createPrismaInboxStore,
   createPrismaNotificationWriter,
@@ -27,6 +28,9 @@ const port = Number(process.env.SERVER_PORT ?? process.env.PORT ?? 3000);
 const isProduction = process.env.NODE_ENV === 'production';
 /** How often the sweep looks for pending notifications (also catches rows left over by an outage). */
 const SWEEP_INTERVAL_MS = 60_000;
+/** Notifications looked at per pass, and the pause between two requests to the flow (a backlog trickles out). */
+const DELIVERY_BATCH = 20;
+const PAUSE_BETWEEN_SENDS_MS = 250;
 
 interface Built {
   app: ReturnType<typeof createApp>;
@@ -58,7 +62,7 @@ function buildApp(): Built {
   if (SESSION_SECRET.length < 32) return misconfigured('SESSION_SECRET must be at least 32 characters.');
 
   const PgStore = connectPgSimple(session);
-  const sessionStore = new PgStore({ pool: new Pool({ connectionString: DATABASE_URL }), createTableIfMissing: true });
+  const sessionStore = new PgStore({ pool: new Pool({ connectionString: withExplicitSsl(DATABASE_URL) }), createTableIfMissing: true });
   const prisma = createPrismaClient();
   const service = createAuthService({ repo: createPrismaAccountRepo(prisma) });
 
@@ -71,16 +75,23 @@ function buildApp(): Built {
   // A cursor moves each pass past rows that stayed pending, so a few stuck rows cannot starve newer ones; at the
   // end of the queue it wraps to the start, so the stuck rows are still retried.
   let cursor = 0;
+  // One helper and one cooldown memory for the life of the process: a row the flow did not answer for waits
+  // (1 minute, doubling, at most 30) instead of being emailed again on every sweep.
+  const send = createSendToPowerAutomate({ urls: urlsFromEnv });
+  const retryState = new Map<number, RetryEntry>();
   const scheduler = createDeliveryScheduler({
     intervalMs: SWEEP_INTERVAL_MS,
     run: async () => {
       const report = await deliverPending({
         store: createPrismaOutboxStore(prisma),
-        send: createSendToPowerAutomate({ urls: urlsFromEnv }),
+        send,
         appBaseUrl: clientOrigin,
         afterId: cursor,
+        batchSize: DELIVERY_BATCH,
+        pauseBetweenMs: PAUSE_BETWEEN_SENDS_MS,
+        retryState,
       });
-      cursor = report.examined < 50 ? 0 : report.lastId;
+      cursor = report.examined < DELIVERY_BATCH ? 0 : report.lastId;
     },
   });
   const caseStore = withAfterCommit(createPrismaCaseStore(prisma), scheduler.kick);

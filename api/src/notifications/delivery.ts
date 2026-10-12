@@ -46,10 +46,21 @@ export interface DeliveryOptions {
   appBaseUrl: string;
   now?: () => Date;
   sleep?: (ms: number) => Promise<void>;
-  /** Attempts per notification within one run (POWER-AUTOMATE.md section 5: up to 3). */
+  /**
+   * Attempts per notification within one run. One by default: a row that got no answer waits for its cooldown
+   * (`retryState`) instead of being sent again straight away, because every attempt may really send an email.
+   */
   maxAttempts?: number;
-  /** Delay before the second attempt; doubles each time. */
+  /** Delay before a second in-run attempt (only when `maxAttempts` > 1); doubles each time. */
   backoffMs?: number;
+  /**
+   * Cooldown memory that outlives one run (the caller keeps the Map): per row, how many passes found no answer
+   * and the earliest time it may be tried again (1 minute, doubling, at most 30 minutes). Without it every
+   * pass retries every undecided row.
+   */
+  retryState?: Map<number, RetryEntry>;
+  /** Pause between two requests to the flow, so a backlog is not fired as a burst. */
+  pauseBetweenMs?: number;
   batchSize?: number;
   /** Most addresses in one email (POWER-AUTOMATE.md section 5: batch about 50). Larger lists are split. */
   maxRecipientsPerEmail?: number;
@@ -67,13 +78,23 @@ export interface DeliveryReport {
   sent: number;
   failed: number;
   skipped: number;
-  /** Tried but PA gave no answer; will be tried again by the next run. */
+  /** Tried but PA gave no answer; will be tried again after its cooldown. */
   stillPending: number;
+  /** Left alone this pass because the row is still cooling down after an unanswered attempt. */
+  deferred: number;
   /** Marked failed because they were pending for more than 24 hours. */
   expired: number;
 }
 
+export interface RetryEntry {
+  attempts: number;
+  /** Epoch milliseconds before which the row is not tried again. */
+  notBefore: number;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
+const COOLDOWN_BASE_MS = 60_000;
+const COOLDOWN_MAX_MS = 30 * 60_000;
 const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function absoluteUrl(appBaseUrl: string, path: string | null): string | null {
@@ -117,20 +138,37 @@ export async function deliverPending({
   appBaseUrl,
   now = () => new Date(),
   sleep = realSleep,
-  maxAttempts = 3,
+  maxAttempts = 1,
   backoffMs = 1_000,
-  batchSize = 50,
+  retryState = new Map<number, RetryEntry>(),
+  pauseBetweenMs = 0,
+  batchSize = 20,
   maxRecipientsPerEmail = 50,
   afterId = 0,
   maxPendingMs = DAY_MS,
 }: DeliveryOptions): Promise<DeliveryReport> {
-  const report: DeliveryReport = { lastId: afterId, examined: 0, sent: 0, failed: 0, skipped: 0, stillPending: 0, expired: 0 };
+  const report: DeliveryReport = {
+    lastId: afterId,
+    examined: 0,
+    sent: 0,
+    failed: 0,
+    skipped: 0,
+    stillPending: 0,
+    deferred: 0,
+    expired: 0,
+  };
 
   report.expired = await store.failOlderThan(new Date(now().getTime() - maxPendingMs));
 
+  let requestsMade = 0;
   for (const row of await store.listPending(batchSize, afterId)) {
     report.examined += 1;
     report.lastId = Math.max(report.lastId, row.notificationId);
+    const cooling = retryState.get(row.notificationId);
+    if (cooling && cooling.notBefore > now().getTime()) {
+      report.deferred += 1;
+      continue;
+    }
     try {
       const recipients = await store.recipientsOf(row);
       if (recipients.length === 0) {
@@ -152,6 +190,8 @@ export async function deliverPending({
           to: group.map((recipient) => recipient.email),
           greetingName: audience === 'student' ? (group[0].firstName ?? null) : null,
         });
+        if (requestsMade > 0 && pauseBetweenMs > 0) await sleep(pauseBetweenMs);
+        requestsMade += 1;
         let outcome: Outcome = await send(row.kind, payload);
         for (let attempt = 1; outcome === 'unknown' && attempt < maxAttempts; attempt += 1) {
           await sleep(backoffMs * 2 ** (attempt - 1));
@@ -165,8 +205,12 @@ export async function deliverPending({
       const final = combineOutcomes(outcomes);
       if (final === 'unknown') {
         report.stillPending += 1;
+        const attempts = (cooling?.attempts ?? 0) + 1;
+        const wait = Math.min(COOLDOWN_MAX_MS, COOLDOWN_BASE_MS * 2 ** (attempts - 1));
+        retryState.set(row.notificationId, { attempts, notBefore: now().getTime() + wait });
       } else {
         await store.markResult(row.notificationId, final, now());
+        retryState.delete(row.notificationId);
         report[final] += 1;
       }
     } catch (error) {

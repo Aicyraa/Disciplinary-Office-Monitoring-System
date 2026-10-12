@@ -15,6 +15,7 @@ This file is the parallel dev team's only notes file. It records what changed (f
 | cors-preview-origin | worktree-cors-preview-origin | .claude/worktrees/cors-preview-origin | Bug fix (human report): the built client served by `npm start` (Vite preview, port 4173) cannot sign in: CORS | origin rule tested incl. the 4173 origins at the HTTP level; lint, typecheck, test, build green | api/src/{cors,server}.ts, api/src/cors*.test.ts | cors-login-fix | after 5 | reviewed (PASS); superseded by api-envelope-origin |
 | api-envelope-origin | worktree-api-envelope-origin | .claude/worktrees/api-envelope-origin | Human request: one localhost origin (dev and prod), API handlers for invalid routes and route errors, one shared success and one shared error response type, `@shared/` imports | handlers tested alone and in the real app; envelope on every route; client unwraps in one place; lint, typecheck, test, build green | api/src/{http,cors,app,server}.ts, api/src/*/routes.ts, api/src/auth/guards.ts, shared/types.ts, api/tsconfig.json, client/tsconfig.json, client/vite.config.ts, client/src/lib/{api,apiBase}.ts, tests, .env.example, about 40 import lines | cors-preview-origin | after 5 | reviewed (PASS) |
 | notifications-pa | worktree-notifications-pa | .claude/worktrees/notifications-pa | Build step 6 (SPEC 4.6, 6.3, 7; FEATURE-RULES 3.10, 3.11; POWER-AUTOMATE): one outbound helper, pure payload builders, commit-then-notify delivery with retry, sweep and 24 h expiry, inbox API for students and the shared staff inbox, bell, toast and inbox page | helper body is exactly {type,payload}; outcome to email_status mapping; sent only after commit; 24 h rule with a fake clock; inbox scoping; lint, typecheck, test, build green | api/src/{integrations,notifications}/*, api/src/{app,server}.ts, api/src/auth/routes.ts, api/src/sanctions/service.ts, api/src/cases/{types,prisma-store}.ts, shared/types.ts, client/src/{notifications,pages,components,lib}/*, .env.example | api-envelope-origin | 6 | review |
+| delivery-throttle-ssl | worktree-delivery-throttle-ssl | .claude/worktrees/delivery-throttle-ssl | Bug fix (human report): `npm run dev` fires HTTP requests at the flow in a loop; pg SSL-mode warning at startup | one request per row per pass, cooldown 1 min doubling to 30 min, pause between sends, batch 20; 2xx without a status counts as sent; sslmode rewritten to verify-full; lint, typecheck, test, build green | api/src/{db-url,prisma,server}.ts, api/src/db-url.test.ts, api/src/integrations/power-automate.ts, api/src/notifications/{delivery.ts,notifications.test.ts} | notifications-pa | after 6 | review |
 
 <!-- Per-task sections go below, laid out as:
 
@@ -405,3 +406,29 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 
 ---
 
+
+## delivery-throttle-ssl branch worktree-delivery-throttle-ssl
+
+**Report (human):** starting `npm run dev` after step 6 made the API fire requests at the flow in a loop. Also a pg "SSL modes are aliases for verify-full" warning at startup.
+
+**Cause:** (a) every notification written `pending` since steps 4 and 5 is sent at startup (a backlog); (b) a flow that answers 2xx with no `{"status":"sent"}` (a trigger with no Response action) was `unknown`, so the row stayed pending and was re-sent, up to 3 requests per row, on every 60 s sweep, each really emailing.
+
+**Changed:**
+- `delivery.ts`: one request per row per pass by default (`maxAttempts` 1); a cooldown map kept by the caller (`retryState`, 1 min doubling, cap 30 min, row skipped as `deferred` until then); `pauseBetweenMs` between requests; default batch 20; cooldown entry dropped once the row is decided.
+- `power-automate.ts`: HTTP 2xx whose body has no readable `status` is `sent` (one warning per process, no URL). Non-2xx, timeout and an unrecognised `status` stay `unknown`, so a flow that is switched off still loses nothing.
+- `server.ts`: one helper and one `retryState` for the process, batch 20, 250 ms pause.
+- `db-url.ts` (new): `withExplicitSsl` rewrites `sslmode=prefer|require|verify-ca` to `verify-full` (same behavior pg v9 already applies) for the Pool and the Prisma pg adapter. The Prisma CLI config is untouched.
+
+**SPEC CHANGE: POWER-AUTOMATE.md section 4 rule 5 says an unreadable body is `unknown`. It is now `sent` when the HTTP status is 2xx and there is no `status` field at all, because retrying duplicates real emails. The human decides whether to keep this or require the Response action (then revert the one branch in `power-automate.ts`).**
+
+**Not changed:** the Vite "ESM syntax in a file loaded as CommonJS" warning comes from `client/vite.config.ts` in a package without `"type": "module"`; the fix needs a `package.json` or script change (agents may not edit those). It is harmless; `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` hides it.
+
+**Evidence:** 29 files / 614 tests pass; lint, typecheck, build clean.
+
+**Not verified / HUMAN CHECK:**
+- HUMAN CHECK: `npm run dev` with `PA_NOTIFY_URL` set -> the flow run history shows about 4 requests per second at most, a backlog of N rows drains at 20 per minute at most, and nothing is sent twice.
+- HUMAN CHECK: with the flow turned off -> each undecided row is retried after 1, 2, 4 ... 30 minutes, not every minute; after turning it on the rows go out and become `sent`.
+- HUMAN CHECK: the startup log no longer prints the pg SSL warning.
+
+### Review
+(reviewer fills this)

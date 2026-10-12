@@ -5,7 +5,9 @@ import type { NotifyPayload } from '../notifications/render.js';
  * What one call to Power Automate came to (POWER-AUTOMATE.md section 4, rule 5):
  * - `sent`: HTTP 200 with `{"status":"sent"}`;
  * - `failed`: HTTP 200 with `{"status":"failed"}` (the flow tried and could not send);
- * - `unknown`: timeout, network error, non-2xx or an unreadable body (try again later);
+ * - `sent` also covers a 2xx reply with no readable `status` at all (the flow accepted the request but has no
+ *   Response action): re-sending would only duplicate the email;
+ * - `unknown`: timeout, network error, non-2xx or an unrecognised `status` (try again later);
  * - `skipped`: no flow URL is configured for this kind, so nothing was attempted (local development).
  */
 export type DeliveryOutcome = 'sent' | 'failed' | 'unknown' | 'skipped';
@@ -31,6 +33,7 @@ export type SendToPowerAutomate = (type: NotificationKind, payload: NotifyPayloa
  * only for `report`.
  */
 export function createSendToPowerAutomate({ urls, fetchImpl = fetch, timeoutMs = 10_000 }: PowerAutomateOptions): SendToPowerAutomate {
+  let warnedNoStatus = false;
   return async (type, payload) => {
     const configured = urls();
     const url = type === 'report' ? (configured.gate ?? configured.notify) : configured.notify;
@@ -49,6 +52,19 @@ export function createSendToPowerAutomate({ urls, fetchImpl = fetch, timeoutMs =
       const status = typeof reply === 'object' && reply !== null ? (reply as { status?: unknown }).status : undefined;
       if (status === 'sent') return 'sent';
       if (status === 'failed') return 'failed';
+      if (status === undefined) {
+        // The flow accepted the request (2xx) but returned no readable status, e.g. a trigger without a
+        // "Response" action answers 202 with an empty body. Retrying would email the same person again on
+        // every pass, so an accepted request counts as sent. Say so once, without the URL.
+        if (!warnedNoStatus) {
+          warnedNoStatus = true;
+          console.warn(
+            'Power Automate answered 2xx without {"status":"sent"|"failed"}. Treating accepted requests as sent; ' +
+              'add a Response action to the flow to report real success or failure (POWER-AUTOMATE.md section 2).',
+          );
+        }
+        return 'sent';
+      }
       return 'unknown';
     } catch {
       // Timeout, DNS or connection failure: say nothing that could contain the URL.

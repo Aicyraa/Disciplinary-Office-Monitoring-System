@@ -136,13 +136,29 @@ describe('sendToPowerAutomate (the one outbound helper)', () => {
     [200, { status: 'sent' }, 'sent'],
     [200, { status: 'failed', error: 'mailbox full' }, 'failed'],
     [200, { status: 'something-else' }, 'unknown'],
-    [200, 'not json', 'unknown'],
+    // Accepted but no readable status (a trigger with no Response action): sent, never re-sent.
+    [200, 'not json', 'sent'],
+    [202, '', 'sent'],
+    [200, {}, 'sent'],
     [500, { status: 'sent' }, 'unknown'],
     [429, {}, 'unknown'],
     [404, '', 'unknown'],
   ] as Array<[number, unknown, DeliveryOutcome]>)('HTTP %i %j -> %s', async (status, body, expected) => {
     const send = createSendToPowerAutomate({ urls: () => ({ notify: NOTIFY_URL }), fetchImpl: reply(status, body) });
     expect(await send('case', payload)).toBe(expected);
+  });
+
+  test('an accepted request with no status warns once, without the URL', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const send = createSendToPowerAutomate({
+      urls: () => ({ notify: NOTIFY_URL }),
+      fetchImpl: vi.fn(async () => new Response('', { status: 202 })),
+    });
+    await send('case', payload);
+    await send('case', payload);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('SECRET-SIGNATURE');
+    warn.mockRestore();
   });
 
   test('a network error or timeout is unknown, never an exception, and never mentions the URL', async () => {
@@ -279,7 +295,7 @@ describe('deliverPending', () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
-  test('"unknown" is retried up to 3 times with growing backoff, then the row stays pending', async () => {
+  test('"unknown" is retried in-run only when maxAttempts allows, with growing backoff, then stays pending', async () => {
     const store = memoryOutbox([row()], { '2025-0000001': [student] });
     const send = vi.fn(async () => 'unknown' as const);
     const sleep = vi.fn(async () => undefined);
@@ -290,6 +306,7 @@ describe('deliverPending', () => {
       appBaseUrl: 'http://localhost:5173',
       now: () => NOW,
       backoffMs: 100,
+      maxAttempts: 3,
     });
     expect(send).toHaveBeenCalledTimes(3);
     expect(sleep.mock.calls.map((call) => (call as unknown as [number])[0])).toEqual([100, 200]);
@@ -297,11 +314,78 @@ describe('deliverPending', () => {
     expect(store.status.has(1)).toBe(false);
   });
 
+  test('by default one request per row per pass, then a growing cooldown (1, 2, 4 ... at most 30 minutes)', async () => {
+    const store = memoryOutbox([row()], { '2025-0000001': [student] });
+    const send = vi.fn(async () => 'unknown' as const);
+    const retryState = new Map();
+    let clock = NOW.getTime();
+    const run = () =>
+      deliverPending({ store, send, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => new Date(clock), retryState });
+
+    expect(await run()).toMatchObject({ stillPending: 1, deferred: 0 });
+    expect(send).toHaveBeenCalledTimes(1);
+
+    clock += 30_000; // still inside the first minute: left alone
+    expect(await run()).toMatchObject({ stillPending: 0, deferred: 1 });
+    expect(send).toHaveBeenCalledTimes(1);
+
+    clock += 31_000; // past 1 minute: tried again, next wait is 2 minutes
+    await run();
+    expect(send).toHaveBeenCalledTimes(2);
+    clock += 100_000;
+    await run();
+    expect(send).toHaveBeenCalledTimes(2);
+    clock += 21_000;
+    await run();
+    expect(send).toHaveBeenCalledTimes(3);
+
+    // The wait is capped at 30 minutes.
+    for (let i = 0; i < 10; i += 1) {
+      clock += 30 * 60_000 + 1;
+      await run();
+    }
+    expect(retryState.get(1).notBefore - clock).toBe(30 * 60_000);
+  });
+
+  test('a row that finally goes through is forgotten by the cooldown memory', async () => {
+    const store = memoryOutbox([row()], { '2025-0000001': [student] });
+    const outcomes: Array<'unknown' | 'sent'> = ['unknown', 'sent'];
+    const send = vi.fn(async () => outcomes.shift() ?? 'sent');
+    const retryState = new Map();
+    let clock = NOW.getTime();
+    const run = () =>
+      deliverPending({ store, send, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => new Date(clock), retryState });
+    await run();
+    expect(retryState.size).toBe(1);
+    clock += 61_000;
+    await run();
+    expect(store.status.get(1)).toBe('sent');
+    expect(retryState.size).toBe(0);
+  });
+
+  test('requests to the flow are paced: a pause between sends, none before the first', async () => {
+    const rows = [1, 2, 3].map((n) => row({ notificationId: n, idempotencyKey: `k${n}` }));
+    const store = memoryOutbox(rows, { '2025-0000001': [student] });
+    const send = vi.fn(async () => 'sent' as const);
+    const sleep = vi.fn(async () => undefined);
+    await deliverPending({ store, send, sleep, appBaseUrl: 'http://localhost:5173', now: () => NOW, pauseBetweenMs: 250 });
+    expect(sleep.mock.calls.map((call) => (call as unknown as [number])[0])).toEqual([250, 250]);
+    expect(send).toHaveBeenCalledTimes(3);
+  });
+
+  test('a backlog is bounded to the batch size (20 by default)', async () => {
+    const rows = Array.from({ length: 30 }, (_, i) => row({ notificationId: i + 1, idempotencyKey: `k${i}` }));
+    const store = memoryOutbox(rows, { '2025-0000001': [student] });
+    const send = vi.fn(async () => 'sent' as const);
+    await deliverPending({ store, send, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => NOW });
+    expect(send).toHaveBeenCalledTimes(20);
+  });
+
   test('a later attempt can succeed', async () => {
     const store = memoryOutbox([row()], { '2025-0000001': [student] });
     const outcomes: Array<'unknown' | 'sent'> = ['unknown', 'sent'];
     const send = vi.fn(async () => outcomes.shift() ?? 'sent');
-    const report = await deliverPending({ store, send, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => NOW });
+    const report = await deliverPending({ store, send, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => NOW, maxAttempts: 3 });
     expect(report.sent).toBe(1);
     expect(send).toHaveBeenCalledTimes(2);
   });
