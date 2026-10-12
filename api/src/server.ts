@@ -102,13 +102,13 @@ function buildApp(): Built {
   const filesBucket = filesBucketFromEnv();
   const bucketConfigured = Boolean(filesBucket && process.env.AWS_ENDPOINT_URL_S3 && process.env.AWS_ACCESS_KEY_ID);
   if (!bucketConfigured && isProduction) {
-    throw new Error('BUCKET_STORAGE_FILES and the AWS_* variables are required in production');
+    throw new Error('STORAGE_BUCKET_FILES and the AWS_* variables are required in production');
   }
   if (!bucketConfigured) console.warn('Object storage variables missing: proof file upload and download are disabled.');
   const storage =
     bucketConfigured && filesBucket
       ? createS3Storage(filesBucket)
-      : createUnavailableStorage('set BUCKET_STORAGE_FILES and the AWS_* keys');
+      : createUnavailableStorage('set STORAGE_BUCKET_FILES and the AWS_* keys');
 
   const app = createApp({
     auth: {
