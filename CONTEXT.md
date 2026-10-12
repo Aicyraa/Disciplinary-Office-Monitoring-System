@@ -758,3 +758,21 @@ Findings:
 6. Low: `searchStudents` runs 2 counts per row (41 queries per page of 20); `me/views.ts:107` has a stray doc comment above `toProfileView`; the HUMAN CHECK above lacks an exact command and expected values (give the path and the expected first code, e.g. `SDO-2026-001`); the public gate response now returns `GI-<1000+rank>`, which tells a visitor how many reports exist (accept, or drop `code` from the public body).
 
 **Review fix round 1 (dev, 2026-10-13):** finding 3 fixed (account queries `select` only the profile columns, so the password hash is never loaded); finding 4 fixed (test: a failed replacing write keeps the old row and object and removes the new object); finding 5 fixed (test: `/students` and `/students/:id` bodies contain no password or hash); stray comment in `me/views.ts` moved; SPEC 7 lists the slip route. Finding 1: the human authorised the docs and CLAUDE.md edits in this session. Finding 2 accepted: a notification text may carry a code that differs from the later read-time code only if two cases commit out of order inside one year; codes shown on screen are always derived at read time. Finding 6 (N+1 counts per student page, 20 rows) accepted for a demo-size dataset. Tests: 1034 passed.
+
+## ui-polish: UI slices P0 to P11 and notices (2026-10-13, after the logic review)
+
+**Built** (commits 4f0f005..8a247e7 on `worktree-ui-polish`; every slice: `npm test`, lint, typecheck, build green; 1098 tests):
+- **P0 chrome:** grouped sidebar with count badges (Inbox, Cases, Students), breadcrumb bar, avatar menu (Account details, Change password, Sign out), phone bar of 4 tabs plus a More drawer, toast, `ConfirmModal` (optional or required reason), `LockedButton`, skeleton loading, No access page, `/account` and `/account/password`.
+- **P2/P3/P4/P5/P6/P7/P8:** shared `MasterDetail` (list left, record right, stacks on phone, selection in the URL); Cases queue (status counts, groups) and case workspace (tracker, Details/History, remarks, modals); Students page (list, record, reset password, record violation link); Appointments list-and-detail with a Review step in Make appointment; Handbook violations edit pane with Discard/Saved, Add violation page, Sanction templates with Posted filters; Clearance (student: term chips, progress, locked slip, print slip page; staff: students list, requirements and activity history, modals); student My violations (two-pane with proof upload), My sanctions (two-pane), Inbox (chips, unread only, refresh, paging, message dialog), handbook entry pane with posted template files.
+- **P9 public:** sign-in hero, show/hide password, Forgot password help, "Open the violation form" link; gate form Details / Violations / Review.
+- **P10 notices:** `notices` table (`db/add-notices.sql`, mirrored in `db/schema.sql` and `api/prisma/schema.prisma`), kind `notice`, staff `GET/POST/PATCH/DELETE /notices`, one inbox notification per active student written with the notice (email through the normal sweep), expiry hides it, staff Notices page, "Important notices" inbox chip.
+- **P11:** web manifest and icon, reduced motion, 44 px floor on fields and buttons (audited at 390 px on seven staff pages).
+- API additions for the screens: `GET /appointments/:id`, case list `statusCounts`, case detail `caseCodes`.
+
+**Evidence for UI work:** each screen was driven with Playwright against mocked API responses at 390, 900 and 1280 px (Cases, Students, Appointments, Handbook, Templates, Dashboard, student violations, sanctions and inbox, sign-in, gate review). **Not checked live:** every screen against the real API; Clearance staff and student screens, Make appointment review, Notices page and the message dialog were verified by unit tests and typecheck only, not by screenshot.
+
+**Not verified:** anything against the live database or bucket; the new Prisma queries (`notices`, inbox expiry, status counts).
+HUMAN CHECK: run `docs/sdao-handoff/db/add-notices.sql` on the development branch, then sign in as staff, open Notices, publish one with an expiry tomorrow, and sign in as a student -> the inbox shows it under "Important notices" and the email arrives.
+SPEC CHANGE (applied with the human's authorization): notices un-parked; `notices` table; kind `notice`.
+
+### Review (reviewer fills this)
