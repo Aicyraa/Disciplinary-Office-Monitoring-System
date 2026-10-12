@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import type { HandbookEntryView, Severity } from '@shared/types';
+import { useToast } from '../components/feedback';
 import { buttonClass, fieldClass } from '../components/ui';
 import { api, toApiError } from '../lib/api';
 import { formProblem, offenseSlots, toPicks, toSanctionList, type ViolationFormValues } from '../lib/handbookForm';
@@ -24,13 +25,19 @@ export function ViolationForm({
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const [values, setValues] = useState<ViolationFormValues>({
-    violationType: entry?.violation ?? '',
-    severity: entry?.severity ?? 'Minor',
-    section: entry?.section ?? '',
-    description: entry?.description ?? '',
-    picks: entry ? toPicks(entry) : { 1: [] },
-  });
+  const initial = useMemo<ViolationFormValues>(
+    () => ({
+      violationType: entry?.violation ?? '',
+      severity: entry?.severity ?? 'Minor',
+      section: entry?.section ?? '',
+      description: entry?.description ?? '',
+      picks: entry ? toPicks(entry) : { 1: [] },
+    }),
+    [entry],
+  );
+  const toast = useToast();
+  const [values, setValues] = useState<ViolationFormValues>(initial);
+  const dirty = JSON.stringify(values) !== JSON.stringify(initial);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const used = entry?.usedInCases ?? 0;
@@ -70,6 +77,7 @@ export function ViolationForm({
       } else {
         await api.createViolation(body);
       }
+      toast.show(entry ? 'Violation saved.' : 'Violation added.', 'success');
       onSaved();
     } catch (caught) {
       setError(toApiError(caught).message);
@@ -78,16 +86,21 @@ export function ViolationForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="mt-3 rounded-md border border-line-strong bg-page p-3">
-      <h3 className="text-sm font-semibold text-ink">{entry ? `Edit ${entry.code}` : 'New violation'}</h3>
-      {entry ? <p className="mt-1 text-xs text-muted">Used in {used} case{used === 1 ? '' : 's'}. Renaming never breaks them.</p> : null}
+    <form onSubmit={submit} noValidate className="rounded-lg border border-line bg-white p-4">
+      <p className="text-xs text-muted">{entry ? 'Edit violation' : 'New violation'}</p>
+      <h3 className="text-lg font-bold text-ink">{entry ? entry.violation : 'Add violation'}</h3>
+      {entry ? (
+        <p className="mt-1 text-xs text-muted">
+          {entry.severity} offense · Sec. {entry.section} · Used in {used} case{used === 1 ? '' : 's'}. Renaming never breaks them.
+        </p>
+      ) : null}
 
       <label htmlFor={`${idBase}-name`} className="mt-3 block text-sm font-medium text-ink">
         Violation name
       </label>
       <input
         id={`${idBase}-name`}
-        className={`${fieldClass} mt-1`}
+        className={`${fieldClass} mt-1 min-h-11`}
         maxLength={200}
         value={values.violationType}
         onChange={(event) => set('violationType', event.target.value)}
@@ -168,17 +181,25 @@ export function ViolationForm({
           {error}
         </p>
       ) : null}
-      <div className="mt-3 flex gap-2">
-        <button type="submit" disabled={busy} className={buttonClass}>
-          {busy ? 'Saving…' : entry ? 'Save changes' : 'Add violation'}
-        </button>
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+        {dirty ? <span className="mr-auto text-xs font-semibold text-[#7A4600]">Unsaved changes</span> : null}
         <button
           type="button"
-          onClick={onCancel}
-          disabled={busy}
-          className="rounded-md border border-line-strong bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-page"
+          onClick={() => {
+            if (entry) {
+              setValues(initial);
+              setError(null);
+            } else {
+              onCancel();
+            }
+          }}
+          disabled={busy || (entry !== undefined && !dirty)}
+          className="inline-flex min-h-11 items-center rounded-md border border-line-strong bg-white px-4 text-sm font-medium text-ink hover:bg-page disabled:opacity-50"
         >
-          Cancel
+          {entry ? 'Discard' : 'Cancel'}
+        </button>
+        <button type="submit" disabled={busy || (entry !== undefined && !dirty)} className={`${buttonClass} min-h-11`}>
+          {busy ? 'Saving…' : entry ? (dirty ? 'Save changes' : 'Saved') : 'Add violation'}
         </button>
       </div>
     </form>

@@ -9,7 +9,7 @@ import { AppointmentsPage } from './pages/Appointments';
 import ChangePassword from './pages/ChangePassword';
 import { ClearancePage } from './pages/Clearance';
 import { StaffHome, StudentDashboard } from './pages/Dashboard';
-import { HandbookPage } from './pages/Handbook';
+import { AddViolationPage, HandbookPage } from './pages/Handbook';
 import GateReportPage from './pages/GateReport';
 import Login from './pages/Login';
 import { InboxPage } from './pages/Inbox';
@@ -82,6 +82,7 @@ function AppRoutes() {
         <Route element={<Shell />}>
           <Route index element={<Home />} />
           <Route path="handbook" element={<HandbookPage />} />
+          <Route path="handbook/:id" element={<HandbookPage />} />
           <Route path="inbox" element={<InboxPage />} />
           <Route path="account" element={<AccountDetailsPage />} />
           <Route path="account/password" element={<ChangePassword />} />
@@ -100,6 +101,7 @@ function AppRoutes() {
             <Route path="students" element={<StudentsPage />} />
             <Route path="students/:id" element={<StudentsPage />} />
             <Route path="appointments/new" element={<MakeAppointmentPage />} />
+            <Route path="handbook/new" element={<AddViolationPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

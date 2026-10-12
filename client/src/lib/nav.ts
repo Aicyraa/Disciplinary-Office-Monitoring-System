@@ -52,6 +52,7 @@ const STAFF_GROUPS: NavGroup[] = [
     items: [
       { to: '/record', label: 'Record violation', icon: 'add_circle' },
       { to: '/appointments/new', label: 'Make appointment', icon: 'edit_calendar' },
+      { to: '/handbook/new', label: 'Add violation', icon: 'post_add' },
     ],
   },
   {
@@ -66,7 +67,7 @@ const STAFF_GROUPS: NavGroup[] = [
   {
     label: 'Handbook',
     items: [
-      { to: '/handbook', label: 'Violations', icon: 'menu_book', end: true },
+      { to: '/handbook', label: 'Violations', icon: 'menu_book' },
       { to: '/handbook?tab=templates', label: 'Sanction templates', icon: 'folder_copy' },
     ],
   },
@@ -102,7 +103,8 @@ const TITLES: Array<[RegExp, string, string]> = [
   [/^\/students$/, 'Manage', 'Students'],
   [/^\/appointments(\/\d+)?$/, 'Manage', 'Appointments'],
   [/^\/clearance(\/slip)?$/, 'Manage', 'Clearance'],
-  [/^\/handbook$/, 'Handbook', 'Violations'],
+  [/^\/handbook\/new$/, 'Create', 'Add violation'],
+  [/^\/handbook(\/\d+)?$/, 'Handbook', 'Violations'],
   [/^\/account\/password$/, 'Account', 'Change password'],
   [/^\/account$/, 'Account', 'Account details'],
   [/^\/violations\/\d+$/, 'My record', 'Violation'],

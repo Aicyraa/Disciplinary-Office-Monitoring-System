@@ -44,7 +44,8 @@ function SideLink({ item, count }: { item: NavItem; count: number }) {
   const [path, query] = item.to.split('?');
   const wantsTemplates = query === 'tab=templates';
   const onTemplates = new URLSearchParams(location.search).get('tab') === 'templates';
-  const forced = path === '/handbook' ? (wantsTemplates ? onTemplates : !onTemplates) : undefined;
+  const forced =
+    path === '/handbook' ? (wantsTemplates ? onTemplates : !onTemplates && location.pathname !== '/handbook/new') : undefined;
   return (
     <NavLink
       to={item.to}
