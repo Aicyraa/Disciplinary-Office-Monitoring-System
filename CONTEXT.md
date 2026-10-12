@@ -496,3 +496,21 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 - Not verified: the layout at three widths and the drag-and-drop in a real browser (needs the live API).
 
 ### Review (reviewer fills this)
+
+**Verdict: PASS** (commit 64ff558, reviewed as `HEAD~1..HEAD`, 18 files; `main...HEAD` is too large to be useful because main is far behind).
+- Commands (fresh): `npm test` 31 files / 632 tests pass; `npm run lint` clean; `npm run typecheck` (api + client) clean; `npm run build` exit 0 for both packages.
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | record-compliance gone | PASS | diff removes the route, `SanctionService.recordCompliance`, `api.recordCompliance`, the staff button/form; test `there is no record-compliance route` expects 404 and status stays `assigned`; `'recordCompliance' in service` is false. Only `uploadProof` (assigned/returned -> pending_verification, service.ts:325) sets pending. |
+| 2 | verify needs a file and all viewed | PASS | service.ts:421 guard; `a sanction with no uploaded file can never be verified` sets pending with no files and expects `files_not_viewed`. Without the guard the old loop (0 < 0 false) would verify, so the test would fail. Route test covers 409 from assigned. Student remove/replace code (`removeProof`, `checkUpload`) untouched. |
+| 3 | bucket env | PASS | `config.ts` order FILES, BUCKET_STORAGE, STORAGE_BUCKET; templates reads only `BUCKET_STORAGE_TEMPLATES`; 4 config tests assert order, blank, no fallback. `server.ts`, `s3.ts`, `storage-smoke.ts`, `.env.example` use it; `server.ts` still throws in production when the files bucket or AWS_* is missing. |
+| 4 | ProofPanel | PASS (static) | read the code: one `role="button"` tabIndex 0 container, Enter/Space, dragenter highlight, drop adds files (deduped), per-file Remove with aria-label, real `onUploadProgress` via `api.uploadProof`, labels from `uploadButtonLabel`, selection cleared only on success, `aria-disabled` while busy, replace/remove intact. Pure helpers unit-tested. |
+| 5 | scope | PASS | no package.json, lockfile, `.env`, docs, schema; no new dependency; nothing parked built. |
+| 6 | SPEC CHANGE note | PASS | accurate: SPEC 4.3/FEATURE-RULES 3.6 and SPEC 6.1/CLAUDE.md STORAGE_BUCKET need the human's edit; compliance_note and history event stay in schema. |
+
+Findings (none blocking):
+- Test gap: ProofPanel tests are `renderToStaticMarkup` only. Nothing exercises drop, Enter/Space, progress bar rendering, selection kept on failure, or that `api.uploadProof` actually forwards `onUploadProgress` (lib/api.test.ts unchanged). The interaction behavior rests on code reading and the HUMAN CHECK.
+- Minor: `onDragLeave` clears the highlight when the pointer crosses child elements (flicker); cosmetic.
+- I did not mutate source (reviewers may not edit code); the zero-file mutation is established by reading, as above. The serena symbol index returned stale hits for removed code, so leftovers were checked through the diff and a green typecheck rather than a search.
+- Not verified: drag-and-drop and layout at three widths in a browser, real upload to the bucket (live API/bucket needed). Dev's two HUMAN CHECK lines are complete and listed under Not verified.

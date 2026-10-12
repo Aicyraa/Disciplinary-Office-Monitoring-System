@@ -208,7 +208,10 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
                 if (!busy) setDragging(true);
               }}
               onDragOver={(event) => event.preventDefault()}
-              onDragLeave={() => setDragging(false)}
+              onDragLeave={(event) => {
+                // Moving over a child element fires dragleave on the container too: only clear when truly leaving.
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+              }}
               onDrop={onDrop}
               className={`flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                 dragging ? 'border-primary bg-primary/5' : 'border-line-strong bg-white'
