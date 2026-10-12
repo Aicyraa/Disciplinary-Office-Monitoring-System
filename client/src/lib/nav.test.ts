@@ -20,7 +20,7 @@ describe('navGroups', () => {
   test('badges: Inbox for both roles, Cases for staff', () => {
     const badges = (role: 'staff' | 'student') =>
       navGroups(role).flatMap((group) => group.items.filter((item) => item.badge).map((item) => item.badge));
-    expect(badges('staff')).toEqual(['inbox', 'cases']);
+    expect(badges('staff')).toEqual(['inbox', 'cases', 'students']);
     expect(badges('student')).toEqual(['inbox']);
   });
 });
@@ -42,6 +42,7 @@ describe('breadcrumb', () => {
     expect(breadcrumb('staff', '/cases')).toEqual(['Staff', 'Manage', 'Cases']);
     expect(breadcrumb('staff', '/cases/12')).toEqual(['Staff', 'Manage', 'Case']);
     expect(breadcrumb('staff', '/record')).toEqual(['Staff', 'Create', 'Record violation']);
+    expect(breadcrumb('staff', '/students/2025-1030808')).toEqual(['Staff', 'Manage', 'Students']);
   });
 
   test('the handbook templates tab has its own crumb for staff', () => {

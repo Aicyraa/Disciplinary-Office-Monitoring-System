@@ -21,6 +21,8 @@ import type {
   StudentCaseView,
   StudentProfileView,
   StaffSanctionQueueResponse,
+  StaffStudentListResponse,
+  StaffStudentRecord,
   StudentClearanceResponse,
   StudentSanctionView,
 } from '@shared/types';
@@ -183,6 +185,15 @@ export const api = {
     return get<StaffCaseListResponse>('/cases', params);
   },
   staffCase: (id: number) => get<{ case: StaffCaseDetail }>(`/cases/${id}`),
+  students: (query: { q?: string; page?: number } = {}) => {
+    const params: Record<string, string | number> = {};
+    if (query.q) params.q = query.q;
+    if (query.page) params.page = query.page;
+    return get<StaffStudentListResponse>('/students', params);
+  },
+  student: (studentId: string) => get<StaffStudentRecord>(`/students/${encodeURIComponent(studentId)}`),
+  resetStudentPassword: (studentId: string) =>
+    post<{ tempPassword: string }>(`/staff/students/${encodeURIComponent(studentId)}/reset-password`),
   sanctionQueue: (query: { filter?: 'active' | 'pending_verification' | 'overdue'; page?: number } = {}) => {
     const params: Record<string, string | number> = {};
     if (query.filter) params.filter = query.filter;

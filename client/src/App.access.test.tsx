@@ -59,6 +59,7 @@ describe('navGroups destinations', () => {
       '/record',
       '/appointments/new',
       '/cases',
+      '/students',
       '/appointments',
       '/clearance',
       '/handbook',

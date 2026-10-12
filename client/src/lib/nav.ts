@@ -58,6 +58,7 @@ const STAFF_GROUPS: NavGroup[] = [
     label: 'Manage',
     items: [
       { to: '/cases', label: 'Cases', icon: 'gavel', badge: 'cases' },
+      { to: '/students', label: 'Students', icon: 'school', badge: 'students' },
       { to: '/appointments', label: 'Appointments', icon: 'event', end: true },
       { to: '/clearance', label: 'Clearance', icon: 'verified_user' },
     ],
@@ -86,7 +87,7 @@ export function phoneTabs(role: AccountRole): NavItem[] {
     throw new Error(`Unknown nav target ${to}`);
   };
   return role === 'staff'
-    ? [find('/'), find('/cases'), find('/appointments'), find('/clearance')]
+    ? [find('/'), find('/cases'), find('/students'), find('/appointments')]
     : [find('/'), find('/violations'), find('/sanctions'), find('/appointments')];
 }
 
@@ -97,7 +98,7 @@ const TITLES: Array<[RegExp, string, string]> = [
   [/^\/appointments\/new$/, 'Create', 'Make appointment'],
   [/^\/cases\/\d+$/, 'Manage', 'Case'],
   [/^\/cases$/, 'Manage', 'Cases'],
-  [/^\/students\/[^/]+$/, 'Manage', 'Student record'],
+  [/^\/students\/[^/]+$/, 'Manage', 'Students'],
   [/^\/students$/, 'Manage', 'Students'],
   [/^\/appointments$/, 'Manage', 'Appointments'],
   [/^\/clearance(\/slip)?$/, 'Manage', 'Clearance'],

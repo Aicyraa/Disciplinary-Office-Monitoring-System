@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { Card, PageHeader, Resource, buttonClass, fieldClass } from '../components/ui';
@@ -13,6 +14,8 @@ interface Fields {
 
 export function RecordViolationPage() {
   const handbook = useApi(() => api.handbook(), []);
+  const [params] = useSearchParams();
+  const presetStudent = /^\d{4}-\d{7}$/.test(params.get('student') ?? '') ? (params.get('student') as string) : '';
   const [outcome, setOutcome] = useState<{ caseId: number; converted: boolean } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -20,7 +23,7 @@ export function RecordViolationPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<Fields>({ defaultValues: { studentId: '', handbookEntryId: '', remarks: '' } });
+  } = useForm<Fields>({ defaultValues: { studentId: presetStudent, handbookEntryId: '', remarks: '' } });
 
   const onSubmit = handleSubmit(async ({ studentId, handbookEntryId, remarks }) => {
     setFormError(null);

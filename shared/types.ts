@@ -238,7 +238,7 @@ export type StudentSanctionView = {
 
 export type StudentCaseView = {
   id: number;
-  /** Display code, C001 style. */
+  /** Display code, `SDO-2026-016`. */
   code: string;
   status: CaseStatus;
   caseDate: string;

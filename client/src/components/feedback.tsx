@@ -91,6 +91,8 @@ export interface ConfirmModalProps {
   confirmLabel: string;
   /** Red confirm button, for rejecting, returning, cancelling. */
   danger?: boolean;
+  /** No Cancel button: a notice with one acknowledgement (for example the one-time temporary password). */
+  hideCancel?: boolean;
   /** When set, the dialog has a required text field; its trimmed value is passed to `onConfirm`. */
   reasonLabel?: string;
   /** Resolve to close the dialog; throw (or reject) to keep it open and show the message. */
@@ -105,6 +107,7 @@ export function ConfirmModal({
   description,
   confirmLabel,
   danger = false,
+  hideCancel = false,
   reasonLabel,
   onConfirm,
   onClose,
@@ -203,14 +206,16 @@ export function ConfirmModal({
             </p>
           ) : null}
           <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={busy}
-              className="min-h-11 rounded-md border border-line-strong bg-white px-4 text-sm font-semibold text-ink hover:bg-page disabled:opacity-60"
-            >
-              Cancel
-            </button>
+            {hideCancel ? null : (
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={busy}
+                className="min-h-11 rounded-md border border-line-strong bg-white px-4 text-sm font-semibold text-ink hover:bg-page disabled:opacity-60"
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="submit"
               disabled={busy}
