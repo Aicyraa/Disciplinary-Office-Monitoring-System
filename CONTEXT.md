@@ -16,6 +16,7 @@ This file is the parallel dev team's only notes file. It records what changed (f
 | api-envelope-origin | worktree-api-envelope-origin | .claude/worktrees/api-envelope-origin | Human request: one localhost origin (dev and prod), API handlers for invalid routes and route errors, one shared success and one shared error response type, `@shared/` imports | handlers tested alone and in the real app; envelope on every route; client unwraps in one place; lint, typecheck, test, build green | api/src/{http,cors,app,server}.ts, api/src/*/routes.ts, api/src/auth/guards.ts, shared/types.ts, api/tsconfig.json, client/tsconfig.json, client/vite.config.ts, client/src/lib/{api,apiBase}.ts, tests, .env.example, about 40 import lines | cors-preview-origin | after 5 | reviewed (PASS) |
 | notifications-pa | worktree-notifications-pa | .claude/worktrees/notifications-pa | Build step 6 (SPEC 4.6, 6.3, 7; FEATURE-RULES 3.10, 3.11; POWER-AUTOMATE): one outbound helper, pure payload builders, commit-then-notify delivery with retry, sweep and 24 h expiry, inbox API for students and the shared staff inbox, bell, toast and inbox page | helper body is exactly {type,payload}; outcome to email_status mapping; sent only after commit; 24 h rule with a fake clock; inbox scoping; lint, typecheck, test, build green | api/src/{integrations,notifications}/*, api/src/{app,server}.ts, api/src/auth/routes.ts, api/src/sanctions/service.ts, api/src/cases/{types,prisma-store}.ts, shared/types.ts, client/src/{notifications,pages,components,lib}/*, .env.example | api-envelope-origin | 6 | review |
 | delivery-throttle-ssl | worktree-delivery-throttle-ssl | .claude/worktrees/delivery-throttle-ssl | Bug fix (human report): `npm run dev` fires HTTP requests at the flow in a loop; pg SSL-mode warning at startup | one request per row per pass, cooldown 1 min doubling to 30 min, pause between sends, batch 20; 2xx without a status counts as sent; sslmode rewritten to verify-full; lint, typecheck, test, build green | api/src/{db-url,prisma,server}.ts, api/src/db-url.test.ts, api/src/integrations/power-automate.ts, api/src/notifications/{delivery.ts,notifications.test.ts} | notifications-pa | after 6 | review |
+| proof-upload-fix | worktree-proof-upload-fix | .claude/worktrees/proof-upload-fix | Bug fix (human report): proof upload had no visible Upload button; uploading a PDF failed with a generic 500 | clear "Choose files" + "Upload" controls with a list of chosen files; a storage refusal is a 503 `storage_unavailable` with a plain message and the real reason in the server log; lint, typecheck, test, build green | api/src/storage/{s3,unavailable,s3.test}.ts, api/src/sanctions/routes.test.ts, shared/types.ts, client/src/components/{ProofPanel.tsx,ProofPanel.test.tsx} | delivery-throttle-ssl | after 6 | review |
 
 <!-- Per-task sections go below, laid out as:
 
@@ -441,3 +442,24 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 - 6 SPEC CHANGE: PASS, raised in bold in the section (POWER-AUTOMATE.md section 4 rule 5: unreadable 2xx becomes `sent`), human to decide; revert is one branch.
 - Minor, non-blocking: if `store.markResult` throws after the flow was told to send, the `catch` records no cooldown, so that row is re-sent every pass (pre-existing path, now the only unthrottled one). Smallest step: set the cooldown in the `catch` too.
 - Not verified (live only): the three HUMAN CHECK lines above are complete and listed; flow run history, scale-to-zero DB and startup log need the human.
+
+
+## proof-upload-fix branch worktree-proof-upload-fix
+
+**Report (human):** (1) a sanction card showed only a bare file input, no obvious Upload button; (2) uploading a PDF answered "Something went wrong on the server".
+
+**Cause (2):** the server log showed the storage service answering `400 InvalidArgument` for `PUT /sanction_templates/proof/...`. The dev branch has only the buckets `assets` and `profiles` (Neon MCP `list_storage_buckets`, read-only); `sanction_templates` does not exist there, and the human `.env` sets `STORAGE_BUCKET=sanction_templates`. A local capture of the request the SDK sends (new test) shows plain headers and body for small and multi-MB files, so the request itself is not at fault. The error was also unhandled, hence the generic 500.
+
+**Changed:**
+- `s3.ts`: every storage call (put, delete, presign) is wrapped; a failure is logged with operation, bucket and key and answered as one `503 storage_unavailable` ("File storage is not available right now...") with no bucket name or SDK text in the response.
+- `unavailable.ts`: the not-configured stand-in uses the same 503.
+- `shared/types.ts`: `storage_unavailable` added to `ApiErrorCode` (additive).
+- `ProofPanel.tsx`: the upload area is a bordered box with a visible "Choose files" button, a list of the chosen files (size, per-file Remove), and an "Upload" button that stays disabled until a file is chosen. Choosing again adds to the list. The selection is kept when an upload fails so it can be retried.
+
+**Not changed:** `.env` (agents may not edit it) and the bucket (agents may not create or change buckets). `STORAGE_BUCKET` in SPEC 6.1 and CLAUDE.md section 8 is still the human edit already listed.
+
+**HUMAN CHECK (needed for uploads to work):** set `STORAGE_BUCKET=assets` in `.env` (or create a bucket of the name you want in Neon and put that name there), restart `npm run dev`, then as a student upload a PDF on an assigned sanction -> the file is listed under "Proof of completion" and the sanction shows Pending verification. With a wrong bucket name the message must now read "File storage is not available right now..." and the server log must name the bucket.
+
+**Evidence:** 30 files / 622 tests pass; lint, typecheck, build clean. Not verified: real bucket upload and download, and the new layout at three widths in a browser (no live API in this environment).
+
+### Review (reviewer fills this)

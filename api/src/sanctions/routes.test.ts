@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import { createMemoryCaseStore, type MemoryCaseStore } from '../cases/memory-store.js';
 import type { CaseRecord } from '../cases/types.js';
 import { DOCX_MIME, MAX_FILE_BYTES, PDF_MIME } from '../files/validate.js';
+import { HttpError } from '../http.js';
 import { createMemoryStorage, type MemoryStorage } from '../storage/memory.js';
 import { buildHarnessApp, signedInAgent, STAFF, STAFF_TEMP, STUDENT_A, STUDENT_B } from '../testing/harness.js';
 import { createSanctionService, type SanctionService } from './service.js';
@@ -179,6 +180,21 @@ describe('student: proof upload', () => {
     expect(response.body.data.fileIds).toHaveLength(2);
     expect(store.state.caseSanctions[0].status).toBe('pending_verification');
     expect(storage.objects.size).toBe(2);
+  });
+
+  test('when file storage is down the upload is a 503 storage_unavailable and the sanction is unchanged', async () => {
+    const id = await assign();
+    const agent = await signedInAgent(build(), STUDENT_A.email);
+    storage.put = async () => {
+      throw new HttpError(503, 'storage_unavailable', 'File storage is not available right now.');
+    };
+    const response = await agent
+      .post('/files')
+      .field('caseSanctionId', String(id))
+      .attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME });
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('storage_unavailable');
+    expect(store.state.caseSanctions[0].status).toBe('assigned');
   });
 
   test('a sixth file is refused and nothing is stored', async () => {

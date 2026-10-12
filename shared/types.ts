@@ -24,6 +24,7 @@ export type ApiErrorCode =
   | 'invalid_json'
   | 'payload_too_large'
   | 'server_not_configured'
+  | 'storage_unavailable'
   | 'too_many_attempts'
   // identity and access
   | 'not_authenticated'

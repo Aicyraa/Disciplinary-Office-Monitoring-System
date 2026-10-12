@@ -1,6 +1,7 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PRESIGN_TTL_SECONDS, type ObjectStorage } from './types.js';
+import { storageUnavailable } from './unavailable.js';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -21,15 +22,30 @@ export function createS3Storage(bucket: string = requireEnv('STORAGE_BUCKET')): 
     requestChecksumCalculation: 'WHEN_REQUIRED',
   });
 
+  // Any failure of the storage service (unknown bucket, rejected credentials, outage) is the server's side of
+  // the story, not a bug in the request: log the real reason, answer with one plain 503 (no bucket names, no
+  // SDK messages reach the browser).
+  async function guarded<T>(operation: string, key: string, run: () => Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      console.error(`Object storage ${operation} failed for bucket "${bucket}", key "${key}"`, error);
+      throw storageUnavailable();
+    }
+  }
+
   return {
-    async put(key, body, contentType) {
-      await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
-    },
-    async delete(key) {
-      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-    },
-    presignGet(key, expiresInSeconds = PRESIGN_TTL_SECONDS) {
-      return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: expiresInSeconds });
-    },
+    put: (key, body, contentType) =>
+      guarded('put', key, async () => {
+        await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
+      }),
+    delete: (key) =>
+      guarded('delete', key, async () => {
+        await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      }),
+    presignGet: (key, expiresInSeconds = PRESIGN_TTL_SECONDS) =>
+      guarded('presign', key, () =>
+        getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: expiresInSeconds }),
+      ),
   };
 }

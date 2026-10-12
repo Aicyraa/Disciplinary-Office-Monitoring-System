@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { StudentSanctionView } from '@shared/types';
 import { api, toApiError } from '../lib/api';
 import { ACCEPTED_EXTENSIONS, MAX_FILES, checkSelection, formatSize } from '../lib/files';
-import { buttonClass } from './ui';
+import { buttonClass, Icon } from './ui';
 
 type Notice = { tone: 'success' | 'error'; text: string };
 
@@ -132,12 +132,12 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
       />
 
       {sanction.canUpload ? (
-        <div className="mt-3">
+        <div className="mt-3 rounded-md border border-dashed border-line-strong bg-white p-3">
           <label htmlFor={`proof-${sanction.id}`} className="block text-sm font-medium text-ink">
             {sanction.status === 'returned' ? 'Upload a corrected file' : 'Upload your proof'}
           </label>
           <p className="text-xs text-muted">
-            PDF or DOCX, up to 10 MB each, at most {MAX_FILES} files. Select every file at once, then submit.
+            PDF or DOCX, up to 10 MB each, at most {MAX_FILES} files. Choose your files, then press Upload.
           </p>
           <input
             id={`proof-${sanction.id}`}
@@ -145,12 +145,56 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
             type="file"
             multiple
             accept={ACCEPTED_EXTENSIONS.join(',')}
-            className="mt-1 block w-full text-sm"
-            onChange={(event) => setSelected(Array.from(event.target.files ?? []))}
+            className="sr-only"
+            onChange={(event) => {
+              const picked = Array.from(event.target.files ?? []);
+              event.target.value = '';
+              // Picking again adds to the list (the same file twice is ignored).
+              setSelected((current) => [
+                ...current,
+                ...picked.filter((file) => !current.some((c) => c.name === file.name && c.size === file.size)),
+              ]);
+              setNotice(null);
+            }}
           />
-          <button type="button" disabled={busy || selected.length === 0} onClick={submit} className={`${buttonClass} mt-2`}>
-            {busy ? 'Uploading…' : 'Submit proof'}
-          </button>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => pickRef.current?.click()}
+              className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-white px-3 py-1.5 text-sm font-medium text-ink disabled:opacity-50"
+            >
+              <Icon name="attach_file" className="text-base" />
+              Choose files
+            </button>
+            <button type="button" disabled={busy || selected.length === 0} onClick={submit} className={buttonClass}>
+              {busy ? 'Uploading…' : 'Upload'}
+            </button>
+          </div>
+
+          {selected.length === 0 ? (
+            <p className="mt-2 text-xs text-muted">No file chosen yet.</p>
+          ) : (
+            <ul className="mt-2 space-y-1" aria-label="Files ready to upload">
+              {selected.map((file) => (
+                <li key={`${file.name}-${file.size}`} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate text-ink">
+                    {file.name} <span className="text-muted">({formatSize(file.size)})</span>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="rounded-md px-2 py-0.5 text-xs font-medium text-danger disabled:opacity-50"
+                    aria-label={`Do not upload ${file.name}`}
+                    onClick={() => setSelected((current) => current.filter((c) => c !== file))}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : null}
 

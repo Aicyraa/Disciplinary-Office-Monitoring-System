@@ -49,6 +49,21 @@ describe('ProofPanel', () => {
     expect(html).not.toContain('Replace');
   });
 
+  test('the upload area has a visible "Choose files" button and an "Upload" button that waits for a file', () => {
+    const html = render(base);
+    // Button text must sit inside one <button>, not across two.
+    expect(html).toMatch(/<button type="button"(?:(?!<\/button>)[^])*Choose files<\/button>/);
+    expect(html).toContain('No file chosen yet');
+    expect(html).toMatch(/<button type="button" disabled=""(?:(?!<\/button>)[^])*>Upload<\/button>/);
+    expect(html).not.toContain('Submit proof');
+  });
+
+  test('a returned sanction still offers Choose files and Upload', () => {
+    const html = render({ ...base, status: 'returned', canUpload: true, canChangeFiles: true, files: [file(1)] });
+    expect(html).toMatch(/<button type="button"(?:(?!<\/button>)[^])*Choose files<\/button>/);
+    expect(html).toMatch(/>Upload<\/button>/);
+  });
+
   test('pending and unreviewed: lists files with Replace and Remove, no new upload', () => {
     const html = render({ ...base, status: 'pending_verification', canUpload: false, canChangeFiles: true, files: [file(1), file(2)] });
     expect(html).toContain('proof-1.pdf');
