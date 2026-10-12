@@ -62,14 +62,23 @@ describe('saveText', () => {
 });
 
 describe('uploadFiles', () => {
-  test('stores PDF and DOCX under templates/{sanction}/{uuid}.{ext} and links them to the template', async () => {
-    const result = await service.uploadFiles({ employeeId: STAFF, sanctionId: 2, files: [pdf(), docx()] });
+  test('stores a PDF under templates/{sanction}/{uuid}.{ext} and links it to the template', async () => {
+    const result = await service.uploadFiles({ employeeId: STAFF, sanctionId: 2, files: [pdf()] });
     expect(result).toMatchObject({ ok: true });
     const keys = [...storage.objects.keys()];
-    expect(keys).toHaveLength(2);
+    expect(keys).toHaveLength(1);
     expect(keys[0]).toMatch(/^templates\/2\/[0-9a-f-]{36}\.pdf$/);
-    expect(keys[1]).toMatch(/^templates\/2\/[0-9a-f-]{36}\.docx$/);
-    expect(store.readAll().find((t) => t.sanctionId === 2)?.files.map((f) => f.originalName)).toEqual(['form.pdf', 'form.docx']);
+    expect(store.readAll().find((t) => t.sanctionId === 2)?.files.map((f) => f.originalName)).toEqual(['form.pdf']);
+  });
+
+  test('uploading again replaces the file: one row, the old object is removed', async () => {
+    await service.uploadFiles({ employeeId: STAFF, sanctionId: 2, files: [pdf()] });
+    const [firstKey] = [...storage.objects.keys()];
+    const second = await service.uploadFiles({ employeeId: STAFF, sanctionId: 2, files: [docx()] });
+    expect(second).toMatchObject({ ok: true });
+    expect(storage.objects.has(firstKey)).toBe(false);
+    expect(storage.objects.size).toBe(1);
+    expect(store.readAll().find((t) => t.sanctionId === 2)?.files.map((f) => f.originalName)).toEqual(['form.docx']);
   });
 
   test.each([
@@ -83,14 +92,13 @@ describe('uploadFiles', () => {
     expect(store.state.files).toHaveLength(0);
   });
 
-  test('at most 5 files per template, counting the ones already there', async () => {
-    await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [pdf('1.pdf'), pdf('2.pdf'), pdf('3.pdf'), pdf('4.pdf')] });
-    expect(await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [pdf('5.pdf'), pdf('6.pdf')] })).toMatchObject({
+  test('a second file in one request is refused and nothing is stored', async () => {
+    expect(await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [pdf('1.pdf'), pdf('2.pdf')] })).toMatchObject({
       ok: false,
       code: 'too_many_files',
     });
-    expect(storage.objects.size).toBe(4);
-    expect(await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [pdf('5.pdf')] })).toMatchObject({ ok: true });
+    expect(storage.objects.size).toBe(0);
+    expect(store.state.files).toHaveLength(0);
   });
 
   test('an unknown sanction and an empty request are refused', async () => {

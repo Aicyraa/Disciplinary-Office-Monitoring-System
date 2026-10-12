@@ -47,7 +47,7 @@ For each feature: the spec section to read, and the rules that must not be broke
 - Bytes live in the Neon Object Storage **private** bucket; metadata in `files`. Keys: `proof/{case_sanction_id}/{uuid}.{ext}` and `templates/{sanction_id}/{uuid}.{ext}`.
 - Upload goes **through Express** (`multer`, memory storage, 10 MB limit, check magic bytes: PDF `%PDF`, DOCX `PK`). Do not use browser presigned PUT (bucket CORS unconfirmed). Download via a ~60-second presigned GET after an authorization check (owner student or any staff). Opening a proof as staff sets `date_viewed` / `viewed_by_employee_id`.
 - S3 client needs `forcePathStyle: true` and `requestChecksumCalculation: 'WHEN_REQUIRED'`. Env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `STORAGE_BUCKET_FILES` (proof files) and `STORAGE_BUCKET_TEMPLATES` (templates, never a fallback to the files bucket). A storage failure answers 503 `storage_unavailable`.
-- Each sanction has a template page (title, description, written requirements) with downloadable PDF/DOCX. Students download; staff manage them.
+- Each sanction has a template page (title, description, written requirements) with **one** downloadable PDF/DOCX; uploading again replaces it and the old object is removed (UI-POLISH-SPEC decision 7). Students download; staff manage them.
 - In-browser preview: PDF in an iframe, DOCX with `mammoth` (frontend only). The bucket returns permissive CORS headers (smoke test, SPEC 11 item 2), so the browser may `fetch` the presigned URL directly; no API proxy route is needed.
 
 ### 3.8 Appointments (SPEC 4.5)

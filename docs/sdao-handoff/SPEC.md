@@ -246,7 +246,7 @@ GET  /handbook   GET /handbook/:id   (student + staff)
 POST /handbook   PATCH /handbook/:id          (staff: create and edit a violation; the category locks once cases use it)
 GET  /sanction-templates                      (any signed-in user: every sanction with its template text and file names)
 PUT  /sanction-templates/:sanctionId          (staff: title, description, requirements)
-POST /sanction-templates/:sanctionId/files    (staff, multipart, max 5 files)   DELETE /sanction-templates/files/:fileId
+POST /sanction-templates/:sanctionId/files    (staff, multipart, one file; a new upload replaces the old one)   DELETE /sanction-templates/files/:fileId
 GET  /sanction-templates/files/:fileId/url    (any signed-in user: 60 s download link)
 
 GET  /cases?status=&class=&q=&sort=&page=     (staff)     GET /me/cases (student)
