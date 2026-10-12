@@ -10,6 +10,9 @@ import type { ClearanceQueries } from '../clearance/queries.js';
 import type { ClearanceService } from '../clearance/service.js';
 import type { CaseService } from '../cases/service.js';
 import type { SanctionService } from '../sanctions/service.js';
+import type { GateLimits } from '../gate/routes.js';
+import type { GateService } from '../gate/service.js';
+import type { GateOptionsReader } from '../gate/types.js';
 import type { HandbookAdminService } from '../handbook/admin-service.js';
 import type { HandbookRepo } from '../handbook/repo.js';
 import type { TemplateReader } from '../templates/reader.js';
@@ -38,6 +41,7 @@ export interface HarnessOptions {
   appointments?: { service: AppointmentService; queries: AppointmentQueries };
   clearance?: { service: ClearanceService; queries: ClearanceQueries };
   handbookAdmin?: { service: HandbookAdminService };
+  gate?: { service: GateService; options: GateOptionsReader; limits?: GateLimits };
   templates?: { service: TemplateService; reader: TemplateReader };
   notifications?: { inbox: InboxStore };
   onPasswordReset?: (studentId: string) => Promise<void>;
@@ -79,6 +83,7 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
       appointments: options.appointments,
       clearance: options.clearance,
       handbookAdmin: options.handbookAdmin,
+      gate: options.gate,
       templates: options.templates,
       notifications: options.notifications,
       now: options.now,

@@ -235,6 +235,19 @@ export const api = {
   cancelAppointment: (appointmentId: number, reason: string) =>
     post<{ ok: true }>(`/appointments/${appointmentId}/cancel`, { reason }),
 
+  // Public gate form (SPEC 4.10): no session.
+  gateToken: () => get<{ token: string }>('/public/gate-form-token'),
+  gateOptions: () =>
+    get<{ violations: Array<{ id: number; name: string; section: string }>; programs: string[] }>('/public/gate-form-options'),
+  submitGateReport: (input: {
+    token: string;
+    studentId: string;
+    name: string;
+    program: string;
+    year: string;
+    violationIds: number[];
+  }) => request<{ reference: string; duplicate: boolean }>(() => http.post('/public/gate-reports', input)),
+
   // Handbook admin and sanction templates (SPEC 4.9, 6.1)
   createViolation: (input: {
     violationType: string;

@@ -27,6 +27,7 @@ The prototype is **front-end only**: state lives in memory, the date is fixed at
 | 14 | Offense number and retry cap | **Offense number** of a case = 1 + the number of the same student's earlier cases (by `case_date`, then id) for the same violation that are `validated`, `for_sanction` or `resolved`; `reported` and `rejected` never count. It selects the `handbook_entry_sanctions` rows offered to staff (4.3). **Notification retry cap:** the in-API sweep retries `pending` emails for 24 hours after `date_created`, then marks them `failed` (no schema change) |
 | 15 | Email sender | The **flow owner's own account** sends every email (their mail connection in "Send an email (V2)"). No shared mailbox, no "send as", no NU IT request. All employee accounts **recieves** the notifications both in-app and outlook address
 | 16 | Proof of sanctions | **Online only.** A student uploads files; staff open every file and then verify. No in-person "record compliance" path (4.3). Settled 2026-10-12 |
+| 19 | Gate report email | **No separate Flow 1.** A gate report is stored by the API and delivered through the one notify flow (Flow 2, `type: "report"`): a "report received" email to the student when the typed ID matched, and one alert to every active employee account. `PA_GATE_URL` is not used. Settled 2026-10-12 |
 | 17 | Appointment reminders | **None.** The student is notified only when staff create or change an appointment; students have no appointment actions; no holiday list (4.5). Settled 2026-10-12 |
 | 18 | UI fidelity | The first UI passes (steps 2 to 9) use the design tokens and existing components; a **prototype-fidelity pass over every page is build step 10**. Settled 2026-10-12 | 
 
@@ -229,10 +230,10 @@ Note on CORS and egress (from your Neon search): the CORS text applies to the **
 Neon Postgres, run `db/schema.sql` then `db/seed.sql` in the SQL editor (or via migrations). `btree_gist` is used by the appointment-overlap rule. If your ORM cannot express the exclusion constraint, keep it in a raw SQL migration.
 
 ### 6.3 Notifications and email (decision 7: Power Automate Premium)
-- Two flows: **Flow 1** (gate report submitted → notify student and staff) and **Flow 2** (dynamic notification: HTTP trigger, takes parameters, sends the email, answers with a Response). No Flow 3: the retry sweep runs inside the API.
+- One flow in use: **Flow 2** (dynamic notification: HTTP trigger, takes parameters, sends the email, answers with a Response), for every kind including gate reports (decision 19). The old Flow 1 is not built. The retry sweep runs inside the API.
 - Power Automate **never writes to the database and never calls the API** (`POWER-AUTOMATE.md` sections 0 and 1). The API pre-renders the subject and HTML body, so wording lives in your repo. Every request body is `{ "type", "payload" }`.
 - **Sender (decision 15):** emails are sent by the flow owner's own account, through that account's mail connection in the flow ("Send an email (V2)"). No shared mailbox and no NU IT request are needed. Consequences: recipients see the owner's name and address in `From`, replies go to that mailbox, and if the account loses its license, is disabled or graduates, emails stop (notifications stay `pending`, then `failed` after 24 hours). Add a co-owner and plan a handover to an office account before real use.
-- Secrets: `PA_NOTIFY_URL` (Flow 2 trigger URL) and `PA_GATE_URL` (Flow 1 trigger URL) live in the root `.env`, never under a `VITE_` prefix. The signed URL is the only credential Power Automate provides; there is no shared secret.
+- Secrets: `PA_NOTIFY_URL` (the Flow 2 trigger URL, the only flow in use; `PA_GATE_URL` is unused, decision 19) lives in the root `.env`, never under a `VITE_` prefix. The signed URL is the only credential Power Automate provides; there is no shared secret.
 - Your API calls the flows from `localhost` (outbound only). No tunnel is needed because nothing calls into your API.
 
 ---

@@ -15,6 +15,9 @@ import { createClearanceRouter } from './clearance/routes.js';
 import type { ClearanceService } from './clearance/service.js';
 import { createCaseRouter } from './cases/routes.js';
 import type { CaseService } from './cases/service.js';
+import { createGateRouter, type GateLimits } from './gate/routes.js';
+import type { GateService } from './gate/service.js';
+import type { GateOptionsReader } from './gate/types.js';
 import type { HandbookAdminService } from './handbook/admin-service.js';
 import { createHandbookRouter } from './handbook/routes.js';
 import type { TemplateReader } from './templates/reader.js';
@@ -39,6 +42,8 @@ export interface AppDeps {
     /** Defaults to an in-memory store; production passes connect-pg-simple. */
     sessionStore?: session.Store;
     secureCookies?: boolean;
+    /** Express "trust proxy": the number of reverse proxies in front of the API. Unset on a laptop. */
+    trustProxy?: number | boolean;
     loginRateLimit?: LoginRateLimitOptions;
     /** See AuthRouterOptions.onPasswordReset. */
     onPasswordReset?: (studentId: string) => Promise<void>;
@@ -54,6 +59,8 @@ export interface AppDeps {
     handbook: HandbookRepo;
     /** Staff create and edit violations (SPEC 4.9). */
     handbookAdmin?: { service: HandbookAdminService };
+    /** The public gate form: no sign-in, protected by verifyHuman() and per-IP limits (SPEC 4.10). */
+    gate?: { service: GateService; options: GateOptionsReader; limits?: GateLimits };
     /** Sanction templates: text and files (SPEC 6.1). */
     templates?: { service: TemplateService; reader: TemplateReader };
     studentViews: StudentViewRepo;
@@ -106,6 +113,9 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
     // believes the connection is secure, so it must trust the proxy's X-Forwarded-Proto. (Also makes req.ip,
     // used by the login rate limit, the client's address rather than the proxy's.)
     if (auth.secureCookies) app.set('trust proxy', 1);
+    // An explicit setting (the TRUST_PROXY env) wins: how many proxies sit in front of the API, so that the
+    // per-IP limits of the public gate form see the visitor's address and not the proxy's.
+    if (auth.trustProxy !== undefined) app.set('trust proxy', auth.trustProxy);
     app.use(helmet());
     app.use(clientCors(origin));
     app.use(express.json({ limit: '100kb' }));
@@ -133,6 +143,9 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
     );
 
     if (data) {
+      if (data.gate) {
+        app.use(createGateRouter({ ...data.gate, secret: auth.sessionSecret, now: data.now }));
+      }
       app.use(createHandbookRouter({ repo: data.handbook, admin: data.handbookAdmin?.service }));
       if (data.templates) app.use(createTemplateRouter(data.templates));
       app.use(createMeRouter({ repo: data.studentViews, now: data.now }));

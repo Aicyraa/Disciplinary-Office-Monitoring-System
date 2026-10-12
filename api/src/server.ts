@@ -25,6 +25,9 @@ import {
 import { createDeliveryScheduler, type DeliveryScheduler } from './notifications/scheduler.js';
 import { createPrismaClient } from './prisma.js';
 import { createSanctionService } from './sanctions/service.js';
+import { trustProxyFromEnv } from './gate/config.js';
+import { createPrismaGateOptions, createPrismaGateStore } from './gate/prisma-store.js';
+import { createGateService } from './gate/service.js';
 import { createHandbookAdminService } from './handbook/admin-service.js';
 import { createPrismaHandbookAdminStore } from './handbook/admin-prisma-store.js';
 import { filesBucketFromEnv, templatesBucketFromEnv } from './storage/config.js';
@@ -139,6 +142,8 @@ function buildApp(): Built {
       // Secure cookies exactly when the client is served over https (a real deployment). A local production-mode
       // run over http://localhost must still be able to hold a session.
       secureCookies: clientOrigin.startsWith('https:'),
+      // How many reverse proxies sit in front of the API (TRUST_PROXY=1 on most hosts). Unset on a laptop.
+      trustProxy: trustProxyFromEnv(process.env.TRUST_PROXY),
       // The notification never carries the temporary password.
       onPasswordReset: async (studentId) => {
         await notificationWriter.add({
@@ -158,6 +163,10 @@ function buildApp(): Built {
     data: {
       handbook: createPrismaHandbookRepo(prisma),
       handbookAdmin: { service: createHandbookAdminService({ store: createPrismaHandbookAdminStore(prisma) }) },
+      gate: {
+        service: createGateService({ store: createPrismaGateStore(prisma) }),
+        options: createPrismaGateOptions(prisma),
+      },
       templates: {
         service: createTemplateService({ store: createPrismaTemplateStore(prisma), storage: templateStorage }),
         reader: createPrismaTemplateReader(prisma),

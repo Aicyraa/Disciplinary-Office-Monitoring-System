@@ -5,7 +5,7 @@ Your stack (from the repo): **Express 5 + TypeScript API**, **Prisma 7 on Neon**
 ## 0. Trust model (decision 11)
 
 Power Automate gives you **one thing per flow: a signed trigger URL**. There is no shared secret and no API key.
-- **The trigger URL is the credential.** Store it as `PA_NOTIFY_URL` (Flow 2) and `PA_GATE_URL` (Flow 1) in the root `.env`. Treat each like a password: never under a `VITE_` key, never in Git, never in logs.
+- **The trigger URL is the credential.** Store it as `PA_NOTIFY_URL` (Flow 2, the only flow in use) in the root `.env`; `PA_GATE_URL` is no longer used. Treat each like a password: never under a `VITE_` key, never in Git, never in logs.
 - **The flow never calls the API.** The flow does its work and answers in its own HTTP **Response**. The API reads that response to set `email_status`. So there is no callback URL, no tunnel, no `x-api-key`, no `PA_SHARED_SECRET`, and no `/integrations/*` endpoints.
 - Trigger setting: "Who can trigger the flow" = **Anyone**. This is safe only because the URL carries a signature and stays server-side.
 
@@ -32,7 +32,9 @@ Why: if you notify first and the database write then fails, the student is told 
 
 Both flows receive the **same envelope** (section 4). Only `type` and `payload` differ.
 
-### Flow 1 — "SDO Gate Report Submitted"
+### Flow 1 — "SDO Gate Report Submitted" (NOT USED: decision 19)
+> **Superseded (2026-10-12):** gate reports are delivered through Flow 2 like every other notification (`type: "report"`, the Flow 2 payload, `PA_NOTIFY_URL`). The API writes one notification for the student (only when the typed ID matched) and one staff alert (emailed to every active employee account). Build no separate flow; the description below is kept for history.
+
 The **web gate form stays** in your app. It posts to your API, never to Power Automate (a trigger URL in browser code would be public and spammable).
 
 ```
@@ -114,7 +116,7 @@ Rules:
 1. `type` is a closed union exported from `shared/types.ts` (import with `import type`), equal to the `notifications.kind` values: `report`, `case`, `esc`, `sanction`, `appt`, `clr`, `account`, `newviol`. A new type means a spec change, not an ad-hoc string.
 2. `payload` is a plain JSON object built by a **pure builder function per `type`** (so tests need no network and no database). Never spread request bodies or DB rows into it.
 3. The flow reads `triggerBody()?['type']` and `triggerBody()?['payload']?['<field>']`. Each flow's Parse JSON schema must declare both keys.
-4. The helper reads the URL lazily from env (`PA_NOTIFY_URL`, or `PA_GATE_URL` for `type: "report"` from the gate form), uses a 10-second timeout, and never throws into the business transaction.
+4. The helper reads the URL lazily from env (`PA_NOTIFY_URL` for every type, `report` included), uses a 10-second timeout, and never throws into the business transaction.
 5. It returns `{ outcome: 'sent' | 'failed' | 'unknown' }`: HTTP 200 with `status:"sent"` → `sent`; 200 with `status:"failed"` → `failed`; **any 2xx whose body has no `status` field (a trigger with no Response action answers 202 with an empty body) → `sent`**, with one warning in the server log, because retrying would email the person again; network error, timeout, non-2xx or an unrecognised `status` value → `unknown` (row stays `pending`). Add a Response action to the flow to report real success or failure.
 6. It never logs the URL or `html_body`.
 7. Send happens **after commit**, in the background (not inside the user's request).

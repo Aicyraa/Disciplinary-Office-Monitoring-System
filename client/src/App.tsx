@@ -8,6 +8,7 @@ import ChangePassword from './pages/ChangePassword';
 import { ClearancePage } from './pages/Clearance';
 import { StaffHome, StudentDashboard } from './pages/Dashboard';
 import { HandbookPage } from './pages/Handbook';
+import GateReportPage from './pages/GateReport';
 import Login from './pages/Login';
 import { InboxPage } from './pages/Inbox';
 import { NotFoundPage } from './pages/Misc';
@@ -72,6 +73,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* The public gate form: no sign-in, outside the signed-in shell (SPEC 4.10). */}
+      <Route path="/report" element={<GateReportPage />} />
       <Route path="/change-password" element={<ChangePassword />} />
       <Route element={<RequireAuth />}>
         <Route element={<Shell />}>

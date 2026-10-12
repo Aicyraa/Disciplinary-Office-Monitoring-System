@@ -196,12 +196,12 @@ describe('sendToPowerAutomate (the one outbound helper)', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  test('the gate report uses the gate URL; every other kind uses the notify URL', async () => {
+  test('every kind, the gate report included, goes to the one notify flow (PA_GATE_URL is not used)', async () => {
     const fetchImpl = reply(200, { status: 'sent' });
     const send = createSendToPowerAutomate({ urls: () => ({ notify: NOTIFY_URL, gate: GATE_URL }), fetchImpl });
     await send('report', payload);
     await send('case', payload);
-    expect(fetchImpl.mock.calls.map((call) => (call as unknown as [string])[0])).toEqual([GATE_URL, NOTIFY_URL]);
+    expect(fetchImpl.mock.calls.map((call) => (call as unknown as [string])[0])).toEqual([NOTIFY_URL, NOTIFY_URL]);
   });
 
   test('urls are read at call time', async () => {

@@ -29,14 +29,16 @@ export type SendToPowerAutomate = (type: NotificationKind, payload: NotifyPayloa
 
 /**
  * The one helper every outbound Power Automate call goes through. It never throws into the caller (a failed
- * email must not break a business action), never logs the URL or the email body, and uses the gate flow's URL
- * only for `report`.
+ * email must not break a business action) and never logs the URL or the email body. Every kind, the gate report
+ * included, goes to the one notify flow.
  */
 export function createSendToPowerAutomate({ urls, fetchImpl = fetch, timeoutMs = 10_000 }: PowerAutomateOptions): SendToPowerAutomate {
   let warnedNoStatus = false;
   return async (type, payload) => {
     const configured = urls();
-    const url = type === 'report' ? (configured.gate ?? configured.notify) : configured.notify;
+    // One flow handles every kind, the gate report included (human decision, 2026-10-12). `gate` stays in the
+    // shape of `urls()` only so an existing PA_GATE_URL in a .env is harmless.
+    const url = configured.notify;
     if (!url) return 'skipped';
 
     const body: PowerAutomateRequest = { type, payload };
