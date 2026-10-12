@@ -21,6 +21,7 @@ import {
 import { createDeliveryScheduler, type DeliveryScheduler } from './notifications/scheduler.js';
 import { createPrismaClient } from './prisma.js';
 import { createSanctionService } from './sanctions/service.js';
+import { filesBucketFromEnv } from './storage/config.js';
 import { createS3Storage } from './storage/s3.js';
 import { createUnavailableStorage } from './storage/unavailable.js';
 
@@ -98,12 +99,16 @@ function buildApp(): Built {
   const notificationWriter = createPrismaNotificationWriter(prisma);
 
   // File storage is optional in development (everything but proof files keeps working) and required in production.
-  const bucketConfigured = Boolean(
-    process.env.STORAGE_BUCKET && process.env.AWS_ENDPOINT_URL_S3 && process.env.AWS_ACCESS_KEY_ID,
-  );
-  if (!bucketConfigured && isProduction) throw new Error('STORAGE_BUCKET and the AWS_* variables are required in production');
+  const filesBucket = filesBucketFromEnv();
+  const bucketConfigured = Boolean(filesBucket && process.env.AWS_ENDPOINT_URL_S3 && process.env.AWS_ACCESS_KEY_ID);
+  if (!bucketConfigured && isProduction) {
+    throw new Error('BUCKET_STORAGE_FILES and the AWS_* variables are required in production');
+  }
   if (!bucketConfigured) console.warn('Object storage variables missing: proof file upload and download are disabled.');
-  const storage = bucketConfigured ? createS3Storage() : createUnavailableStorage('set STORAGE_BUCKET and the AWS_* keys');
+  const storage =
+    bucketConfigured && filesBucket
+      ? createS3Storage(filesBucket)
+      : createUnavailableStorage('set BUCKET_STORAGE_FILES and the AWS_* keys');
 
   const app = createApp({
     auth: {

@@ -16,7 +16,8 @@ export function viewedSummary(files: ReadonlyArray<Pick<StaffProofFileView, 'vie
   allViewed: boolean;
 } {
   const viewed = files.filter((file) => file.viewed).length;
-  return { viewed, total: files.length, allViewed: viewed === files.length };
+  // Online proof only: with no uploaded file there is nothing to verify.
+  return { viewed, total: files.length, allViewed: files.length > 0 && viewed === files.length };
 }
 
 /** Opening a proof file as staff marks it viewed on the server, so the list is refreshed afterwards. */
@@ -34,7 +35,7 @@ async function openProof(fileId: number): Promise<void> {
 }
 
 function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; onChanged: () => void }) {
-  const [form, setForm] = useState<'return' | 'compliance' | null>(null);
+  const [form, setForm] = useState<'return' | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const summary = viewedSummary(sanction.files);
 
@@ -115,7 +116,11 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
       ) : null}
 
       {sanction.status === 'pending_verification' && !summary.allViewed ? (
-        <p className="mt-2 text-xs text-muted">Open every file to enable Verify ({summary.viewed} of {summary.total} opened).</p>
+        <p className="mt-2 text-xs text-muted">
+          {summary.total === 0
+            ? 'No proof file is attached. Return it so the student can upload one.'
+            : `Open every file to enable Verify (${summary.viewed} of ${summary.total} opened).`}
+        </p>
       ) : null}
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -146,16 +151,10 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
             </button>
           </>
         ) : null}
-        {sanction.status === 'assigned' || sanction.status === 'returned' ? (
-          <button
-            type="button"
-            className="rounded-md border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-page"
-            onClick={() => setForm('compliance')}
-          >
-            Record compliance
-          </button>
-        ) : null}
       </div>
+      {sanction.status === 'assigned' || sanction.status === 'returned' ? (
+        <p className="mt-2 text-xs text-muted">Waiting for the student to upload proof. Files are the only way to complete a sanction.</p>
+      ) : null}
 
       {form === 'return' ? (
         <ReasonForm
@@ -171,23 +170,6 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
               throw new Error(msg(error));
             }
             succeed('Returned to the student.');
-          }}
-        />
-      ) : null}
-      {form === 'compliance' ? (
-        <ReasonForm
-          title="Record compliance"
-          description="Use this when the student completed the sanction in person. It then waits for verification."
-          label="What was done (required)"
-          submitLabel="Record"
-          onCancel={() => setForm(null)}
-          onSubmit={async (note) => {
-            try {
-              await api.recordCompliance(sanction.id, note);
-            } catch (error) {
-              throw new Error(msg(error));
-            }
-            succeed('Compliance recorded.');
           }}
         />
       ) : null}

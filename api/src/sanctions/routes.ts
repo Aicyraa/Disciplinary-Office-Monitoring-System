@@ -87,16 +87,6 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
   });
 
   // ---- staff: review ------------------------------------------------------------------------
-  router.post('/case-sanctions/:id/record-compliance', ...requireStaff, async (request, response) => {
-    const id = parseId(request.params.id);
-    if (id === null) {
-      sendError(response, 404, 'not_found', 'Not found.');
-      return;
-    }
-    const result = await service.recordCompliance({ employeeId: user(request).id, caseSanctionId: id, note: request.body?.note });
-    if (!result.ok) return sendFailure(response, result);
-    sendOk(response, { ok: true });
-  });
 
   router.post('/case-sanctions/:id/verify', ...requireStaff, async (request, response) => {
     const id = parseId(request.params.id);

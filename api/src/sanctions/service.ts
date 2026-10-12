@@ -69,7 +69,6 @@ export interface SanctionService {
     /** Asia/Manila calendar day, YYYY-MM-DD. */
     today: string;
   }): Promise<SanctionResult<{ caseSanctionId: number }>>;
-  recordCompliance(input: { employeeId: string; caseSanctionId: number; note: unknown }): Promise<SanctionResult<unknown>>;
   uploadProof(input: {
     studentId: string;
     caseSanctionId: number;
@@ -254,45 +253,6 @@ export function createSanctionService({
       });
     },
 
-    async recordCompliance({ employeeId, caseSanctionId, note }) {
-      const text = cleanText(note, { required: true });
-      if (!text) return fail('invalid_input', `A compliance note is required (up to ${MAX_TEXT} characters).`);
-      return store.transaction(async (tx) => {
-        const record = await loadLocked(tx, caseSanctionId);
-        if (!record) return fail('not_found', 'Sanction not found.');
-        if (record.status !== 'assigned' && record.status !== 'returned') {
-          return fail('invalid_status', 'Compliance can only be recorded while the sanction is assigned or returned.');
-        }
-        const at = now();
-        await tx.updateCaseSanction(caseSanctionId, {
-          status: 'pending_verification',
-          dateSubmitted: at,
-          complianceNote: text,
-        });
-        await tx.addSanctionHistory({
-          caseSanctionId,
-          eventType: 'compliance_recorded',
-          remarks: text,
-          employeeId,
-          studentId: null,
-          date: at,
-        });
-        if (record.studentId !== null) {
-          await tx.addSanctionNotification({
-            recipient: 'student',
-            studentId: record.studentId,
-            title: 'Compliance recorded',
-            message: `The SDO office recorded your compliance for ${record.sanctionType} (case ${caseCode(record.caseId)}). It is awaiting verification.`,
-            caseSanctionId,
-            caseId: record.caseId,
-            idempotencyKey: `san:${caseSanctionId}:compliance:${at.getTime()}`,
-          });
-        }
-        return { ok: true as const };
-      });
-    },
-
-
     async uploadProof({ studentId, caseSanctionId, files, replaceCaseSanctionFileId }) {
       if (files.length === 0) return fail('invalid_input', 'Choose at least one file.');
       if (files.length > MAX_FILES_PER_SANCTION) return fail('too_many_files', 'You can upload at most 5 files.');
@@ -456,6 +416,10 @@ export function createSanctionService({
         if (!record) return fail('not_found', 'Sanction not found.');
         if (record.status !== 'pending_verification') {
           return fail('invalid_status', 'Only a sanction that is waiting for verification can be verified.');
+        }
+        // Online proof only: a sanction is completed after the student uploaded a file and staff opened it.
+        if (record.files.length === 0) {
+          return fail('files_not_viewed', 'There is no proof file to review. The student has to upload one first.');
         }
         const viewed = record.files.filter((f) => f.dateViewed !== null).length;
         if (viewed < record.files.length) {

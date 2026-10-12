@@ -86,7 +86,6 @@ describe('access control', () => {
   const staffRoutes: Array<[string, string]> = [
     ['get', '/cases/1/sanction-options'],
     ['post', '/cases/1/sanctions'],
-    ['post', '/case-sanctions/1/record-compliance'],
     ['post', '/case-sanctions/1/verify'],
     ['post', '/case-sanctions/1/return'],
   ];
@@ -384,12 +383,21 @@ describe('download link and staff review', () => {
     expect(response.body.error.code).toBe('invalid_input');
   });
 
-  test('record-compliance needs a note and moves an assigned sanction to pending', async () => {
+  test('there is no record-compliance route: only an uploaded file moves a sanction to pending', async () => {
     const id = await assign();
     const staff = await signedInAgent(build(), STAFF.email);
-    expect((await staff.post(`/case-sanctions/${id}/record-compliance`).send({})).status).toBe(400);
-    expect((await staff.post(`/case-sanctions/${id}/record-compliance`).send({ note: 'Served on site' })).status).toBe(200);
-    expect(store.state.caseSanctions[0].status).toBe('pending_verification');
+    const response = await staff.post(`/case-sanctions/${id}/record-compliance`).send({ note: 'Served on site' });
+    expect(response.status).toBe(404);
+    expect(store.state.caseSanctions[0].status).toBe('assigned');
+  });
+
+  test('staff cannot verify a sanction the student has not uploaded proof for', async () => {
+    const id = await assign();
+    const staff = await signedInAgent(build(), STAFF.email);
+    const response = await staff.post(`/case-sanctions/${id}/verify`);
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('invalid_status');
+    expect(store.state.caseSanctions[0].status).toBe('assigned');
   });
 
   test.each(['abc', '0x1', '1.5', '-1'])('a malformed id %s is 404', async (id) => {
