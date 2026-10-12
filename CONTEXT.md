@@ -514,3 +514,10 @@ Findings (none blocking):
 - Minor: `onDragLeave` clears the highlight when the pointer crosses child elements (flicker); cosmetic.
 - I did not mutate source (reviewers may not edit code); the zero-file mutation is established by reading, as above. The serena symbol index returned stale hits for removed code, so leftovers were checked through the diff and a green typecheck rather than a search.
 - Not verified: drag-and-drop and layout at three widths in a browser, real upload to the bucket (live API/bucket needed). Dev's two HUMAN CHECK lines are complete and listed under Not verified.
+
+
+## Human decisions log (lead notes)
+
+- **2026-10-12 UI fidelity is deferred to step 10 (human).** The current UI is a first working pass: spec colors, fonts and status pills, but not a screen-by-screen port of `design-reference/sdo-portal.source.html`. Step 10 carries a prototype-fidelity pass over every page (layout, components, copy, three widths). Until then, new screens in steps 7 to 9 follow the existing component set (`components/ui.tsx`) and are not pixel-matched to the prototype.
+- **2026-10-12 Proof is online only (human).** No in-person compliance; see `proof-flow-polish`. SPEC 4.3 / FEATURE-RULES 3.6 and the bucket key names in SPEC 6.1 / CLAUDE.md section 8 are the human edit.
+- **2026-10-12 Next: step 7 (appointments, then clearance), plan to the human first.**
