@@ -185,11 +185,9 @@ export function createAppointmentService({
         notesText = optional(notes);
         if (notesText === undefined) return fail('invalid_input', `Notes must be text up to ${MAX_TEXT_LENGTH} characters.`);
       }
-      if (wantsDate) {
-        if (typeof startDate !== 'string') return fail('invalid_date', DATE_PROBLEM.format);
-        const check = checkStartDate(startDate, today);
-        if (!check.ok) return fail('invalid_date', DATE_PROBLEM[check.reason]);
-      }
+      // Only a date that actually moves the window is checked against today and the 60-day limit (below, once
+      // the current record is known): an unchanged start date may already be in the past.
+      if (wantsDate && typeof startDate !== 'string') return fail('invalid_date', DATE_PROBLEM.format);
 
       return guarded(async (tx) => {
         const first = await tx.getAppointment(appointmentId);
@@ -200,6 +198,10 @@ export function createAppointmentService({
         if (!isLive(record)) return fail('invalid_status', 'Only a scheduled or rescheduled appointment can be changed.');
 
         const moving = wantsDate && startDate !== record.startDate;
+        if (moving) {
+          const check = checkStartDate(startDate as string, today);
+          if (!check.ok) return fail('invalid_date', DATE_PROBLEM[check.reason]);
+        }
         const purposeChanged = wantsPurpose && purposeText !== record.purpose;
         const notesChanged = wantsNotes && notesText !== record.notes;
         if (!moving && !purposeChanged && !notesChanged) {

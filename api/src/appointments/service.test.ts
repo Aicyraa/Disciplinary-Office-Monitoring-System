@@ -149,6 +149,14 @@ describe('update (reschedule or change purpose and notes)', () => {
     expect(store.state.notifications).toHaveLength(2);
   });
 
+  test('an unchanged start date that is already in the past does not block a purpose change', async () => {
+    const later = createAppointmentService({ store, now: () => new Date('2026-10-14T02:00:00Z') });
+    expect(
+      await later.update({ employeeId: STAFF, appointmentId: 1, today: '2026-10-14', startDate: '2026-10-13', purpose: 'Exit interview' }),
+    ).toEqual({ ok: true });
+    expect(only()).toMatchObject({ startDate: '2026-10-13', purpose: 'Exit interview', status: 'scheduled' });
+  });
+
   test('the same start date is not a reschedule', async () => {
     expect(await update({ startDate: '2026-10-13' })).toMatchObject({ ok: false, code: 'invalid_input' });
     expect(only().status).toBe('scheduled');

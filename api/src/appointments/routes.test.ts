@@ -120,6 +120,21 @@ describe('PATCH, complete and cancel', () => {
     expect(store.state.appointments[0]).toMatchObject({ studentId: STUDENT_A.id, status: 'scheduled', endDate: '2026-10-19' });
   });
 
+  test('a legal field next to forged ones changes only the legal field', async () => {
+    const staff = await scheduled();
+    const response = await staff
+      .patch('/appointments/1')
+      .send({ notes: 'Room 3', studentId: STUDENT_B.id, status: 'completed', endDate: '2030-01-01', employeeId: 'E999' });
+    expect(response.status).toBe(200);
+    expect(store.state.appointments[0]).toMatchObject({
+      notes: 'Room 3',
+      studentId: STUDENT_A.id,
+      status: 'scheduled',
+      endDate: '2026-10-19',
+      employeeId: STAFF.id,
+    });
+  });
+
   test('complete, then a second complete is a 409', async () => {
     const staff = await scheduled();
     expect((await staff.post('/appointments/1/complete')).status).toBe(200);
