@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import type { HandbookEntryView, Severity } from '@shared/types';
+import type { HandbookEntryView, SanctionTemplateView, Severity } from '@shared/types';
+import { TemplateFileLinks, hasTemplateContent } from '../components/TemplateDownloads';
 import { useAuth } from '../auth/AuthContext';
 import { MasterDetail } from '../components/MasterDetail';
 import { Card, EmptyState, ErrorState, Icon, LoadingState, PageHeader, StatusPill, buttonClass, fieldClass } from '../components/ui';
@@ -21,8 +22,11 @@ export function filterEntries(entries: HandbookEntryView[], query: string, sever
   });
 }
 
-function EntryPane({ entry }: { entry: HandbookEntryView }) {
+function EntryPane({ entry, templates }: { entry: HandbookEntryView; templates: Map<number, SanctionTemplateView> }) {
   const offenses = [...new Set(entry.sanctions.map((s) => s.offenseNumber))];
+  const posted = [...new Map(entry.sanctions.map((s) => [s.sanctionId, templates.get(s.sanctionId)])).values()].filter(
+    (template): template is SanctionTemplateView => template !== undefined && template.files.length > 0 && hasTemplateContent(template),
+  );
   return (
     <article aria-label={entry.violation} className="rounded-lg border border-line bg-white p-4">
       <header className="flex flex-wrap items-start justify-between gap-2">
@@ -53,6 +57,17 @@ function EntryPane({ entry }: { entry: HandbookEntryView }) {
           ))}
         </dl>
       )}
+      {posted.length > 0 ? (
+        <div className="mt-4 rounded-lg bg-page px-3 py-3 text-sm">
+          <p className="font-semibold text-ink">Template posted</p>
+          {posted.map((template) => (
+            <div key={template.sanctionId} className="mt-1">
+              <p className="text-xs text-muted">{template.type}</p>
+              <TemplateFileLinks template={template} />
+            </div>
+          ))}
+        </div>
+      ) : null}
       <p className="mt-4 text-xs text-muted">
         Sanction templates are posted on the{' '}
         <Link to="/handbook?tab=templates" className="font-medium text-primary underline">
@@ -166,7 +181,8 @@ export function HandbookPage() {
   const isStaff = state.status === 'authenticated' && state.user.role === 'staff';
   const resource = useApi(() => api.handbook(), []);
   // Staff need the list of sanctions to pick from; everyone else skips the request.
-  const sanctions = useApi(() => (isStaff ? api.sanctionTemplates() : Promise.resolve({ templates: [] })), [isStaff]);
+  const sanctions = useApi(() => api.sanctionTemplates().catch(() => ({ templates: [] as SanctionTemplateView[] })), []);
+  const templateBySanction = new Map((sanctions.status === 'ready' ? sanctions.data.templates : []).map((t) => [t.sanctionId, t]));
   const [params, setParams] = useSearchParams();
   const tab: Tab = params.get('tab') === 'templates' ? 'templates' : 'violations';
   const setTab = (next: Tab) => setParams(next === 'templates' ? { tab: 'templates' } : {}, { replace: true });
@@ -234,7 +250,7 @@ export function HandbookPage() {
                 onSaved={resource.reload}
               />
             ) : (
-              <EntryPane entry={entry} />
+              <EntryPane entry={entry} templates={templateBySanction} />
             );
           })()}
           emptyDetail={<EmptyState title="Select a violation" hint="Its section, wording and sanction per offense appear here." />}
