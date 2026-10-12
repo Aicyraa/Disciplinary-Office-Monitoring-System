@@ -1,4 +1,4 @@
-import type { AccountRole } from '../../../shared/types.js';
+import type { AccountRole } from '@shared/types.js';
 import type { AccountRecord, AccountRepo } from './repo.js';
 
 export interface MemoryAccountRepo extends AccountRepo {

@@ -1,4 +1,4 @@
-import type { CaseSanctionStatus, CaseStatus } from '../../../shared/types.js';
+import type { CaseSanctionStatus, CaseStatus } from '@shared/types.js';
 
 export interface OffenseCase {
   caseId: number;

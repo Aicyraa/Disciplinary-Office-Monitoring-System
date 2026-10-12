@@ -1,4 +1,4 @@
-import type { StaffSanctionView } from '../../../shared/types.js';
+import type { StaffSanctionView } from '@shared/types.js';
 import type { CaseSanctionRecord } from '../cases/types.js';
 import { displayCode } from '../codes.js';
 import { manilaToday } from '../me/views.js';

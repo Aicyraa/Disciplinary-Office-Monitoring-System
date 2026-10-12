@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { StaffCaseDetail } from '../../../shared/types';
+import type { StaffCaseDetail } from '@shared/types';
 import { ReasonForm } from '../components/ReasonForm';
 import { Card, ErrorState, PageHeader, Resource, StatusPill, buttonClass, fieldClass } from '../components/ui';
 import { api, toApiError } from '../lib/api';

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, test } from 'vitest';
-import type { StaffSanctionView } from '../../../shared/types';
+import type { StaffSanctionView } from '@shared/types';
 import { ReasonForm } from '../components/ReasonForm';
 import { availableActions } from './StaffCaseDetail';
 import { whoLabel } from './StaffCases';

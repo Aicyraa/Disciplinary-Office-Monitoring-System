@@ -121,7 +121,7 @@ describe('/me access control', () => {
     const agent = await signedInAgent(built(), STUDENT_TEMP.email);
     const response = await agent.get(path);
     expect(response.status).toBe(403);
-    expect(response.body.error).toBe('password_change_required');
+    expect(response.body.error.code).toBe('password_change_required');
   });
 });
 
@@ -130,12 +130,12 @@ describe('GET /me/cases', () => {
     const agent = await signedInAgent(built(), STUDENT_A.email);
     const response = await agent.get('/me/cases');
     expect(response.status).toBe(200);
-    expect(response.body.cases.map((c: { code: string }) => c.code)).toEqual(['C003', 'C001', 'C002']);
+    expect(response.body.data.cases.map((c: { code: string }) => c.code)).toEqual(['C003', 'C001', 'C002']);
   });
 
   test('shows rejected cases and converted majors with their original minor', async () => {
     const agent = await signedInAgent(built(), STUDENT_A.email);
-    const { cases } = (await agent.get('/me/cases')).body;
+    const { cases } = (await agent.get('/me/cases')).body.data;
     expect(cases.find((c: { id: number }) => c.id === 2).status).toBe('rejected');
     expect(cases.find((c: { id: number }) => c.id === 3)).toMatchObject({
       violation: '3 minor offense',
@@ -156,9 +156,9 @@ describe('GET /me/cases/:id', () => {
     const agent = await signedInAgent(built(), STUDENT_A.email);
     const response = await agent.get('/me/cases/1');
     expect(response.status).toBe(200);
-    expect(response.body.case.timeline.map((t: { eventType: string }) => t.eventType)).toEqual(['reported', 'sanction_assigned']);
-    expect(response.body.case.sanctions).toHaveLength(1);
-    expect(response.body.case.sanctions[0]).toMatchObject({ id: 7, sanctionCode: 'S003', dueDate: '2026-09-20', staffNote: 'Bring a signed slip.' });
+    expect(response.body.data.case.timeline.map((t: { eventType: string }) => t.eventType)).toEqual(['reported', 'sanction_assigned']);
+    expect(response.body.data.case.sanctions).toHaveLength(1);
+    expect(response.body.data.case.sanctions[0]).toMatchObject({ id: 7, sanctionCode: 'S003', dueDate: '2026-09-20', staffNote: 'Bring a signed slip.' });
   });
 
   test("another student's case is a 404, indistinguishable from a missing one", async () => {
@@ -180,8 +180,8 @@ describe('GET /me/sanctions', () => {
     const agent = await signedInAgent(built(), STUDENT_A.email);
     const response = await agent.get('/me/sanctions');
     expect(response.status).toBe(200);
-    expect(response.body.sanctions.map((s: { id: number }) => s.id)).toEqual([7]);
-    expect(response.body.sanctions[0].history[0]).toEqual({
+    expect(response.body.data.sanctions.map((s: { id: number }) => s.id)).toEqual([7]);
+    expect(response.body.data.sanctions[0].history[0]).toEqual({
       eventType: 'assigned',
       remarks: null,
       by: 'staff',
@@ -193,7 +193,7 @@ describe('GET /me/sanctions', () => {
   test('a student with no data gets empty lists, not an error', async () => {
     const empty = buildHarnessApp({ studentViews: createMemoryStudentViewRepo(), now: () => NOW });
     const agent = await signedInAgent(empty, STUDENT_B.email);
-    expect((await agent.get('/me/sanctions')).body).toEqual({ sanctions: [] });
+    expect((await agent.get('/me/sanctions')).body).toEqual({ ok: true, data: { sanctions: [] } });
   });
 });
 
@@ -230,7 +230,7 @@ describe('GET /me/sanctions: proof files, lateness and what the student may do (
 
   async function sanctions() {
     const agent = await signedInAgent(buildHarnessApp({ studentViews: repo, now: () => NOW }), STUDENT_A.email);
-    const body = (await agent.get('/me/sanctions')).body as { sanctions: Array<Record<string, unknown> & { id: number }> };
+    const body = (await agent.get('/me/sanctions')).body.data as { sanctions: Array<Record<string, unknown> & { id: number }> };
     return { body, byId: (id: number) => body.sanctions.find((s) => s.id === id)! };
   }
 
@@ -264,7 +264,7 @@ describe('GET /me/sanctions: proof files, lateness and what the student may do (
 describe('GET /me/appointments', () => {
   test('buckets by Asia/Manila today: live and not ended is upcoming, the rest is history', async () => {
     const agent = await signedInAgent(built(), STUDENT_A.email);
-    const { appointments } = (await agent.get('/me/appointments')).body;
+    const { appointments } = (await agent.get('/me/appointments')).body.data;
     const bucket = (id: number) => appointments.find((a: { id: number }) => a.id === id).bucket;
     expect(bucket(1)).toBe('upcoming'); // ends today (Manila 2026-10-12) - still open
     expect(bucket(2)).toBe('history'); // live status but window ended
@@ -282,23 +282,23 @@ describe('GET /me/clearance', () => {
   test('defaults to the newest term and lists all terms newest first', async () => {
     const response = await student.get('/me/clearance');
     expect(response.status).toBe(200);
-    expect(response.body.terms).toEqual([
+    expect(response.body.data.terms).toEqual([
       { academicYear: 2026, semester: 1, status: 'pending' },
       { academicYear: 2025, semester: 2, status: 'cleared' },
     ]);
-    expect(response.body.clearance).toMatchObject({ academicYear: 2026, semester: 1, status: 'pending' });
-    expect(response.body.clearance.items).toHaveLength(2);
+    expect(response.body.data.clearance).toMatchObject({ academicYear: 2026, semester: 1, status: 'pending' });
+    expect(response.body.data.clearance.items).toHaveLength(2);
   });
 
   test('selects a term by academic_year and semester', async () => {
     const response = await student.get('/me/clearance?academic_year=2025&semester=2');
-    expect(response.body.clearance).toMatchObject({ academicYear: 2025, semester: 2, status: 'cleared' });
+    expect(response.body.data.clearance).toMatchObject({ academicYear: 2025, semester: 2, status: 'cleared' });
   });
 
   test('an unknown term returns clearance null', async () => {
     const response = await student.get('/me/clearance?academic_year=2020&semester=1');
     expect(response.status).toBe(200);
-    expect(response.body.clearance).toBeNull();
+    expect(response.body.data.clearance).toBeNull();
   });
 
   test.each([
@@ -314,6 +314,6 @@ describe('GET /me/clearance', () => {
   test('a student with no clearance gets terms [] and clearance null', async () => {
     const empty = buildHarnessApp({ studentViews: createMemoryStudentViewRepo(), now: () => NOW });
     const agent = await signedInAgent(empty, STUDENT_A.email);
-    expect((await agent.get('/me/clearance')).body).toEqual({ terms: [], clearance: null });
+    expect((await agent.get('/me/clearance')).body).toEqual({ ok: true, data: { terms: [], clearance: null } });
   });
 });

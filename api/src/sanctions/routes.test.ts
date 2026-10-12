@@ -116,7 +116,7 @@ describe('access control', () => {
     for (const [method, path] of [...staffRoutes, ['get', '/files/1/url']]) {
       const response = await (agent as unknown as Record<string, (p: string) => request.Test>)[method](path);
       expect(response.status).toBe(403);
-      expect(response.body.error).toBe('password_change_required');
+      expect(response.body.error.code).toBe('password_change_required');
     }
   });
 });
@@ -127,8 +127,8 @@ describe('staff: assign', () => {
     const agent = await signedInAgent(build(), STAFF.email);
     const response = await agent.get('/cases/1/sanction-options');
     expect(response.status).toBe(200);
-    expect(response.body.options).toMatchObject({ offenseNumber: 1, offenseUsed: 1 });
-    expect(response.body.options.sanctions.map((s: { sanctionCode: string }) => s.sanctionCode)).toEqual(['S001', 'S002']);
+    expect(response.body.data.options).toMatchObject({ offenseNumber: 1, offenseUsed: 1 });
+    expect(response.body.data.options.sanctions.map((s: { sanctionCode: string }) => s.sanctionCode)).toEqual(['S001', 'S002']);
   });
 
   test('assigns with a due date and the case becomes for_sanction', async () => {
@@ -151,7 +151,7 @@ describe('staff: assign', () => {
     const agent = await signedInAgent(build(), STAFF.email);
     const response = await agent.post('/cases/1/sanctions').send(body);
     expect(response.status).toBe(status);
-    expect(response.body.error).toBe(code);
+    expect(response.body.error.code).toBe(code);
     expect(store.state.caseSanctions).toHaveLength(0);
   });
 
@@ -162,7 +162,7 @@ describe('staff: assign', () => {
     await agent.post('/cases/1/sanctions').send({ sanctionId: 1, dueDate: '2026-10-30' });
     const again = await agent.post('/cases/1/sanctions').send({ sanctionId: 1, dueDate: '2026-10-30' });
     expect(again.status).toBe(409);
-    expect(again.body.error).toBe('already_assigned');
+    expect(again.body.error.code).toBe('already_assigned');
   });
 });
 
@@ -176,7 +176,7 @@ describe('student: proof upload', () => {
       .attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME })
       .attach('files', docxBytes, { filename: 'b.docx', contentType: DOCX_MIME });
     expect(response.status).toBe(201);
-    expect(response.body.fileIds).toHaveLength(2);
+    expect(response.body.data.fileIds).toHaveLength(2);
     expect(store.state.caseSanctions[0].status).toBe('pending_verification');
     expect(storage.objects.size).toBe(2);
   });
@@ -188,7 +188,7 @@ describe('student: proof upload', () => {
     for (let i = 0; i < 6; i += 1) pending = pending.attach('files', pdfBytes, { filename: `f${i}.pdf`, contentType: PDF_MIME });
     const response = await pending;
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe('too_many_files');
+    expect(response.body.error.code).toBe('too_many_files');
     expect(storage.objects.size).toBe(0);
   });
 
@@ -201,7 +201,7 @@ describe('student: proof upload', () => {
       .field('caseSanctionId', String(id))
       .attach('files', big, { filename: 'big.pdf', contentType: PDF_MIME });
     expect(response.status).toBe(413);
-    expect(response.body.error).toBe('too_large');
+    expect(response.body.error.code).toBe('too_large');
     expect(storage.objects.size).toBe(0);
   });
 
@@ -213,7 +213,7 @@ describe('student: proof upload', () => {
     const agent = await signedInAgent(build(), STUDENT_A.email);
     const response = await agent.post('/files').field('caseSanctionId', String(id)).attach('files', bytes, { filename, contentType });
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe(code);
+    expect(response.body.error.code).toBe(code);
     expect(storage.objects.size).toBe(0);
   });
 
@@ -223,7 +223,7 @@ describe('student: proof upload', () => {
     expect((await agent.post('/files').attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME })).status).toBe(400);
     const none = await agent.post('/files').field('caseSanctionId', String(id));
     expect(none.status).toBe(400);
-    expect(none.body.error).toBe('invalid_input');
+    expect(none.body.error.code).toBe('invalid_input');
   });
 
   test("another student cannot upload to your sanction (404)", async () => {
@@ -245,7 +245,7 @@ describe('student: proof upload', () => {
       .field('caseSanctionId', String(id))
       .attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME })
       .attach('files', pdfBytes, { filename: 'b.pdf', contentType: PDF_MIME });
-    const [fileA, fileB] = first.body.fileIds as number[];
+    const [fileA, fileB] = first.body.data.fileIds as number[];
 
     const replaced = await agent
       .post('/files')
@@ -254,11 +254,11 @@ describe('student: proof upload', () => {
       .attach('files', pdfBytes, { filename: 'a2.pdf', contentType: PDF_MIME });
     expect(replaced.status).toBe(201);
 
-    expect((await agent.delete(`/files/${fileB}`)).status).toBe(204);
+    expect((await agent.delete(`/files/${fileB}`)).status).toBe(200);
     const lastId = store.state.caseSanctions[0].files[0].caseSanctionFileId;
     const last = await agent.delete(`/files/${lastId}`);
     expect(last.status).toBe(409);
-    expect(last.body.error).toBe('last_file');
+    expect(last.body.error.code).toBe('last_file');
   });
 });
 
@@ -277,7 +277,7 @@ describe('download link and staff review', () => {
     const { fileId, student } = await submitted();
     const own = await student.get(`/files/${fileId}/url`);
     expect(own.status).toBe(200);
-    expect(own.body.expiresInSeconds).toBe(60);
+    expect(own.body.data.expiresInSeconds).toBe(60);
     expect(own.headers['cache-control']).toBe('no-store');
 
     const other = await signedInAgent(build(), STUDENT_B.email);
@@ -291,8 +291,8 @@ describe('download link and staff review', () => {
     const staff = await signedInAgent(build(), STAFF.email);
     const blocked = await staff.post(`/case-sanctions/${id}/verify`);
     expect(blocked.status).toBe(409);
-    expect(blocked.body.error).toBe('files_not_viewed');
-    expect(blocked.body.message).toContain('0 of 1');
+    expect(blocked.body.error.code).toBe('files_not_viewed');
+    expect(blocked.body.error.message).toContain('0 of 1');
 
     await staff.get(`/files/${fileId}/url`);
     expect((await staff.post(`/case-sanctions/${id}/verify`)).status).toBe(200);
@@ -329,7 +329,7 @@ describe('download link and staff review', () => {
       .field('caseSanctionId', String(id))
       .attach('files', pdfBytes, { filename: 'b.pdf', contentType: PDF_MIME });
     expect(extra.status).toBe(409);
-    expect(extra.body.error).toBe('upload_not_allowed');
+    expect(extra.body.error.code).toBe('upload_not_allowed');
 
     const staff = await signedInAgent(build(), STAFF.email);
     await staff.get(`/files/${fileId}/url`);
@@ -339,7 +339,7 @@ describe('download link and staff review', () => {
       .field('replaceFileId', String(fileId))
       .attach('files', pdfBytes, { filename: 'c.pdf', contentType: PDF_MIME });
     expect(replace.status).toBe(409);
-    expect(replace.body.error).toBe('already_reviewed');
+    expect(replace.body.error.code).toBe('already_reviewed');
     const remove = await student.delete(`/files/${fileId}`);
     expect(remove.status).toBe(409);
   });
@@ -365,7 +365,7 @@ describe('download link and staff review', () => {
       .set('Content-Type', 'multipart/form-data; boundary=----broken')
       .send('------broken\r\nContent-Disposition: form-data; name="files"; filename=\r\n');
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe('invalid_input');
+    expect(response.body.error.code).toBe('invalid_input');
   });
 
   test('record-compliance needs a note and moves an assigned sanction to pending', async () => {

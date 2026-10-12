@@ -1,74 +1,30 @@
 import { describe, expect, test } from 'vitest';
-import { LOCAL_PREVIEW_PORT, allowedClientOrigins, isLoopbackOrigin } from './cors.js';
+import { clientOriginFrom, defaultClientOrigin } from './cors.js';
 
-describe('allowedClientOrigins', () => {
-  test('the configured origin is always allowed', () => {
-    expect(allowedClientOrigins('https://sdo.example.edu', { loopbackAliases: false })).toEqual(new Set(['https://sdo.example.edu']));
+describe('defaultClientOrigin', () => {
+  test('is http://localhost on the client port, defaulting to 5173', () => {
+    expect(defaultClientOrigin(undefined)).toBe('http://localhost:5173');
+    expect(defaultClientOrigin('5200')).toBe('http://localhost:5200');
+    expect(defaultClientOrigin(5300)).toBe('http://localhost:5300');
   });
-
-  test('normalizes a trailing slash and case', () => {
-    expect(allowedClientOrigins('HTTP://Localhost:5173/', { loopbackAliases: false })).toEqual(new Set(['http://localhost:5173']));
-  });
-
-  test('in development a loopback origin also allows its loopback aliases on the same port', () => {
-    const allowed = allowedClientOrigins('http://localhost:5173', { loopbackAliases: true });
-    for (const host of ['localhost', '127.0.0.1', '[::1]']) expect(allowed).toContain(`http://${host}:5173`);
-    expect(allowedClientOrigins('http://127.0.0.1:5173', { loopbackAliases: true })).toContain('http://localhost:5173');
-  });
-
-  test('in development the local preview server of the built client (port 4173) is allowed too', () => {
-    expect(LOCAL_PREVIEW_PORT).toBe(4173);
-    const allowed = allowedClientOrigins('http://localhost:5173', { loopbackAliases: true });
-    for (const host of ['localhost', '127.0.0.1', '[::1]']) expect(allowed).toContain(`http://${host}:4173`);
-    // 3 hosts x (dev port + preview port)
-    expect(allowed.size).toBe(6);
-  });
-
-  test('aliases and the preview port never apply when disabled (production)', () => {
-    expect(allowedClientOrigins('http://localhost:5173', { loopbackAliases: false })).toEqual(new Set(['http://localhost:5173']));
-  });
-
-  test('a non-loopback origin gets no aliases and no preview port even in development', () => {
-    expect(allowedClientOrigins('https://sdo.example.edu', { loopbackAliases: true })).toEqual(new Set(['https://sdo.example.edu']));
-  });
-
-  test('never widens to another port, another scheme or another host', () => {
-    const allowed = allowedClientOrigins('http://localhost:5173', { loopbackAliases: true });
-    expect(allowed.has('http://localhost:5174')).toBe(false);
-    expect(allowed.has('http://localhost:3000')).toBe(false);
-    expect(allowed.has('https://localhost:5173')).toBe(false);
-    expect(allowed.has('https://localhost:4173')).toBe(false);
-    expect(allowed.has('http://evil.example:5173')).toBe(false);
-    expect(allowed.has('http://evil.example:4173')).toBe(false);
-  });
-
-  test('a loopback origin without a port still gets the preview port', () => {
-    const allowed = allowedClientOrigins('http://localhost', { loopbackAliases: true });
-    expect(allowed).toContain('http://localhost');
-    expect(allowed).toContain('http://localhost:4173');
-  });
-
-  test.each(['not a url', 'null', ''])('an unparsable origin (%j) allows nothing', (value) => {
-    expect(allowedClientOrigins(value, { loopbackAliases: true })).toEqual(new Set());
-  });
-
-  test.each(['localhost:5173', '127.0.0.1:5173', 'ftp://localhost:5173', 'file:///tmp/x', 'javascript:alert(1)'])(
-    'a scheme-less or non-web value (%j) allows nothing (its URL origin would be the string "null")',
-    (value) => {
-      expect(allowedClientOrigins(value, { loopbackAliases: true })).toEqual(new Set());
-    },
-  );
 });
 
-describe('isLoopbackOrigin', () => {
-  test.each(['http://localhost:5173', 'http://127.0.0.1:9', 'https://localhost', 'http://[::1]:3000'])('%s is loopback', (origin) => {
-    expect(isLoopbackOrigin(origin)).toBe(true);
+describe('clientOriginFrom', () => {
+  test.each([
+    ['http://localhost:5173', 'http://localhost:5173'],
+    ['http://localhost:5173/', 'http://localhost:5173'],
+    ['HTTP://Localhost:5173', 'http://localhost:5173'],
+    ['https://sdo.example.edu', 'https://sdo.example.edu'],
+    ['https://sdo.example.edu:443/app', 'https://sdo.example.edu'],
+  ])('%s -> %s (the exact string a browser sends as Origin)', (value, expected) => {
+    expect(clientOriginFrom(value)).toBe(expected);
   });
 
-  test.each(['http://evil.example', 'http://localhost.evil.example:5173', 'null', 'ftp://localhost', 'localhost:5173', ''])(
-    '%j is not',
-    (origin) => {
-      expect(isLoopbackOrigin(origin)).toBe(false);
+  test.each(['localhost:5173', '127.0.0.1:5173', 'not a url', 'null', '', 'ftp://localhost:5173', 'file:///tmp/x', 'javascript:alert(1)'])(
+    '%j is not an http(s) origin',
+    (value) => {
+      // `new URL('localhost:5173')` parses with scheme "localhost:" and origin "null": it must not be accepted.
+      expect(clientOriginFrom(value)).toBeNull();
     },
   );
 });

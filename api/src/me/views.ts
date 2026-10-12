@@ -6,7 +6,7 @@ import type {
   StudentCaseView,
   StudentClearanceView,
   StudentSanctionView,
-} from '../../../shared/types.js';
+} from '@shared/types.js';
 import { displayCode } from '../codes.js';
 import { lateByDays } from '../sanctions/rules.js';
 import type {

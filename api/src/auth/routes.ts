@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { Passport } from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
-import type { AccountRole, AuthUser } from '../../../shared/types.js';
+import type { AccountRole, AuthUser } from '@shared/types.js';
+import { sendError, sendOk } from '../http.js';
 import { requireAuth, requireStaff } from './guards.js';
 import { STUDENT_ID_PATTERN } from './policy.js';
 import type { AuthService } from './service.js';
@@ -18,7 +19,7 @@ export interface AuthRouterOptions {
   loginRateLimit?: LoginRateLimitOptions;
 }
 
-const GENERIC_LOGIN_ERROR = { error: 'invalid_credentials', message: 'Invalid email or password.' };
+
 
 const asString = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
@@ -52,7 +53,8 @@ export function createAuthRouter({ service, loginRateLimit = { windowMs: 15 * 60
     windowMs: loginRateLimit.windowMs,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'too_many_attempts', message: 'Too many sign-in attempts. Try again later.' },
+    handler: (_request: unknown, response: Parameters<typeof sendError>[0]) =>
+      sendError(response, 429, 'too_many_attempts', 'Too many sign-in attempts. Try again later.'),
   } as const;
   const perAccountLimiter = rateLimit({
     ...limiterBase,
@@ -75,11 +77,12 @@ export function createAuthRouter({ service, loginRateLimit = { windowMs: 15 * 60
   router.post('/auth/login', perIpLimiter, perAccountLimiter, (request, response, next) => {
     authenticator.authenticate('local', (error: unknown, user: AuthUser | false) => {
       if (error) return next(error);
-      if (!user) return response.status(401).json(GENERIC_LOGIN_ERROR);
+      // One message for every failure (unknown email, wrong password, bad domain, inactive, malformed).
+      if (!user) return sendError(response, 401, 'invalid_credentials', 'Invalid email or password.');
       // req.login regenerates the session id (no session fixation).
       request.logIn(user, (loginError) => {
         if (loginError) return next(loginError);
-        response.status(200).json({ user });
+        sendOk(response, { user });
       });
     })(request, response, next);
   });
@@ -89,32 +92,33 @@ export function createAuthRouter({ service, loginRateLimit = { windowMs: 15 * 60
       if (error) return next(error);
       request.session.destroy(() => {
         response.clearCookie('sdo.sid');
-        response.status(204).end();
+        sendOk(response, null);
       });
     });
   });
 
   router.get('/auth/me', requireAuth, (request, response) => {
-    response.status(200).json({ user: request.user });
+    sendOk(response, { user: request.user });
   });
 
   router.post('/auth/change-password', requireAuth, async (request, response, next) => {
     const currentPassword = asString(request.body?.currentPassword);
     const newPassword = asString(request.body?.newPassword);
     if (currentPassword === null || newPassword === null) {
-      response.status(400).json({ error: 'invalid_request', message: 'currentPassword and newPassword are required.' });
+      sendError(response, 400, 'invalid_input', 'currentPassword and newPassword are required.');
       return;
     }
     const user = request.user as AuthUser;
     const result = await service.changePassword(user.role, user.id, currentPassword, newPassword);
     if (!result.ok) {
-      response.status(result.code === 'not_found' ? 401 : 400).json({ error: result.code, message: result.message });
+      if (result.code === 'not_found') sendError(response, 401, 'not_authenticated', 'Sign in to continue.');
+      else sendError(response, 400, result.code, result.message);
       return;
     }
     // Refresh the session copy so mustChangePassword clears at once.
     request.logIn(result.user, (loginError) => {
       if (loginError) return next(loginError);
-      response.status(200).json({ user: result.user });
+      sendOk(response, { user: result.user });
     });
   });
 
@@ -122,15 +126,16 @@ export function createAuthRouter({ service, loginRateLimit = { windowMs: 15 * 60
   router.post('/staff/students/:studentId/reset-password', ...requireStaff, async (request, response) => {
     const studentId = String(request.params.studentId);
     if (!STUDENT_ID_PATTERN.test(studentId)) {
-      response.status(400).json({ error: 'invalid_student_id' });
+      sendError(response, 400, 'invalid_input', 'Student ID must look like 2025-1234567.');
       return;
     }
     const result = await service.resetStudentPassword(studentId);
     if (!result.ok) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'student_not_found', 'No student has that ID.');
       return;
     }
-    response.set('Cache-Control', 'no-store').status(200).json({ tempPassword: result.tempPassword });
+    response.set('Cache-Control', 'no-store');
+    sendOk(response, { tempPassword: result.tempPassword });
   });
 
   return router;

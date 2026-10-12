@@ -36,7 +36,7 @@ describe('POST /auth/login', () => {
     const agent = request.agent(buildApp());
     const login = await agent.post('/auth/login').send({ email: STUDENT_EMAIL, password: PASSWORD });
     expect(login.status).toBe(200);
-    expect(login.body.user).toEqual({
+    expect(login.body.data.user).toEqual({
       role: 'student', id: STUDENT_ID, email: STUDENT_EMAIL, firstName: 'Ana', lastName: 'Cruz', mustChangePassword: false,
     });
     const me = await agent.get('/auth/me');
@@ -47,7 +47,7 @@ describe('POST /auth/login', () => {
   test('is case-insensitive on the email', async () => {
     const response = await request(buildApp()).post('/auth/login').send({ email: STAFF_EMAIL.toUpperCase(), password: PASSWORD });
     expect(response.status).toBe(200);
-    expect(response.body.user.role).toBe('staff');
+    expect(response.body.data.user.role).toBe('staff');
   });
 
   test('every failure returns the same status and body', async () => {
@@ -112,7 +112,7 @@ describe('session lifecycle', () => {
   test('logout ends the session', async () => {
     const agent = request.agent(buildApp());
     await agent.post('/auth/login').send({ email: STUDENT_EMAIL, password: PASSWORD });
-    expect((await agent.post('/auth/logout')).status).toBe(204);
+    expect((await agent.post('/auth/logout')).status).toBe(200);
     expect((await agent.get('/auth/me')).status).toBe(401);
   });
 
@@ -163,13 +163,13 @@ describe('POST /auth/change-password', () => {
   ])('rejects a new password that is %s', async (_label, newPassword, code) => {
     const response = await (await signedIn()).post('/auth/change-password').send({ currentPassword: PASSWORD, newPassword });
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe(code);
+    expect(response.body.error.code).toBe(code);
   });
 
   test('rejects a wrong current password', async () => {
     const response = await (await signedIn()).post('/auth/change-password').send({ currentPassword: 'Nope12345', newPassword: 'NewPass123' });
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe('wrong_password');
+    expect(response.body.error.code).toBe('wrong_password');
   });
 
   test('changes the password, and the new one works on the next sign-in', async () => {
@@ -198,7 +198,7 @@ describe('POST /staff/students/:studentId/reset-password', () => {
     await agent.post('/auth/login').send({ email: 'temp@nu-fairview.edu.ph', password: PASSWORD });
     const response = await agent.post(`/staff/students/${STUDENT_ID}/reset-password`);
     expect(response.status).toBe(403);
-    expect(response.body.error).toBe('password_change_required');
+    expect(response.body.error.code).toBe('password_change_required');
   });
 
   test('rejects a malformed student id and an unknown student', async () => {
@@ -214,7 +214,7 @@ describe('POST /staff/students/:studentId/reset-password', () => {
     await staff.post('/auth/login').send({ email: STAFF_EMAIL, password: PASSWORD });
     const reset = await staff.post(`/staff/students/${STUDENT_ID}/reset-password`);
     expect(reset.status).toBe(200);
-    const { tempPassword } = reset.body as { tempPassword: string };
+    const { tempPassword } = reset.body.data as { tempPassword: string };
     expect(tempPassword).toMatch(/^Temp-\d{4}$/);
     expect(reset.headers['cache-control']).toBe('no-store');
 
@@ -226,14 +226,14 @@ describe('POST /staff/students/:studentId/reset-password', () => {
     const student = request.agent(app);
     const login = await student.post('/auth/login').send({ email: STUDENT_EMAIL, password: tempPassword });
     expect(login.status).toBe(200);
-    expect(login.body.user.mustChangePassword).toBe(true);
+    expect(login.body.data.user.mustChangePassword).toBe(true);
 
     // The temp password cannot be reused as the new password.
     const same = await student.post('/auth/change-password').send({ currentPassword: tempPassword, newPassword: tempPassword });
-    expect(same.body.error).toBe('same_password');
+    expect(same.body.error.code).toBe('same_password');
     const changed = await student.post('/auth/change-password').send({ currentPassword: tempPassword, newPassword: 'Fresh1234' });
     expect(changed.status).toBe(200);
-    expect(changed.body.user.mustChangePassword).toBe(false);
+    expect(changed.body.data.user.mustChangePassword).toBe(false);
     expect(repo.accounts.get(`student:${STUDENT_ID}`)!.mustChangePassword).toBe(false);
   });
 });

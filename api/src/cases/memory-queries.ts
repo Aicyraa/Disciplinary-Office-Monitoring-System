@@ -1,4 +1,4 @@
-import type { StaffCaseDetail, StaffCaseRow } from '../../../shared/types.js';
+import type { StaffCaseDetail, StaffCaseRow } from '@shared/types.js';
 import { displayCode } from '../codes.js';
 import type { MemoryCaseStore } from './memory-store.js';
 import { toStaffSanctionView } from '../sanctions/views.js';

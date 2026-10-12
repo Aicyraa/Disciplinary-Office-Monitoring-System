@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import type { AccountRole } from '../../../shared/types';
+import type { AccountRole } from '@shared/types';
 import { useAuth } from '../auth/AuthContext';
 import { Icon } from './ui';
 

@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import type { AccountRole, AuthUser } from '../../../shared/types.js';
+import type { AccountRole, AuthUser } from '@shared/types.js';
 import { checkPasswordRules, generateTempPassword, normalizeEmail, roleForEmail } from './policy.js';
 import type { AccountRecord, AccountRepo } from './repo.js';
 

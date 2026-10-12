@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ClearanceTermView } from '../../../shared/types';
+import type { ClearanceTermView } from '@shared/types';
 import { Card, EmptyState, Icon, PageHeader, Resource, StatusPill, fieldClass } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDate, formatTerm } from '../lib/format';

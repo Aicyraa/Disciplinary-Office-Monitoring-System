@@ -1,4 +1,4 @@
-import type { CaseStatus, Severity } from '../../../shared/types.js';
+import type { CaseStatus, Severity } from '@shared/types.js';
 
 /** SPEC 4.2: three minors of any kind. The one place the threshold lives, so it can change later. */
 export function escalationThreshold(): number {

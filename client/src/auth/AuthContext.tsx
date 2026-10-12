@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { AuthUser } from '../../../shared/types';
+import type { AuthUser } from '@shared/types';
 import { api, ApiError, setSessionEndedHandler } from '../lib/api';
 
 export type AuthState =

@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import type { StudentCaseDetailView, StudentCaseView } from '../../../shared/types';
+import type { StudentCaseDetailView, StudentCaseView } from '@shared/types';
 import { Card, EmptyState, ErrorState, PageHeader, Resource, StatusPill } from '../components/ui';
 import { api } from '../lib/api';
 import { CASE_STAGES, caseStageIndex, formatDate, formatDateTime, statusLabel } from '../lib/format';

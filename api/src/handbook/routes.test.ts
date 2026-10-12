@@ -34,7 +34,7 @@ describe('GET /handbook', () => {
     const agent = await signedInAgent(built, STAFF_TEMP.email);
     const response = await agent.get('/handbook');
     expect(response.status).toBe(403);
-    expect(response.body.error).toBe('password_change_required');
+    expect(response.body.error.code).toBe('password_change_required');
   });
 
   test.each([
@@ -45,13 +45,13 @@ describe('GET /handbook', () => {
     const agent = await signedInAgent(built, email);
     const response = await agent.get('/handbook');
     expect(response.status).toBe(200);
-    expect(response.body.entries.map((entry: { id: number }) => entry.id)).toEqual([1]);
+    expect(response.body.data.entries.map((entry: { id: number }) => entry.id)).toEqual([1]);
   });
 
   test('derives display codes and orders sanctions by offense number', async () => {
     const built = app();
     const agent = await signedInAgent(built, STUDENT_A.email);
-    const { entries: listed } = (await agent.get('/handbook')).body;
+    const { entries: listed } = (await agent.get('/handbook')).body.data;
     expect(listed[0]).toMatchObject({
       code: 'H001',
       violationCode: 'V001',
@@ -72,7 +72,7 @@ describe('GET /handbook/:id', () => {
     const agent = await signedInAgent(built, STUDENT_A.email);
     const response = await agent.get('/handbook/1');
     expect(response.status).toBe(200);
-    expect(response.body.entry.violation).toBe('Improper uniform');
+    expect(response.body.data.entry.violation).toBe('Improper uniform');
   });
 
   test('a system entry is a 404 even by direct id', async () => {

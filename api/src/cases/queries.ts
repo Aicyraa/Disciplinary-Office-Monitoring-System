@@ -1,4 +1,4 @@
-import type { CaseStatus, Severity, StaffCaseDetail, StaffCaseRow } from '../../../shared/types.js';
+import type { CaseStatus, Severity, StaffCaseDetail, StaffCaseRow } from '@shared/types.js';
 
 export const CASE_PAGE_SIZE = 6;
 

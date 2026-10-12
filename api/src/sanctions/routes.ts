@@ -1,7 +1,8 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import multer, { MulterError } from 'multer';
-import type { AuthUser } from '../../../shared/types.js';
+import type { AuthUser } from '@shared/types.js';
 import { requireAuth, requirePasswordChanged, requireStaff, requireStudent } from '../auth/guards.js';
+import { sendError, sendOk } from '../http.js';
 import { MAX_FILE_BYTES, MAX_FILES_PER_SANCTION } from '../files/validate.js';
 import { manilaToday } from '../me/views.js';
 import type { SanctionFailure, SanctionFailureCode, SanctionService } from './service.js';
@@ -33,7 +34,7 @@ const parseId = (value: unknown): number | null => (typeof value === 'string' &&
 const user = (request: Request): AuthUser => request.user as AuthUser;
 
 function sendFailure(response: Response, failure: SanctionFailure): void {
-  response.status(HTTP_STATUS[failure.code]).json({ error: failure.code, message: failure.message });
+  sendError(response, HTTP_STATUS[failure.code], failure.code, failure.message);
 }
 
 /**
@@ -54,23 +55,23 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
   router.get('/cases/:id/sanction-options', ...requireStaff, async (request, response) => {
     const caseId = parseId(request.params.id);
     if (caseId === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const result = await service.getAssignmentOptions(caseId);
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ options: result.options });
+    sendOk(response, { options: result.options });
   });
 
   router.post('/cases/:id/sanctions', ...requireStaff, async (request, response) => {
     const caseId = parseId(request.params.id);
     if (caseId === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const sanctionId = request.body?.sanctionId;
     if (!Number.isInteger(sanctionId) || sanctionId < 1) {
-      response.status(400).json({ error: 'invalid_input', message: 'sanctionId is required.' });
+      sendError(response, 400, 'invalid_input', 'sanctionId is required.');
       return;
     }
     const result = await service.assignSanction({
@@ -82,41 +83,41 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
       today: manilaToday(now()),
     });
     if (!result.ok) return sendFailure(response, result);
-    response.status(201).json({ caseSanctionId: result.caseSanctionId });
+    sendOk(response, { caseSanctionId: result.caseSanctionId }, 201);
   });
 
   // ---- staff: review ------------------------------------------------------------------------
   router.post('/case-sanctions/:id/record-compliance', ...requireStaff, async (request, response) => {
     const id = parseId(request.params.id);
     if (id === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const result = await service.recordCompliance({ employeeId: user(request).id, caseSanctionId: id, note: request.body?.note });
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ ok: true });
+    sendOk(response, { ok: true });
   });
 
   router.post('/case-sanctions/:id/verify', ...requireStaff, async (request, response) => {
     const id = parseId(request.params.id);
     if (id === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const result = await service.verify({ employeeId: user(request).id, caseSanctionId: id });
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ ok: true });
+    sendOk(response, { ok: true });
   });
 
   router.post('/case-sanctions/:id/return', ...requireStaff, async (request, response) => {
     const id = parseId(request.params.id);
     if (id === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const result = await service.returnForRevision({ employeeId: user(request).id, caseSanctionId: id, reason: request.body?.reason });
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ ok: true });
+    sendOk(response, { ok: true });
   });
 
   // ---- student: proof files ------------------------------------------------------------------
@@ -135,7 +136,7 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
           message = 'You can upload at most 5 files.';
         }
       }
-      response.status(HTTP_STATUS[code]).json({ error: code, message });
+      sendError(response, HTTP_STATUS[code], code, message);
     });
   };
 
@@ -144,7 +145,7 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
     const replaceRaw = request.body?.replaceFileId;
     const replaceId = replaceRaw === undefined || replaceRaw === '' ? undefined : parseId(replaceRaw);
     if (caseSanctionId === null || replaceId === null) {
-      response.status(400).json({ error: 'invalid_input', message: 'caseSanctionId is required.' });
+      sendError(response, 400, 'invalid_input', 'caseSanctionId is required.');
       return;
     }
     const received = (request.files ?? []) as Express.Multer.File[];
@@ -159,25 +160,25 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
       replaceCaseSanctionFileId: replaceId,
     });
     if (!result.ok) return sendFailure(response, result);
-    response.status(201).json({ fileIds: result.caseSanctionFileIds });
+    sendOk(response, { fileIds: result.caseSanctionFileIds }, 201);
   });
 
   router.delete('/files/:id', ...requireStudent, async (request, response) => {
     const id = parseId(request.params.id);
     if (id === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const result = await service.removeProof({ studentId: user(request).id, caseSanctionFileId: id });
     if (!result.ok) return sendFailure(response, result);
-    response.status(204).end();
+    sendOk(response, null);
   });
 
   // The owning student or any staff member. Opening it as staff marks the file viewed.
   router.get('/files/:id/url', requireAuth, requirePasswordChanged, async (request, response) => {
     const id = parseId(request.params.id);
     if (id === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const requester = user(request);
@@ -186,7 +187,8 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
       caseSanctionFileId: id,
     });
     if (!result.ok) return sendFailure(response, result);
-    response.set('Cache-Control', 'no-store').status(200).json({ url: result.url, expiresInSeconds: result.expiresInSeconds });
+    response.set('Cache-Control', 'no-store');
+    sendOk(response, { url: result.url, expiresInSeconds: result.expiresInSeconds });
   });
 
   return router;

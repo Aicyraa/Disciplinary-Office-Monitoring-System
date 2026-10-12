@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Severity, StudentSanctionView } from '../../../shared/types';
+import type { Severity, StudentSanctionView } from '@shared/types';
 import { ProofPanel } from '../components/ProofPanel';
 import { Card, EmptyState, PageHeader, Resource, StatusPill } from '../components/ui';
 import { api } from '../lib/api';

@@ -3,7 +3,7 @@ import type {
   CaseSanctionStatus,
   CaseStatus,
   Severity,
-} from '../../../shared/types.js';
+} from '@shared/types.js';
 
 export interface CaseRecord {
   caseId: number;

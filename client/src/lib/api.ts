@@ -1,6 +1,9 @@
 import axios, { AxiosError } from 'axios';
 import { resolveApiBaseUrl } from './apiBase';
 import type {
+  ApiErrorCode,
+  ApiFailure,
+  ApiSuccess,
   AuthUser,
   EscalationConversion,
   HandbookEntryView,
@@ -12,13 +15,12 @@ import type {
   StudentCaseView,
   StudentClearanceResponse,
   StudentSanctionView,
-} from '../../../shared/types';
+} from '@shared/types';
 
-// The API is on the page's own host (localhost and 127.0.0.1 are different hosts: cookies and CORS care).
+// One origin pair: the app at http://localhost:<CLIENT_PORT>, the API at http://localhost:<SERVER_PORT>.
 // `__API_PORT__` is the root .env SERVER_PORT, injected by vite.config.ts; tests have no such define.
 const baseURL = resolveApiBaseUrl({
   configured: import.meta.env.VITE_API_URL,
-  page: typeof window === 'undefined' ? undefined : window.location,
   port: typeof __API_PORT__ === 'undefined' ? '3000' : __API_PORT__,
 });
 
@@ -43,12 +45,15 @@ http.interceptors.response.use(undefined, (error: unknown) => {
   return Promise.reject(error);
 });
 
-/** An API error reduced to what the UI needs. */
+/**
+ * An API failure reduced to what the UI needs. `code` is the shared ApiErrorCode; it is null when there was no
+ * usable error body (no response at all, or a response that is not the shared envelope).
+ */
 export class ApiError extends Error {
   readonly status: number;
-  readonly code: string | null;
+  readonly code: ApiErrorCode | null;
 
-  constructor(status: number, message: string, code: string | null) {
+  constructor(status: number, message: string, code: ApiErrorCode | null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
@@ -63,7 +68,21 @@ export class ApiError extends Error {
 export function networkErrorMessage(): string {
   const base = 'Cannot reach the server. Check your connection and try again.';
   if (!import.meta.env.DEV) return base;
-  return `${base} (Development: requests go to ${baseURL}. Is the API running, and was this page opened at the same host, localhost or 127.0.0.1?)`;
+  return `${base} (Development: requests go to ${baseURL}. Is the API running, and is this page open at http://localhost, not 127.0.0.1?)`;
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+/** True for a body that is exactly the shared success envelope. */
+function isSuccess<T>(body: unknown): body is ApiSuccess<T> {
+  return isObject(body) && body.ok === true && 'data' in body;
+}
+
+/** The failure envelope's `error`, or null when the body is anything else. */
+function failureOf(body: unknown): ApiFailure['error'] | null {
+  if (!isObject(body) || body.ok !== false || !isObject(body.error)) return null;
+  const { code, message } = body.error;
+  return typeof code === 'string' && typeof message === 'string' ? { code: code as ApiErrorCode, message } : null;
 }
 
 /** Plain-language fallback when the API sends a status without a message. */
@@ -76,48 +95,41 @@ export function defaultMessage(status: number): string {
 }
 
 export function toApiError(error: unknown): ApiError {
+  if (error instanceof ApiError) return error;
   if (error instanceof AxiosError) {
-    const body = error.response?.data as { error?: string; message?: string } | undefined;
     if (error.response) {
-      const { status } = error.response;
-      return new ApiError(status, body?.message ?? defaultMessage(status), body?.error ?? null);
+      const { status, data } = error.response;
+      const failure = failureOf(data);
+      if (failure) return new ApiError(status, failure.message, failure.code);
+      return new ApiError(status, defaultMessage(status), null);
     }
     return new ApiError(0, networkErrorMessage(), null);
   }
   return new ApiError(0, error instanceof Error ? error.message : 'Something went wrong.', null);
 }
 
-async function get<T>(path: string, params?: Record<string, string | number>): Promise<T> {
+/**
+ * The single place a response is read. Success is `ApiSuccess<T>` and returns `data`; failure is `ApiFailure`
+ * and throws an ApiError; anything else (a proxy error page, a wrong server) is a failure too.
+ */
+async function request<T>(send: () => Promise<{ status: number; data: unknown }>): Promise<T> {
+  let status: number;
+  let body: unknown;
   try {
-    return (await http.get<T>(path, { params })).data;
+    ({ status, data: body } = await send());
   } catch (error) {
     throw toApiError(error);
   }
+  if (isSuccess<T>(body)) return body.data;
+  const failure = failureOf(body);
+  if (failure) throw new ApiError(status, failure.message, failure.code);
+  throw new ApiError(status, 'The server sent a response this app does not understand.', null);
 }
 
-async function post<T>(path: string, body?: unknown): Promise<T> {
-  try {
-    return (await http.post<T>(path, body)).data;
-  } catch (error) {
-    throw toApiError(error);
-  }
-}
-
-async function del(path: string): Promise<void> {
-  try {
-    await http.delete(path);
-  } catch (error) {
-    throw toApiError(error);
-  }
-}
-
-async function patch<T>(path: string, body?: unknown): Promise<T> {
-  try {
-    return (await http.patch<T>(path, body)).data;
-  } catch (error) {
-    throw toApiError(error);
-  }
-}
+const get = <T>(path: string, params?: Record<string, string | number>) => request<T>(() => http.get(path, { params }));
+const post = <T>(path: string, body?: unknown) => request<T>(() => http.post(path, body));
+const patch = <T>(path: string, body?: unknown) => request<T>(() => http.patch(path, body));
+const del = <T = null>(path: string) => request<T>(() => http.delete(path));
 
 export interface StaffCaseQuery {
   status?: string;
@@ -129,7 +141,7 @@ export interface StaffCaseQuery {
 
 export const api = {
   login: (email: string, password: string) => post<{ user: AuthUser }>('/auth/login', { email, password }),
-  logout: () => post<void>('/auth/logout'),
+  logout: () => post<null>('/auth/logout'),
   me: () => get<{ user: AuthUser }>('/auth/me'),
   changePassword: (currentPassword: string, newPassword: string) =>
     post<{ user: AuthUser }>('/auth/change-password', { currentPassword, newPassword }),

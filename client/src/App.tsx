@@ -1,5 +1,5 @@
 import { BrowserRouter, MemoryRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
-import type { AccountRole } from '../../shared/types';
+import type { AccountRole } from '@shared/types';
 import { AuthProvider, useAuth, type AuthState } from './auth/AuthContext';
 import { Shell } from './components/Shell';
 import { LoadingState } from './components/ui';

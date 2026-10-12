@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { HandbookEntryView, Severity } from '../../../shared/types';
+import type { HandbookEntryView, Severity } from '@shared/types';
 import { EmptyState, PageHeader, Resource, StatusPill, fieldClass } from '../components/ui';
 import { api } from '../lib/api';
 import { useApi } from '../lib/useApi';

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { CaseStatus, Severity, StaffCaseRow } from '../../../shared/types';
+import type { CaseStatus, Severity, StaffCaseRow } from '@shared/types';
 import { EmptyState, PageHeader, Resource, StatusPill, buttonClass, fieldClass } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDate, statusLabel } from '../lib/format';

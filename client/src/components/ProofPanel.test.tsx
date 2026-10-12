@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, test } from 'vitest';
-import type { StudentSanctionView } from '../../../shared/types';
+import type { StudentSanctionView } from '@shared/types';
 import { viewedSummary } from '../pages/StaffSanctions';
 import { ProofPanel } from './ProofPanel';
 

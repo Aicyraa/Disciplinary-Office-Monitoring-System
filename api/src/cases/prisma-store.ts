@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
-import type { CaseSanctionStatus, CaseStatus, Severity, StaffCaseDetail, StaffCaseRow } from '../../../shared/types.js';
+import type { CaseSanctionStatus, CaseStatus, Severity, StaffCaseDetail, StaffCaseRow } from '@shared/types.js';
 import { displayCode } from '../codes.js';
 import { toStaffSanctionView } from '../sanctions/views.js';
 import { CASE_PAGE_SIZE, parseCaseCode, type CaseListFilter, type CaseQueries } from './queries.js';

@@ -2,7 +2,7 @@ import connectPgSimple from 'connect-pg-simple';
 import session from 'express-session';
 import { Pool } from 'pg';
 import { createApp } from './app.js';
-import { allowedClientOrigins } from './cors.js';
+import { clientOriginFrom, defaultClientOrigin } from './cors.js';
 import { createPrismaAccountRepo } from './auth/prisma-repo.js';
 import { createAuthService } from './auth/service.js';
 import { createPrismaCaseQueries, createPrismaCaseStore } from './cases/prisma-store.js';
@@ -19,21 +19,21 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 function buildApp() {
   const { DATABASE_URL, SESSION_SECRET } = process.env;
-  const clientOrigin = process.env.APP_BASE_URL ?? `http://localhost:${process.env.CLIENT_PORT ?? 5173}`;
-
-  const loopbackAliases = !isProduction;
-  const origins = [...allowedClientOrigins(clientOrigin, { loopbackAliases })];
-  console.log(`Browser origins accepted by CORS: ${origins.join(', ')}`);
+  // One browser origin, the same in development and production: the client app. `APP_BASE_URL` overrides the
+  // default `http://localhost:<CLIENT_PORT>` when the client is hosted elsewhere.
+  const configuredOrigin = process.env.APP_BASE_URL ?? defaultClientOrigin(process.env.CLIENT_PORT);
+  const clientOrigin = clientOriginFrom(configuredOrigin);
+  console.log(`Browser origin accepted by CORS: ${clientOrigin ?? '(none: invalid APP_BASE_URL)'}`);
 
   // Development keeps running with a clear 503 on every route (and CORS headers, so the browser shows the
   // reason instead of "cannot reach the server"); production refuses to start.
   const misconfigured = (reason: string) => {
     if (isProduction) throw new Error(reason);
     console.warn(`${reason} Serving /health only; every other route answers 503.`);
-    return createApp({ unconfigured: { clientOrigin, reason, loopbackAliases } });
+    return createApp({ unconfigured: { clientOrigin: configuredOrigin, reason } });
   };
-  if (origins.length === 0) {
-    return misconfigured(`APP_BASE_URL must be a full URL such as http://localhost:5173 (got "${clientOrigin}").`);
+  if (clientOrigin === null) {
+    return misconfigured(`APP_BASE_URL must be a full URL such as http://localhost:5173 (got "${configuredOrigin}").`);
   }
   if (!DATABASE_URL || !SESSION_SECRET) {
     return misconfigured('DATABASE_URL and SESSION_SECRET must be set in the root .env.');
@@ -59,7 +59,6 @@ function buildApp() {
       service,
       sessionSecret: SESSION_SECRET,
       clientOrigin,
-      loopbackAliases,
       sessionStore,
       secureCookies: isProduction,
     },

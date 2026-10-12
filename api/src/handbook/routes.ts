@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import type { HandbookEntryView } from '../../../shared/types.js';
+import type { HandbookEntryView } from '@shared/types.js';
 import { displayCode } from '../codes.js';
 import { requireAuth, requirePasswordChanged } from '../auth/guards.js';
+import { sendError, sendOk } from '../http.js';
 import type { HandbookEntryRecord, HandbookRepo } from './repo.js';
 
 export function toHandbookEntryView(record: HandbookEntryRecord): HandbookEntryView {
@@ -39,17 +40,17 @@ export function createHandbookRouter({ repo }: { repo: HandbookRepo }): Router {
 
   router.get('/handbook', async (_request, response) => {
     const entries = (await repo.listEntries()).filter(isVisibleInHandbook);
-    response.status(200).json({ entries: entries.map(toHandbookEntryView) });
+    sendOk(response, { entries: entries.map(toHandbookEntryView) });
   });
 
   router.get('/handbook/:id', async (request, response) => {
     const id = parseId(String(request.params.id));
     const entry = id === null ? null : await repo.getEntry(id);
     if (!entry || !isVisibleInHandbook(entry)) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
-    response.status(200).json({ entry: toHandbookEntryView(entry) });
+    sendOk(response, { entry: toHandbookEntryView(entry) });
   });
 
   return router;

@@ -1,6 +1,74 @@
+/** `GET /health` is a probe and keeps its documented plain body; it is the only route outside the envelope. */
 export type HealthResponse = {
   status: 'ok';
 };
+
+// ---- The one API response shape ---------------------------------------------------------------
+// Every JSON response of the API, success or failure, is one of these two types. The client unwraps
+// them in one place (client/src/lib/api.ts) and the API builds them in one place (api/src/http.ts).
+
+/** Every successful response: the payload is always under `data` (`null` when there is nothing to return). */
+export type ApiSuccess<T> = {
+  ok: true;
+  data: T;
+};
+
+/**
+ * Closed set of error codes. A code is stable and machine-readable; `message` is for people and may be shown
+ * as it is. Adding a code means adding it here, so both sides see it.
+ */
+export type ApiErrorCode =
+  // transport and infrastructure
+  | 'route_not_found'
+  | 'internal_error'
+  | 'invalid_json'
+  | 'payload_too_large'
+  | 'server_not_configured'
+  | 'too_many_attempts'
+  // identity and access
+  | 'not_authenticated'
+  | 'forbidden'
+  | 'password_change_required'
+  | 'invalid_credentials'
+  | 'weak_password'
+  | 'wrong_password'
+  | 'same_password'
+  // request and state
+  | 'invalid_input'
+  | 'not_found'
+  | 'invalid_status'
+  // cases
+  | 'student_not_found'
+  | 'violation_not_found'
+  | 'violation_not_allowed'
+  | 'already_decided'
+  | 'student_not_matched'
+  | 'student_already_linked'
+  | 'sanctions_incomplete'
+  // sanctions and proof files
+  | 'sanction_not_allowed'
+  | 'already_assigned'
+  | 'due_date_in_past'
+  | 'upload_not_allowed'
+  | 'already_reviewed'
+  | 'last_file'
+  | 'files_not_viewed'
+  | 'unsupported_type'
+  | 'empty'
+  | 'too_large'
+  | 'too_many_files'
+  | 'content_mismatch';
+
+/** Every failed response (HTTP status 4xx or 5xx). */
+export type ApiFailure = {
+  ok: false;
+  error: {
+    code: ApiErrorCode;
+    message: string;
+  };
+};
+
+export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
 export type AccountRole = 'student' | 'staff';
 

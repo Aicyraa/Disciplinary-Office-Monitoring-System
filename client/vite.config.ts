@@ -13,9 +13,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     envDir: rootDir,
-    // The API port is not a secret; the client builds its API address from the page's own host and this port.
+    // The API port is not a secret; the client calls http://localhost:<this port> unless VITE_API_URL is set.
     define: { __API_PORT__: JSON.stringify(env.SERVER_PORT ?? '3000') },
-    server: { host: '127.0.0.1', port: devPort, strictPort: true },
-    preview: { host: '127.0.0.1', port: 4173, strictPort: true },
+    // One origin: the dev server and the preview of the production build both serve http://localhost:<CLIENT_PORT>
+    // (they are never run at the same time), and the API allows exactly that origin.
+    server: { host: 'localhost', port: devPort, strictPort: true },
+    preview: { host: 'localhost', port: devPort, strictPort: true },
   };
 });

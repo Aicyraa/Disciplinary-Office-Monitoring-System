@@ -1,4 +1,4 @@
-import type { Severity } from '../../../shared/types.js';
+import type { Severity } from '@shared/types.js';
 
 export interface HandbookEntryRecord {
   handbookEntryId: number;

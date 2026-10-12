@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
-import type { AccountRole } from '../../../shared/types.js';
+import { sendError } from '../http.js';
+import type { AccountRole } from '@shared/types.js';
 
 declare global {
   // Passport's documented way to type req.user; a namespace is the only form that merges.
@@ -20,7 +21,7 @@ declare global {
 /** 401 unless a session is signed in. Allowed while a password change is still pending. */
 export const requireAuth: RequestHandler = (request, response, next) => {
   if (!request.user) {
-    response.status(401).json({ error: 'not_authenticated' });
+    sendError(response, 401, 'not_authenticated', 'Sign in to continue.');
     return;
   }
   next();
@@ -29,7 +30,7 @@ export const requireAuth: RequestHandler = (request, response, next) => {
 /** 403 when the account must set a new password first (staff reset or temp password). */
 export const requirePasswordChanged: RequestHandler = (request, response, next) => {
   if (request.user?.mustChangePassword) {
-    response.status(403).json({ error: 'password_change_required' });
+    sendError(response, 403, 'password_change_required', 'You must set a new password before you can continue.');
     return;
   }
   next();
@@ -39,7 +40,7 @@ export const requirePasswordChanged: RequestHandler = (request, response, next) 
 export function requireRole(role: AccountRole): RequestHandler {
   return (request, response, next) => {
     if (request.user?.role !== role) {
-      response.status(403).json({ error: 'forbidden' });
+      sendError(response, 403, 'forbidden', 'You do not have access to this.');
       return;
     }
     next();

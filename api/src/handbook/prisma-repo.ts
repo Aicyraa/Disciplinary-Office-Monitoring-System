@@ -1,5 +1,5 @@
 import type { PrismaClient } from '../../generated/prisma/client.js';
-import type { Severity } from '../../../shared/types.js';
+import type { Severity } from '@shared/types.js';
 import type { HandbookEntryRecord, HandbookRepo } from './repo.js';
 
 const include = {

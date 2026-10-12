@@ -1,6 +1,7 @@
 import { Router, type Response } from 'express';
-import type { AuthUser, CaseStatus, Severity } from '../../../shared/types.js';
+import type { AuthUser, CaseStatus, Severity } from '@shared/types.js';
 import { requireStaff } from '../auth/guards.js';
+import { sendError, sendOk } from '../http.js';
 import { STUDENT_ID_PATTERN } from '../auth/policy.js';
 import { manilaToday } from '../me/views.js';
 import { CASE_PAGE_SIZE, type CaseQueries } from './queries.js';
@@ -34,7 +35,7 @@ const parseId = (value: string): number | null => (/^\d{1,9}$/.test(value) ? Num
 const staffId = (request: { user?: unknown }): string => (request.user as AuthUser).id;
 
 function sendFailure(response: Response, failure: CaseFailure): void {
-  response.status(HTTP_STATUS[failure.code]).json({ error: failure.code, message: failure.message });
+  sendError(response, HTTP_STATUS[failure.code], failure.code, failure.message);
 }
 
 /**
@@ -48,19 +49,19 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
   router.get('/cases', async (request, response) => {
     const { status, class: severity, q, sort, page } = request.query;
     if (status !== undefined && !STATUSES.includes(status as CaseStatus)) {
-      response.status(400).json({ error: 'invalid_input', message: 'Unknown status.' });
+      sendError(response, 400, 'invalid_input', 'Unknown status.');
       return;
     }
     if (severity !== undefined && !SEVERITIES.includes(severity as Severity)) {
-      response.status(400).json({ error: 'invalid_input', message: 'class must be Minor or Major.' });
+      sendError(response, 400, 'invalid_input', 'class must be Minor or Major.');
       return;
     }
     if (sort !== undefined && sort !== 'newest' && sort !== 'oldest') {
-      response.status(400).json({ error: 'invalid_input', message: 'sort must be newest or oldest.' });
+      sendError(response, 400, 'invalid_input', 'sort must be newest or oldest.');
       return;
     }
     if (page !== undefined && !(typeof page === 'string' && /^[1-9]\d{0,5}$/.test(page))) {
-      response.status(400).json({ error: 'invalid_input', message: 'page must be a positive whole number.' });
+      sendError(response, 400, 'invalid_input', 'page must be a positive whole number.');
       return;
     }
     const text = typeof q === 'string' ? q.slice(0, 100) : undefined;
@@ -72,35 +73,35 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
       sort: sort === 'oldest' ? 'oldest' : 'newest',
       page: pageNumber,
     });
-    response.status(200).json({ cases: rows, total, page: pageNumber, pageSize: CASE_PAGE_SIZE });
+    sendOk(response, { cases: rows, total, page: pageNumber, pageSize: CASE_PAGE_SIZE });
   });
 
   router.get('/cases/:id', async (request, response) => {
     const caseId = parseId(String(request.params.id));
     const detail = caseId === null ? null : await queries.detail(caseId, manilaToday(now()));
     if (!detail) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
-    response.status(200).json({ case: detail });
+    sendOk(response, { case: detail });
   });
 
   router.post('/cases', async (request, response) => {
     const studentId = typeof request.body?.studentId === 'string' ? request.body.studentId.trim() : '';
     const handbookEntryId = request.body?.handbookEntryId;
     if (!STUDENT_ID_PATTERN.test(studentId) || !Number.isInteger(handbookEntryId) || handbookEntryId < 1) {
-      response.status(400).json({ error: 'invalid_input', message: 'studentId (YYYY-NNNNNNN) and handbookEntryId are required.' });
+      sendError(response, 400, 'invalid_input', 'studentId (YYYY-NNNNNNN) and handbookEntryId are required.');
       return;
     }
     const result = await service.recordViolation({ employeeId: staffId(request), studentId, handbookEntryId });
     if (!result.ok) return sendFailure(response, result);
-    response.status(201).json({ caseId: result.caseId, conversions: result.conversions });
+    sendOk(response, { caseId: result.caseId, conversions: result.conversions }, 201);
   });
 
   const withRef = (request: { params: Record<string, unknown> }, response: Response): string | null => {
     const ref = String(request.params.ref);
     if (!UUID.test(ref)) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return null;
     }
     return ref.toLowerCase();
@@ -111,7 +112,7 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
     if (ref === null) return;
     const result = await service.previewEscalation(ref);
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ conversions: result.conversions });
+    sendOk(response, { conversions: result.conversions });
   });
 
   router.post('/submissions/:ref/validate', async (request, response) => {
@@ -119,7 +120,7 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
     if (ref === null) return;
     const result = await service.validateSubmission({ employeeId: staffId(request), submissionRef: ref });
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ caseIds: result.caseIds, conversions: result.conversions });
+    sendOk(response, { caseIds: result.caseIds, conversions: result.conversions });
   });
 
   router.post('/submissions/:ref/reject', async (request, response) => {
@@ -131,40 +132,40 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
       reason: request.body?.reason,
     });
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ caseIds: result.caseIds });
+    sendOk(response, { caseIds: result.caseIds });
   });
 
   router.patch('/cases/:id/student', async (request, response) => {
     const caseId = parseId(String(request.params.id));
     const studentId = typeof request.body?.studentId === 'string' ? request.body.studentId.trim() : '';
     if (caseId === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     if (!STUDENT_ID_PATTERN.test(studentId)) {
-      response.status(400).json({ error: 'invalid_input', message: 'studentId must look like YYYY-NNNNNNN.' });
+      sendError(response, 400, 'invalid_input', 'studentId must look like YYYY-NNNNNNN.');
       return;
     }
     const result = await service.linkStudent({ employeeId: staffId(request), caseId, studentId });
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ caseIds: result.caseIds });
+    sendOk(response, { caseIds: result.caseIds });
   });
 
   router.post('/cases/:id/resolve', async (request, response) => {
     const caseId = parseId(String(request.params.id));
     if (caseId === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const result = await service.resolveCase({ employeeId: staffId(request), caseId });
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ ok: true });
+    sendOk(response, { ok: true });
   });
 
   router.post('/cases/:id/resolve-without-sanction', async (request, response) => {
     const caseId = parseId(String(request.params.id));
     if (caseId === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const result = await service.resolveWithoutSanction({
@@ -173,18 +174,18 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
       reason: request.body?.reason,
     });
     if (!result.ok) return sendFailure(response, result);
-    response.status(200).json({ ok: true });
+    sendOk(response, { ok: true });
   });
 
   router.post('/cases/:id/remarks', async (request, response) => {
     const caseId = parseId(String(request.params.id));
     if (caseId === null) {
-      response.status(404).json({ error: 'not_found' });
+      sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
     const result = await service.addRemark({ employeeId: staffId(request), caseId, remarks: request.body?.remarks });
     if (!result.ok) return sendFailure(response, result);
-    response.status(201).json({ ok: true });
+    sendOk(response, { ok: true }, 201);
   });
 
   return router;

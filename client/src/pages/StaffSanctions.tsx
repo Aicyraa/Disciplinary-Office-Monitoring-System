@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { StaffProofFileView, StaffSanctionView } from '../../../shared/types';
+import type { StaffProofFileView, StaffSanctionView } from '@shared/types';
 import { ReasonForm } from '../components/ReasonForm';
 import { Icon, Resource, StatusPill, buttonClass, fieldClass } from '../components/ui';
 import { api, toApiError } from '../lib/api';

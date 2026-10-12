@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { StudentSanctionView } from '../../../shared/types';
+import type { StudentSanctionView } from '@shared/types';
 import { api, toApiError } from '../lib/api';
 import { ACCEPTED_EXTENSIONS, MAX_FILES, checkSelection, formatSize } from '../lib/files';
 import { buttonClass } from './ui';
@@ -96,7 +96,7 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
                           : undefined
                       }
                       className="rounded-md border border-line-strong bg-white px-2 py-0.5 text-xs font-medium text-danger disabled:opacity-50"
-                      onClick={() => void run(() => api.deleteProofFile(file.id), 'File removed.')}
+                      onClick={() => void run(() => api.deleteProofFile(file.id).then(() => undefined), 'File removed.')}
                     >
                       Remove
                     </button>

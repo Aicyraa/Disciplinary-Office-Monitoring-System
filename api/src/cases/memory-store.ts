@@ -1,4 +1,4 @@
-import type { Severity } from '../../../shared/types.js';
+import type { Severity } from '@shared/types.js';
 import type { HandbookSanctionRow } from '../sanctions/rules.js';
 import type {
   CasePatch,

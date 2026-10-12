@@ -1,4 +1,4 @@
-import type { CaseSanctionStatus, CaseStatus, Severity } from '../../../shared/types.js';
+import type { CaseSanctionStatus, CaseStatus, Severity } from '@shared/types.js';
 import type { HandbookSanctionRow } from '../sanctions/rules.js';
 import type { EscalationCandidate } from './escalation.js';
 

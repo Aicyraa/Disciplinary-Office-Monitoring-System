@@ -1,5 +1,5 @@
 import type { PrismaClient } from '../../generated/prisma/client.js';
-import type { AppointmentStatus, CaseSanctionStatus, CaseStatus, Severity } from '../../../shared/types.js';
+import type { AppointmentStatus, CaseSanctionStatus, CaseStatus, Severity } from '@shared/types.js';
 import type { CaseRecord, StudentViewRepo } from './repo.js';
 
 type Db = Pick<

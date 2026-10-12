@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
-import type { AuthUser, HandbookEntryView } from '../../shared/types';
+import type { AuthUser, HandbookEntryView } from '@shared/types';
 import { resolveAccess } from './App';
 import { AuthProvider } from './auth/AuthContext';
 import { StatusPill } from './components/ui';

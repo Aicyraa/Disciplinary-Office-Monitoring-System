@@ -1,4 +1,4 @@
-import type { AccountRole } from '../../../shared/types.js';
+import type { AccountRole } from '@shared/types.js';
 
 export interface AccountRecord {
   id: string;

@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import type { AccountRole } from '../../../shared/types.js';
+import type { AccountRole } from '@shared/types.js';
 
 export const STUDENT_EMAIL_DOMAIN = '@students.nu-fairview.edu.ph';
 export const STAFF_EMAIL_DOMAIN = '@nu-fairview.edu.ph';
