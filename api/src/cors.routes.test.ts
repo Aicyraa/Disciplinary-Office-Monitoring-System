@@ -92,6 +92,46 @@ describe('CORS: exactly one browser origin', () => {
     expect(dev.headers['access-control-allow-origin']).toBeUndefined();
   });
 
+  test('session cookie: HttpOnly and not Secure over plain http://localhost (so local runs keep the session)', async () => {
+    const login = await request(appWith())
+      .post('/auth/login')
+      .send({ email: 'ana@students.nu-fairview.edu.ph', password: 'Passw0rd1' });
+    const cookie = String(login.headers['set-cookie']);
+    expect(cookie).toMatch(/sdo\.sid=/);
+    expect(cookie).toMatch(/HttpOnly/i);
+    expect(cookie).toMatch(/SameSite=Lax/i);
+    expect(cookie).not.toMatch(/Secure/i);
+  });
+
+  test('session cookie behind a TLS proxy (https origin): Secure, and set when X-Forwarded-Proto says https', async () => {
+    const repo = createMemoryAccountRepo([
+      {
+        role: 'student',
+        id: '2025-0000001',
+        email: 'ana@students.nu-fairview.edu.ph',
+        firstName: 'Ana',
+        lastName: 'Cruz',
+        passwordHashed: bcrypt.hashSync('Passw0rd1', 4),
+        mustChangePassword: false,
+        isActive: true,
+      },
+    ]);
+    const app = createApp({
+      auth: {
+        service: createAuthService({ repo, rounds: 4 }),
+        sessionSecret: 'test-secret-test-secret-test-secret-1',
+        clientOrigin: 'https://sdo.example.edu',
+        secureCookies: true,
+      },
+    });
+    const login = await request(app)
+      .post('/auth/login')
+      .set('X-Forwarded-Proto', 'https')
+      .send({ email: 'ana@students.nu-fairview.edu.ph', password: 'Passw0rd1' });
+    expect(login.status).toBe(200);
+    expect(String(login.headers['set-cookie'])).toMatch(/Secure/i);
+  });
+
   test('an app configured with something that is not an http(s) origin refuses to be built', () => {
     expect(() => appWith('localhost:5173')).toThrow(/http\(s\) origin/);
     expect(() => appWith('null')).toThrow(/http\(s\) origin/);

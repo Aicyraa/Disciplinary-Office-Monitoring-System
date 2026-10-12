@@ -65,10 +65,18 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, request, respo
     sendError(response, 413, 'payload_too_large', 'The request body is too large.');
     return;
   }
+  // A malformed percent-encoded path (for example /staff/students/%E0%A4%A/reset-password): the router throws
+  // a URIError. That is the client's fault, not the server's.
+  if (error instanceof URIError) {
+    sendError(response, 400, 'invalid_input', 'The address of the request is not valid.');
+    return;
+  }
+  // Any other error that carries a 4xx status (body-parser faults such as an unsupported charset or an aborted
+  // request, or an http-errors 4xx) is the client's problem too.
   const status = parserError.status ?? parserError.statusCode;
-  if (typeof status === 'number' && status >= 400 && status < 500 && typeof parserError.type === 'string') {
-    // Other body-parser faults (unsupported charset or encoding, aborted request): the client's problem.
-    sendError(response, status, 'invalid_input', 'The request could not be read.');
+  if (typeof status === 'number' && status >= 400 && status < 500) {
+    if (status === 404) sendError(response, 404, 'route_not_found', 'There is no such route.');
+    else sendError(response, status, 'invalid_input', 'The request could not be read.');
     return;
   }
 

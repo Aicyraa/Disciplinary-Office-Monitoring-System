@@ -107,6 +107,31 @@ describe('notFoundHandler and errorHandler in isolation', () => {
     expect(errorLog).not.toHaveBeenCalled();
   });
 
+  test('a malformed percent-encoded path is a 400, not a 500, and is not logged as a server error', async () => {
+    const app = express();
+    app.get('/item/:id', (request, response) => sendOk(response, { id: request.params.id }));
+    app.use(notFoundHandler);
+    app.use(errorHandler);
+    const response = await request(app).get('/item/%E0%A4%A');
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual(failure('invalid_input', 'The address of the request is not valid.'));
+    expect(errorLog).not.toHaveBeenCalled();
+  });
+
+  test('an error carrying its own 4xx status is answered with that status, never a 500', async () => {
+    const app = express();
+    app.get('/teapot', (_q, _r, next) => next(Object.assign(new Error('x'), { status: 418 })));
+    app.get('/gone', (_q, _r, next) => next(Object.assign(new Error('x'), { statusCode: 404 })));
+    app.use(errorHandler);
+    const teapot = await request(app).get('/teapot');
+    expect(teapot.status).toBe(418);
+    expect(teapot.body.error.code).toBe('invalid_input');
+    const gone = await request(app).get('/gone');
+    expect(gone.status).toBe(404);
+    expect(gone.body.error.code).toBe('route_not_found');
+    expect(errorLog).not.toHaveBeenCalled();
+  });
+
   test('malformed JSON is a 400 invalid_json', async () => {
     const response = await request(build()).post('/echo').set('Content-Type', 'application/json').send('{"a":');
     expect(response.status).toBe(400);
@@ -178,6 +203,13 @@ describe('the handlers in the real app', () => {
     expect(health.status).toBe(404);
     expect(health.body.error.code).toBe('route_not_found');
     expect((await request(healthOnlyApp).get('/health')).body).toEqual({ status: 'ok' });
+  });
+
+  test('a malformed percent-encoded path under the real app is a 400 envelope', async () => {
+    const response = await request(appWithRepo()).post('/staff/students/%E0%A4%A/reset-password');
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('invalid_input');
+    expect(errorLog).not.toHaveBeenCalled();
   });
 
   test('malformed JSON on login is a 400 invalid_json, not a 500 and not an HTML page', async () => {

@@ -60,7 +60,9 @@ function buildApp() {
       sessionSecret: SESSION_SECRET,
       clientOrigin,
       sessionStore,
-      secureCookies: isProduction,
+      // Secure cookies exactly when the client is served over https (a real deployment). A local production-mode
+      // run over http://localhost must still be able to hold a session.
+      secureCookies: clientOrigin.startsWith('https:'),
     },
     data: {
       handbook: createPrismaHandbookRepo(prisma),

@@ -78,6 +78,10 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
   if (auth) {
     const origin = clientOriginFrom(auth.clientOrigin);
     if (origin === null) throw new Error(`clientOrigin must be an http(s) origin such as http://localhost:5173 (got "${auth.clientOrigin}")`);
+    // Behind a TLS-terminating proxy the API itself sees http; express-session only sets a Secure cookie when it
+    // believes the connection is secure, so it must trust the proxy's X-Forwarded-Proto. (Also makes req.ip,
+    // used by the login rate limit, the client's address rather than the proxy's.)
+    if (auth.secureCookies) app.set('trust proxy', 1);
     app.use(helmet());
     app.use(clientCors(origin));
     app.use(express.json({ limit: '100kb' }));

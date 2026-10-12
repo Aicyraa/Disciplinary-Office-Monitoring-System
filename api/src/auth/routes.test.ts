@@ -83,6 +83,10 @@ describe('POST /auth/login', () => {
     }
     const blocked = await request(app).post('/auth/login').send({ email: STUDENT_EMAIL, password: PASSWORD });
     expect(blocked.status).toBe(429);
+    expect(blocked.body).toEqual({
+      ok: false,
+      error: { code: 'too_many_attempts', message: 'Too many sign-in attempts. Try again later.' },
+    });
   });
 
   test('a successful login on another account does not refund guesses at the victim', async () => {
