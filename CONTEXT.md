@@ -559,3 +559,11 @@ Findings (none blocking):
 - Non-blocking findings: (1) no test proves lock-before-read (memory `lockStudent` is a no-op) or atomicity after a mid-transaction failure; (2) PATCH tests do not send a legal field together with `endDate`/`studentId`; (3) `isExclusionViolation` checks message, `code` and `cause` but not Prisma `meta`; with the FOR UPDATE lock the race is narrow, but the real Prisma error shape is unproven; (4) no component test for `StaffAppointments.tsx`; tab buttons use `role=tab` without tabpanel or arrow keys; (5) PATCH sending an unchanged past `startDate` with a purpose change is refused `invalid_date` (the shipped client does not do this).
 - Not verified by me: `npm run dev` / Playwright and three widths (needs live API and DB, not run); Serena diagnostics only worked for `after-commit.ts` (clean) because the Serena project points at another worktree, so `tsc` was the substitute for the other files; real Prisma/Neon path and email delivery for `appt` rows.
 - Add HUMAN CHECK: with the app on the dev branch, as staff make two overlapping appointments for one student concurrently (two tabs, same student) -> exactly one 201, the other 409 `appointment_overlap`, never a 500.
+
+
+## docs-sync branch worktree-docs-sync
+
+The human authorized the doc edits that earlier tasks had raised as `SPEC CHANGE:` (2026-10-12). Done in this branch, docs only (no code):
+- SPEC 0: new decisions 16 (online proof only), 17 (no appointment reminders, no holidays, no student actions), 18 (UI fidelity pass is step 10). SPEC 4.3, 4.5, 4.6, 6.1, 7, 10 updated; FEATURE-RULES 3.6, 3.7, 3.8, 3.10; POWER-AUTOMATE section 4 rule 5 (2xx without `status` = sent) and section 5 (per-row cooldown, no reminder); CLAUDE.md (preview port, bucket keys, staff mail wording, settled decisions, build order step 10).
+- SPEC 7 now lists the routes as built: `PATCH /cases/:id/student`, `GET /cases/:id/sanction-options`, `GET /cases/:id`, the 1000-character cap, `POST /files` as the submission with `case_sanction_files` ids, no `/submit` and no `/record-compliance`, the five appointment routes, `/notifications` for staff, and the response envelope note.
+- Not changed: `db/schema.sql` (`case_sanctions.compliance_note` and the `compliance_recorded` event stay, unused).

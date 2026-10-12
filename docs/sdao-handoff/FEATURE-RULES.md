@@ -38,21 +38,22 @@ For each feature: the spec section to read, and the rules that must not be broke
 ### 3.6 Sanctions and proof (SPEC 4.3, 6.1)
 - `case_sanctions.status`: `assigned → pending_verification → completed`, with `returned` (reason) looping back. Staff choose only sanctions the handbook allows for that violation and offense number, set a flexible `due_date` (today or later; UI may pre-fill +14 days), and optional `staff_note`.
 - Student proof: PDF/DOCX only, ≤ 10 MB each, max 5 files; allowed while `assigned` or `returned`; while pending verification they may replace or remove a file but never the last one; rejected with "already reviewed" if staff already reviewed.
-- **Verify is blocked until staff opened every file** (`date_viewed` set). "Late by N days" is derived, not stored.
+- **Online proof only (SPEC decision 16):** a sanction reaches `pending_verification` only through a student upload (`POST /files` is the submission). There is no record-compliance path.
+- **Verify needs at least one file and is blocked until staff opened every file** (`date_viewed` set); a pending sanction with no file can only be returned. "Late by N days" is derived, not stored.
 - Verify sets `date_completed` and `verified_by_employee_id`.
 - Offense number is computed by the API (SPEC 4.3, decision 14): 1 + the student's earlier `validated`/`for_sanction`/`resolved` cases for the same violation. It selects the allowed sanctions; never accept it from the client. Pure function, unit-tested.
 
 ### 3.7 Files and sanction templates (SPEC 6.1)
 - Bytes live in the Neon Object Storage **private** bucket; metadata in `files`. Keys: `proof/{case_sanction_id}/{uuid}.{ext}` and `templates/{sanction_id}/{uuid}.{ext}`.
 - Upload goes **through Express** (`multer`, memory storage, 10 MB limit, check magic bytes: PDF `%PDF`, DOCX `PK`). Do not use browser presigned PUT (bucket CORS unconfirmed). Download via a ~60-second presigned GET after an authorization check (owner student or any staff). Opening a proof as staff sets `date_viewed` / `viewed_by_employee_id`.
-- S3 client needs `forcePathStyle: true` and `requestChecksumCalculation: 'WHEN_REQUIRED'`. Env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`.
+- S3 client needs `forcePathStyle: true` and `requestChecksumCalculation: 'WHEN_REQUIRED'`. Env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `STORAGE_BUCKET_FILES` (proof files) and `STORAGE_BUCKET_TEMPLATES` (templates, never a fallback to the files bucket). A storage failure answers 503 `storage_unavailable`.
 - Each sanction has a template page (title, description, written requirements) with downloadable PDF/DOCX. Students download; staff manage them.
 - In-browser preview: PDF in an iframe, DOCX with `mammoth` (frontend only). The bucket returns permissive CORS headers (smoke test, SPEC 11 item 2), so the browser may `fetch` the presigned URL directly; no API proxy route is needed.
 
 ### 3.8 Appointments (SPEC 4.5)
 - Staff pick a student, a start date (today … +60 days, not Sunday), purpose, optional notes. `end_date` = start + 5 more working days (Sundays skipped). 7:00 AM–5:00 PM is a UI display, not stored.
 - Overlapping live (`scheduled`/`rescheduled`) windows for one student are rejected by the database exclusion constraint (`btree_gist`). Map that error to a friendly message.
-- Status: `scheduled → rescheduled → completed / cancelled` (reason required). Everything is logged in `appointment_history` and notified. A reminder goes out the day before the start date (in-API job, key `appt:<id>:reminder`; see POWER-AUTOMATE section 5).
+- Status: `scheduled → rescheduled → completed / cancelled` (reason required). Everything is logged in `appointment_history` and notified. There is **no reminder** (SPEC decision 17): the student is notified only when staff set or change an appointment, students have no actions, and there is no holiday list. The end date is computed by the API and never read from a request.
 
 ### 3.9 Clearance (SPEC 4.4) — manual
 - One `clearances` row per student and term (`academic_year` = start year, `semester` 1–3). Default checklist = `requirements WHERE is_default`; staff can add/remove custom items per student.
@@ -60,7 +61,7 @@ For each feature: the spec section to read, and the rules that must not be broke
 
 ### 3.10 Notifications and timelines (SPEC 4.6, 6.3, POWER-AUTOMATE)
 - **There is no separate announcements/notices feature.** Notifications carry every admin update: sanction assigned or changed, appointment made or moved, case validated/rejected/resolved, clearance changes, password reset.
-- Use one helper `notify({recipient, kind, title, message, link, idempotencyKey})`. If the `idempotency_key` exists, do nothing. Keys look like `san:12:completed`, `case:7:resolved`, `appt:3:new`. Students have `recipient_type='student'`; all staff share one mailbox (`recipient_type='staff'`, `student_id` NULL). Deep link = `link_type + link_id`.
+- Use one helper `notify({recipient, kind, title, message, link, idempotencyKey})`. If the `idempotency_key` exists, do nothing. Keys look like `san:12:completed`, `case:7:resolved`, `appt:3:new`. Students have `recipient_type='student'`; all staff share one in-app inbox (`recipient_type='staff'`, `student_id` NULL), and a staff alert is emailed to every active employee account (no `SDO_STAFF_MAILBOX`). Deep link = `link_type + link_id`.
 - Student UI: inbox, unread badge, a "you have N unread" toast after login.
 - Every case, sanction, appointment and clearance has a timeline of who did what and when (the `*_history` tables).
 

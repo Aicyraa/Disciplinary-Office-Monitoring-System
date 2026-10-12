@@ -25,7 +25,10 @@ The prototype is **front-end only**: state lives in memory, the date is fixed at
 | 12 | Gate-form protection | **No captcha and no third-party service.** The public endpoint is protected by a per-IP rate limit and a form-timing token (signed when the form opens; rejected if submitted under 3 seconds or over 30 minutes later), plus validation, a body-size limit and the duplicate unique index. All checks sit behind one `verifyHuman()` function so a captcha can be added later without changing the form flow |
 | 13 | Accounts and ids | Accounts are **added manually** (SQL seed file with bcrypt hashes; no create-account screen in version 1). Student id format is `YYYY-NNNNNNN`: 4 digits, a dash, 7 digits (11 digits in total, regex `^\d{4}-\d{7}$`), e.g. `2023-1030333`. Display codes are a letter plus the numeric id padded to **3 digits** (`S001`, `V001`, `C001`); ids above 999 simply grow (`S1000`) |
 | 14 | Offense number and retry cap | **Offense number** of a case = 1 + the number of the same student's earlier cases (by `case_date`, then id) for the same violation that are `validated`, `for_sanction` or `resolved`; `reported` and `rejected` never count. It selects the `handbook_entry_sanctions` rows offered to staff (4.3). **Notification retry cap:** the in-API sweep retries `pending` emails for 24 hours after `date_created`, then marks them `failed` (no schema change) |
-| 15 | Email sender | The **flow owner's own account** sends every email (their mail connection in "Send an email (V2)"). No shared mailbox, no "send as", no NU IT request. All employee accounts **recieves** the notifications both in-app and outlook address 
+| 15 | Email sender | The **flow owner's own account** sends every email (their mail connection in "Send an email (V2)"). No shared mailbox, no "send as", no NU IT request. All employee accounts **recieves** the notifications both in-app and outlook address
+| 16 | Proof of sanctions | **Online only.** A student uploads files; staff open every file and then verify. No in-person "record compliance" path (4.3). Settled 2026-10-12 |
+| 17 | Appointment reminders | **None.** The student is notified only when staff create or change an appointment; students have no appointment actions; no holiday list (4.5). Settled 2026-10-12 |
+| 18 | UI fidelity | The first UI passes (steps 2 to 9) use the design tokens and existing components; a **prototype-fidelity pass over every page is build step 10**. Settled 2026-10-12 | 
 
 ---
 
@@ -130,14 +133,15 @@ reported ──validate──▶ validated ──assign sanction──▶ for_sa
 
 ### 4.3 Sanctions (`case_sanctions.status`)
 ```
-assigned ──(student uploads proof OR staff records compliance)──▶ pending_verification
+assigned ──(student uploads proof)──▶ pending_verification
 pending_verification ──verify──▶ completed
 pending_verification ──return (reason)──▶ returned ──(student re-uploads)──▶ pending_verification
 ```
 - Staff pick the sanction(s) from the ones the handbook allows for that violation and offense number, set a **due date** (flexible), and add optional instructions (`staff_note`).
 - **Offense number (decision 14):** computed by the API when staff open the assign step, never typed: 1 + the count of the same student's earlier cases for the same violation with status `validated`, `for_sanction` or `resolved` (ordered by `case_date`, then id). A converted Major ("3 minor offense") counts against H068, not against the original violation. If a violation has no `handbook_entry_sanctions` row for that offense number, offer the highest defined offense number for it.
 - Student proof rules: PDF/DOCX only, ≤ 10 MB each, max **5** files; allowed while `assigned` or `returned`; while `pending_verification` the student may replace a file or remove one but **not the last one**; if staff already reviewed, those actions are rejected with "already reviewed".
-- **Verify is blocked until every file has `date_viewed`** (staff opened it). The UI shows "n of m viewed".
+- **Online proof only (decision 16).** There is no in-person "record compliance" path: a sanction reaches `pending_verification` only when the student uploads at least one file (`POST /files` is the submission; there is no separate submit call). `case_sanctions.compliance_note` stays in the schema but is unused.
+- **Verify needs at least one file, and is blocked until every file has `date_viewed`** (staff opened it). The UI shows "n of m viewed". A pending sanction with no file cannot be verified, only returned.
 - "Late by N days" is derived from `due_date`, not stored.
 - Verifying sets `date_completed` and `verified_by_employee_id` (enforced by a DB check).
 
@@ -151,11 +155,12 @@ pending_verification ──return (reason)──▶ returned ──(student re-u
 - Staff assign a student, a **start date** (today … +60 days, not Sunday), a purpose and optional notes. `end_date` = start + 5 more working days (Sundays skipped). Hours are 7:00 AM–5:00 PM for the whole window (shown in the UI, not stored).
 - The database rejects overlapping live (`scheduled`/`rescheduled`) windows for the same student.
 - Changing the start date → `rescheduled`; staff can mark `completed` or `cancelled` (reason required). All logged in `appointment_history` and notified.
-- A job inside the API (an interval started in `server.ts`, see `POWER-AUTOMATE.md` section 5) sends a reminder notification the day before the start date, with idempotency key `appt:<id>:reminder`.
+- **No reminders (decision 17).** The student is notified only when staff set, move, edit, complete or cancel an appointment (keys `appt:<id>:new`, `appt:<id>:rescheduled:<ms>`, `appt:<id>:remarks:<ms>`, `appt:<id>:completed`, `appt:<id>:cancelled`). Students have no actions on appointments. There are no holidays: only Sundays are skipped.
+- Staff routes: `GET /appointments?bucket=upcoming|history&q=&page=` (10 per page), `POST /appointments`, `PATCH /appointments/:id` (only `startDate`, `purpose`, `notes` are read; a new `startDate` = `rescheduled`, text-only = `remarks_updated`), `POST /appointments/:id/complete`, `POST /appointments/:id/cancel`. The end date is always computed by the API.
 
 ### 4.6 Notifications
 - Helper: `notify({recipient, kind, title, message, link, idempotencyKey})`. If `idempotency_key` already exists, do nothing. Example keys: `san:12:completed`, `case:7:resolved`, `appt:3:new`.
-- Student notifications use `recipient_type = 'student'` + `student_id`. All staff share **one** mailbox (`recipient_type = 'staff'`, `student_id` NULL), matching your "single department" rule.
+- Student notifications use `recipient_type = 'student'` + `student_id`. All staff share **one** in-app inbox (`recipient_type = 'staff'`, `student_id` NULL), matching your "single department" rule. A staff alert is emailed to **every active employee account** (there is no `SDO_STAFF_MAILBOX`).
 - **Order: commit first, notify second.** The API writes the DB change and the `notifications` row (`email_status = 'pending'`) in one transaction, then, after commit and in the background, sends the `{ "type", "payload" }` envelope to Power Automate **Flow 2**. Flow 2 sends the email and answers in its HTTP Response with `sent` or `failed`; the API sets `email_status` from that reply (decision 11). Timeouts and non-2xx leave the row `pending`, and an in-API sweep retries it. Details and payloads in `POWER-AUTOMATE.md`.
 - Inbox query for a student = their notifications, newest first.
 - Deep link `link_type + link_id` maps to a page: case, sanction, appointment, student, clearance, inbox.
@@ -208,6 +213,7 @@ Facts from Neon's docs ([overview](https://neon.com/docs/storage/overview), [get
 - S3 client needs `forcePathStyle: true` and `requestChecksumCalculation: 'WHEN_REQUIRED'` (also affects presigned PUT).
 - Regions: Ohio, N. Virginia, Frankfurt, **Singapore (`aws-ap-southeast-1`, closest to the Philippines)**. A Neon project's storage follows its region; check yours in the console.
 - Each branch has its own storage namespace, so a dev branch won't touch production files.
+- **Two buckets, both private and created by the human in Neon (the API never creates buckets):** `STORAGE_BUCKET_FILES` (default name `assets-files`) holds student proof files; `STORAGE_BUCKET_TEMPLATES` (default `assets-sanction-templates`) holds the sanction template files staff upload (build step 8). Templates never fall back to the files bucket. Older spellings `BUCKET_STORAGE_FILES`, `BUCKET_STORAGE` and `STORAGE_BUCKET` are still read for the files bucket.
 
 Suggested flow (keeps files private, needs no bucket CORS):
 1. **Upload (through the API):** the client sends `POST /files` as `multipart/form-data` (sanction id + file). The server validates (mime, ≤ 10 MB, ≤ 5 files, status allows upload; use `multer` with memory storage and a 10 MB limit), checks the first bytes (PDF starts with `%PDF`, DOCX is a ZIP starting with `PK`), uploads to the key `proof/{case_sanction_id}/{uuid}.{ext}`, then inserts `files` + `case_sanction_files` + a timeline entry + notifications in one transaction. If the insert fails, delete the object.
@@ -239,25 +245,33 @@ GET  /handbook   GET /handbook/:id   (student + staff)
 POST|PATCH /handbook ...             PUT /handbook/sanctions/:id/template        (staff)
 
 GET  /cases?status=&class=&q=&sort=&page=     (staff)     GET /me/cases (student)
+GET  /cases/:id                               (staff)     GET /me/cases/:id (student)
 POST /cases                                   (staff records violation)
 POST /submissions/:id/validate | /reject      GET /submissions/:id/escalation-preview
+PATCH /cases/:id/student                      (staff links a reported case to a student id)
+GET  /cases/:id/sanction-options              (staff: offense number + allowed sanctions, computed by the API)
 POST /cases/:id/sanctions   (sanction_id, due_date, staff_note)
 POST /cases/:id/resolve | /resolve-without-sanction | /remarks
+# Free text (reasons, remarks, notes, instructions) is capped at 1000 characters everywhere.
 
-GET  /sanctions   GET /me/sanctions
-POST /files (multipart)   GET /files/:id/url   DELETE /files/:id
-POST /case-sanctions/:id/submit | /record-compliance | /verify | /return
+GET  /me/sanctions
+POST /files (multipart; this one request IS the submission)   GET /files/:id/url   DELETE /files/:id
+#   `:id` is the `case_sanction_files` id. A replace sends `replaceFileId` with exactly one file.
+POST /case-sanctions/:id/verify | /return       # no /submit and no /record-compliance (online proof only)
 
 GET  /students  GET /students/:id   POST /students/:id/reset-password
 GET|POST /clearances ...   POST /clearances/:id/requirements/:rid/complete | /reverse
-GET|POST|PATCH /appointments ...   POST /appointments/:id/complete | /cancel
-GET  /me/notifications     POST /me/notifications/:id/read
+GET  /appointments?bucket=&q=&page=   POST /appointments   PATCH /appointments/:id
+POST /appointments/:id/complete | /cancel        GET /me/appointments (student)
+GET  /me/notifications   POST /me/notifications/:id/read | /read-all
+GET  /notifications      POST /notifications/:id/read | /read-all      (staff: the one shared inbox)
 
 GET  /public/gate-form-token                       (public: issues the signed form-timing token)
 POST /public/gate-reports                          (public: verifyHuman + rate limit; then triggers Flow 1)
 
 # No /integrations/* endpoints: Power Automate never calls the API (decision 11).
-# Retries and reminders run as an in-API job.
+# Email retries run as an in-API sweep. There are no reminder jobs (decision 17).
+# Every response is { ok: true, data } or { ok: false, error: { code, message } } (shared/types.ts), except GET /health.
 ```
 Authorization: a student reads only their own cases, sanctions, appointments, clearance and notifications. Staff are one department and see everything (your ERD rule).
 
@@ -292,7 +306,7 @@ eives staff alerts are all employee accounts inside the employee table.
 7. Appointments → Clearance.
 8. Sanction templates and handbook admin.
 9. Public gate form + `verifyHuman()` (form-timing token + rate limit) + Flow 1 (last: needs the abuse protection).
-10. Polish: empty/error states, accessibility, PWA manifest.
+10. Polish: a **prototype-fidelity pass over every page** (layout, components, copy and the three widths, matched to `design-reference/sdo-portal.source.html`; decision 18), then empty/error states, accessibility, PWA manifest.
 
 ### Your existing repo (`Aicyraa/Disciplinary-Office-Monitoring-System`)
 Already there: Express 5 + TypeScript 7 API, Prisma 7.10 (pg adapter) on Neon, React 19 + Vite + Tailwind v4 + react-hook-form + react-router, passport-local + express-session + connect-pg-simple + bcryptjs + helmet + express-rate-limit, a private bucket `assets` declared in `neon.ts`, root `.env` as the single config source. Not yet there: any domain model, auth behavior, or client API calls.

@@ -115,15 +115,15 @@ Rules:
 2. `payload` is a plain JSON object built by a **pure builder function per `type`** (so tests need no network and no database). Never spread request bodies or DB rows into it.
 3. The flow reads `triggerBody()?['type']` and `triggerBody()?['payload']?['<field>']`. Each flow's Parse JSON schema must declare both keys.
 4. The helper reads the URL lazily from env (`PA_NOTIFY_URL`, or `PA_GATE_URL` for `type: "report"` from the gate form), uses a 10-second timeout, and never throws into the business transaction.
-5. It returns `{ outcome: 'sent' | 'failed' | 'unknown' }`: HTTP 200 with `status:"sent"` → `sent`; 200 with `status:"failed"` → `failed`; network error, timeout, non-2xx or unparsable body → `unknown` (row stays `pending`).
+5. It returns `{ outcome: 'sent' | 'failed' | 'unknown' }`: HTTP 200 with `status:"sent"` → `sent`; 200 with `status:"failed"` → `failed`; **any 2xx whose body has no `status` field (a trigger with no Response action answers 202 with an empty body) → `sent`**, with one warning in the server log, because retrying would email the person again; network error, timeout, non-2xx or an unrecognised `status` value → `unknown` (row stays `pending`). Add a Response action to the flow to report real success or failure.
 6. It never logs the URL or `html_body`.
 7. Send happens **after commit**, in the background (not inside the user's request).
 8. Tests (API level, fake `fetch`): body has exactly `type` + `payload`; each outcome maps to the right `email_status`; the call happens only after the transaction committed; an unknown `type` fails type-check.
 
-## 5. Retries, sweeps and reminders (inside the API, version 1)
+## 5. Retries and sweeps (inside the API, version 1)
 
-- On `unknown`, the row stays `email_status = 'pending'` and the helper retries up to 3 times with backoff.
-- A **sweep** inside the API (a `setInterval` started in `api/src/server.ts`, never in `app.ts`, no new dependency) re-sends `pending` rows older than a few minutes, and sends the **day-before appointment reminder** with an idempotency key such as `appt:3:reminder`.
+- On `unknown`, the row stays `email_status = 'pending'`. Each row is sent **once per pass**, then waits 1 minute, doubling up to 30 minutes, before it is tried again (kept in memory, so it resets when the API restarts). Requests to the flow are paced about 250 ms apart and at most 20 rows are looked at per pass.
+- A **sweep** inside the API (a `setInterval` started in `api/src/server.ts`, never in `app.ts`, no new dependency) re-sends `pending` rows. There is **no appointment reminder** (SPEC decision 17).
 - Rows still `pending` 24 hours after `date_created` are marked `failed` (SPEC decision 14; no schema change).
 - Caveat: a free host that sleeps when idle stops the sweep. On `localhost` it runs while the API runs. Production decides the host.
 - Known risk: if the flow sent the email but the response timed out, a retry sends a **duplicate email**. PA cannot dedupe on `idempotency_key`. Accepted for version 1.

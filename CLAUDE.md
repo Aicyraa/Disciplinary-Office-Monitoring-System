@@ -16,7 +16,7 @@ All paths are under `docs/sdao-handoff/`.
 Rules for working from the spec:
 - Before building a feature, read its section in `SPEC.md` (`FEATURE-RULES.md` says which section, and lists the rules that must not be broken). Do not invent rules; if the spec is silent or ambiguous, ask.
 - The prototype is front-end only, so **every rule must be enforced by the API**, never only by the UI.
-- Settled decisions (SPEC section 0) are not reopened: snake_case, flexible sanction due date, manual clearance, no student statement, 6-working-day appointment windows (Mon–Sat, 7:00 AM–5:00 PM), Asia/Manila time (store UTC `timestamptz`), 3-minors-of-any-kind escalation, gate form stays a web form, Power Automate trust is the signed trigger URL (no shared secret, no callback), gate-form protection is a per-IP rate limit plus a form-timing token (no captcha).
+- Settled decisions (SPEC section 0) are not reopened: snake_case, flexible sanction due date, manual clearance, no student statement, 6-working-day appointment windows (Mon–Sat, 7:00 AM–5:00 PM), Asia/Manila time (store UTC `timestamptz`), 3-minors-of-any-kind escalation, gate form stays a web form, Power Automate trust is the signed trigger URL (no shared secret, no callback), gate-form protection is a per-IP rate limit plus a form-timing token (no captcha), sanction proof is online upload only (no in-person compliance), and there are no appointment reminders.
 - Keep the schema and spec in sync: a schema change means updating `db/schema.sql` and the matching spec section in the same change.
 
 ## 2. What we are building
@@ -77,7 +77,7 @@ The per-feature rules that must not be broken live in `docs/sdao-handoff/FEATURE
 - The throwaway `ConnectionTest` model/table is setup scaffolding; remove it when the real models land (human confirms first).
 
 ## 6. Build order (SPEC 10)
-1. Neon: schema + seed (schema already applied on dev), bucket and credentials, one upload/download smoke test. 2. Auth. 3. Handbook + read-only student pages. 4. Case workflow + escalation (tests first). 5. Sanctions + proof. 6. Notifications + Power Automate (Flow 2, the `{type, payload}` helper, in-API retry sweep). 7. Appointments → Clearance. 8. Templates + handbook admin. 9. Public gate form + bot protection + Flow 1. 10. Polish.
+1. Neon: schema + seed (schema already applied on dev), bucket and credentials, one upload/download smoke test. 2. Auth. 3. Handbook + read-only student pages. 4. Case workflow + escalation (tests first). 5. Sanctions + proof. 6. Notifications + Power Automate (Flow 2, the `{type, payload}` helper, in-API retry sweep). 7. Appointments → Clearance. 8. Templates + handbook admin. 9. Public gate form + bot protection + Flow 1. 10. Polish, starting with a prototype-fidelity pass over every page (SPEC decision 18).
 Work one feature at a time; finish and verify it before the next.
 
 ## 7. Design and UI (from the prototype, SPEC 9)
@@ -106,12 +106,12 @@ Work one feature at a time; finish and verify it before the next.
 - Root: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`, `npm run dev`, `npm start`. Each child has the same scripts; run with `npm --prefix api ...` / `npm --prefix client ...`.
 - Tests: Vitest 4.1.6 (root-only dependency). Smoke tests: `api/src/app.test.ts`, `client/src/App.test.tsx`. Keep them green. No browser or test database required.
 - API dev: tsx with `--env-file-if-exists=../.env`; build emits `api/dist/api/src/server.js`; port from `SERVER_PORT` (then `PORT`, then 3000).
-- Client dev: strict loopback `CLIENT_PORT` (default 5173); `start` is Vite preview on 4173 (local verification only). Vite reads the root `.env`; only `VITE_` keys reach the browser, so never put secrets there.
+- Client dev: strict loopback `CLIENT_PORT` (default 5173); `start` is Vite preview on the same `CLIENT_PORT` (local verification only), so the one browser origin stays the same. Vite reads the root `.env`; only `VITE_` keys reach the browser, so never put secrets there.
 - Root ESLint checks authored API/client/shared TS and config files with recommended non-type-aware rules. ESLint 9.39.2 end-of-support and Vite config-loader warnings are known; do not upgrade tooling without a checkpoint.
 
 ### Configuration
 - The repo-root `.env` is the single env source for both packages; do not create `api/.env` or `client/.env`. `.env.example` (fake values only) documents the keys. Externally supplied variables win; a missing `.env` is not an error.
-- Keys in use: `CLIENT_PORT`, `SERVER_PORT`, `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (direct). To add (fake values in `.env.example`): `PA_NOTIFY_URL` (Flow 2 trigger URL), `PA_GATE_URL` (Flow 1 trigger URL), `APP_BASE_URL` (for links in emails), the S3 variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`). There is no `PA_SHARED_SECRET`: Power Automate only provides a signed trigger URL, which is itself the secret. Trigger URLs never get a `VITE_` prefix.- `.env`, `.claude/settings.local.json` and `.claude/worktrees/` are ignored local config. Never copy credentials into documentation or commits.
+- Keys in use: `CLIENT_PORT`, `SERVER_PORT`, `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (direct). To add (fake values in `.env.example`): `PA_NOTIFY_URL` (Flow 2 trigger URL), `PA_GATE_URL` (Flow 1 trigger URL), `APP_BASE_URL` (for links in emails), the S3 variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`) and the two bucket names `STORAGE_BUCKET_FILES` (student proof files) and `STORAGE_BUCKET_TEMPLATES` (sanction templates, step 8). The buckets must already exist in Neon; the API never creates them. Staff alert emails go to every active employee account (no `SDO_STAFF_MAILBOX`). There is no `PA_SHARED_SECRET`: Power Automate only provides a signed trigger URL, which is itself the secret. Trigger URLs never get a `VITE_` prefix.- `.env`, `.claude/settings.local.json` and `.claude/worktrees/` are ignored local config. Never copy credentials into documentation or commits.
 - CORS: configure the `cors` package on the Express API to allow only the client origin. (CORS is not a database setting.)
 
 ### Prisma and Neon
