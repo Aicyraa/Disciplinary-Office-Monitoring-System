@@ -7,6 +7,8 @@ import type {
 
 export interface CaseRecord {
   caseId: number;
+  /** Display code, `SDO-2026-016` (derived, see codes.ts). */
+  code: string;
   status: CaseStatus;
   caseDate: Date;
   isEscalated: boolean;
@@ -29,6 +31,8 @@ export interface CaseHistoryRecord {
 export interface CaseSanctionRecord {
   caseSanctionId: number;
   caseId: number;
+  /** Display code of the sanction's case. */
+  caseCode: string;
   caseSeverity: Severity;
   sanctionId: number;
   sanctionType: string;

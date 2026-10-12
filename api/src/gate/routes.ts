@@ -78,7 +78,7 @@ export function createGateRouter({
 
     const result = await service.submit(parsed.value);
     if (!result.ok) return refuse(response);
-    sendOk(response, { reference: result.reference, duplicate: result.duplicate }, result.duplicate ? 200 : 201);
+    sendOk(response, { reference: result.reference, code: result.code, duplicate: result.duplicate }, result.duplicate ? 200 : 201);
   });
 
   return router;

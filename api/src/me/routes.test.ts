@@ -130,7 +130,7 @@ describe('GET /me/cases', () => {
     const agent = await signedInAgent(built(), STUDENT_A.email);
     const response = await agent.get('/me/cases');
     expect(response.status).toBe(200);
-    expect(response.body.data.cases.map((c: { code: string }) => c.code)).toEqual(['C003', 'C001', 'C002']);
+    expect(response.body.data.cases.map((c: { code: string }) => c.code)).toEqual(['SDO-2026-003', 'SDO-2026-001', 'SDO-2026-002']);
   });
 
   test('shows rejected cases and converted majors with their original minor', async () => {
@@ -158,7 +158,7 @@ describe('GET /me/cases/:id', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.case.timeline.map((t: { eventType: string }) => t.eventType)).toEqual(['reported', 'sanction_assigned']);
     expect(response.body.data.case.sanctions).toHaveLength(1);
-    expect(response.body.data.case.sanctions[0]).toMatchObject({ id: 7, sanctionCode: 'S003', dueDate: '2026-09-20', staffNote: 'Bring a signed slip.' });
+    expect(response.body.data.case.sanctions[0]).toMatchObject({ id: 7, sanctionCode: 'S-003', dueDate: '2026-09-20', staffNote: 'Bring a signed slip.' });
   });
 
   test("another student's case is a 404, indistinguishable from a missing one", async () => {

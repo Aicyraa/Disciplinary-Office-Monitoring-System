@@ -58,7 +58,7 @@ describe('GET /sanction-templates (any signed-in user)', () => {
     const first = response.body.data.templates[0];
     expect(first).toMatchObject({
       sanctionId: 1,
-      sanctionCode: 'S001',
+      sanctionCode: 'S-001',
       type: 'Violation Slip',
       title: 'Violation slip',
       requirements: 'Sign',

@@ -246,7 +246,7 @@ export const api = {
     program: string;
     year: string;
     violationIds: number[];
-  }) => request<{ reference: string; duplicate: boolean }>(() => http.post('/public/gate-reports', input)),
+  }) => request<{ reference: string; code: string; duplicate: boolean }>(() => http.post('/public/gate-reports', input)),
 
   // Handbook admin and sanction templates (SPEC 4.9, 6.1)
   createViolation: (input: {

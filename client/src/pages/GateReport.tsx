@@ -3,7 +3,6 @@ import { buttonClass, fieldClass, Icon, LoadingState } from '../components/ui';
 import { api, toApiError } from '../lib/api';
 import {
   YEAR_LEVEL_OPTIONS,
-  shortReference,
   stepProblem,
   waitBeforeSubmit,
   type GateFormValues,
@@ -27,7 +26,7 @@ export default function GateReportPage() {
   const [values, setValues] = useState<GateFormValues>(EMPTY);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ reference: string; duplicate: boolean } | null>(null);
+  const [done, setDone] = useState<{ reference: string; code: string; duplicate: boolean } | null>(null);
   const [search, setSearch] = useState('');
   const token = useRef<{ value: string; openedAt: number } | null>(null);
 
@@ -119,7 +118,7 @@ export default function GateReportPage() {
           <h2 className="text-lg font-semibold">{done.duplicate ? 'This report was already received' : 'Report received'}</h2>
         </div>
         <p className="mt-3 text-sm text-ink">Your reference number is</p>
-        <p className="mt-1 text-3xl font-bold tracking-wider text-ink">{shortReference(done.reference)}</p>
+        <p className="mt-1 text-3xl font-bold tracking-wider text-ink">{done.code}</p>
         <p className="mt-3 text-sm text-muted">
           The SDO office will review it. Keep this number if you need to ask about the report.
         </p>

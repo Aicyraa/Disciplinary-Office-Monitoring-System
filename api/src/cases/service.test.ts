@@ -102,9 +102,9 @@ describe('recordViolation', () => {
       await service.recordViolation({ employeeId: STAFF, studentId: S1, handbookEntryId });
     }
     expect(historyOf(3).map((h) => h.eventType)).toEqual(['validated', 'escalated']);
-    expect(historyOf(3)[1].remarks).toBe('Treated as Major: 3rd minor violation. Linked cases C001 and C002.');
+    expect(historyOf(3)[1].remarks).toBe('Treated as Major: 3rd minor violation. Linked cases SDO-2026-001 and SDO-2026-002.');
     expect(historyOf(1).map((h) => h.eventType)).toEqual(['validated', 'flagged_escalated']);
-    expect(historyOf(1)[1].remarks).toBe('Counted toward Major case C003.');
+    expect(historyOf(1)[1].remarks).toBe('Counted toward Major case SDO-2026-003.');
     expect(keys().filter((k) => k.startsWith('esc:'))).toEqual(['esc:3']);
   });
 
@@ -198,7 +198,7 @@ describe('validateSubmission', () => {
   test('validating the submission that holds the 3rd minor converts it', async () => {
     seedCase({ caseId: 9, status: 'validated', studentId: S1 }); // earlier minor already counted
     const result = await service.validateSubmission({ employeeId: STAFF, submissionRef: REF });
-    // counted minors by date: C001 (day 1), C002 (day 2), C009 (day 9) -> C009 converts
+    // counted minors by date: case 1 (day 1), case 2 (day 2), case 9 (day 9) -> case 9 converts
     expect(result).toMatchObject({ ok: true, conversions: [{ majorCaseId: 9, minorCaseIds: [1, 2] }] });
     expect(find(9)).toMatchObject({ handbookEntryId: 68, originalHandbookEntryId: 1 });
   });

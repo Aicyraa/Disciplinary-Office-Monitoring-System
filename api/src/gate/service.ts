@@ -3,7 +3,7 @@ import { manilaToday } from '../me/views.js';
 import type { GateStore, GateTx } from './types.js';
 import type { ParsedReport } from './validate.js';
 
-export type GateResult = { ok: true; reference: string; duplicate: boolean } | { ok: false };
+export type GateResult = { ok: true; reference: string; code: string; duplicate: boolean } | { ok: false };
 
 export interface GateService {
   /**
@@ -34,9 +34,10 @@ export function createGateService({
   newReference?: () => string;
 }): GateService {
   /** The reference of a report already filed today for this ID and any of these violations, if there is one. */
-  async function existingReference(tx: GateTx, report: ParsedReport, day: string): Promise<string | null> {
+  async function existing(tx: GateTx, report: ParsedReport, day: string): Promise<{ reference: string; code: string } | null> {
     const found = await tx.findTodaysDuplicates(report.studentId, report.violationIds, day);
-    return found.length > 0 ? found[0].submissionRef : null;
+    if (found.length === 0) return null;
+    return { reference: found[0].submissionRef, code: await tx.submissionCode(found[0].submissionRef) };
   }
 
   return {
@@ -56,7 +57,10 @@ export function createGateService({
           const duplicates = await tx.findTodaysDuplicates(report.studentId, report.violationIds, day);
           const already = new Set(duplicates.map((d) => d.handbookEntryId));
           const fresh = entries.filter((entry) => !already.has(entry.handbookEntryId));
-          if (fresh.length === 0) return { ok: true, reference: duplicates[0].submissionRef, duplicate: true };
+          if (fresh.length === 0) {
+            const existing = duplicates[0].submissionRef;
+            return { ok: true, reference: existing, code: await tx.submissionCode(existing), duplicate: true };
+          }
 
           const student = await tx.findStudent(report.studentId);
           const reference = newReference();
@@ -77,7 +81,7 @@ export function createGateService({
           }
 
           const names = fresh.map((entry) => entry.violationType).join(', ');
-          const short = reference.slice(0, 8).toUpperCase();
+          const short = await tx.submissionCode(reference);
           if (student) {
             await tx.addNotification({
               recipient: 'student',
@@ -98,13 +102,13 @@ export function createGateService({
             caseId: caseIds[0],
             idempotencyKey: `report:${reference}:staff`,
           });
-          return { ok: true, reference, duplicate: false };
+          return { ok: true, reference, code: short, duplicate: false };
         });
       } catch (error) {
         if (!isUniqueViolation(error)) throw error;
         // Lost a race with an identical request: answer with the report that won.
-        const winner = await store.transaction((tx) => existingReference(tx, report, day));
-        if (winner !== null) return { ok: true, reference: winner, duplicate: true };
+        const winner = await store.transaction((tx) => existing(tx, report, day));
+        if (winner !== null) return { ok: true, reference: winner.reference, code: winner.code, duplicate: true };
         throw error;
       }
     },

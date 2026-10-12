@@ -65,7 +65,11 @@ describe('POST /public/gate-reports', () => {
       .post('/public/gate-reports')
       .send(body(tokenAged(built, 10_000), { violationIds: [1, 2] }));
     expect(response.status).toBe(201);
-    expect(response.body.data).toEqual({ reference: expect.stringMatching(/^[0-9a-f-]{36}$/), duplicate: false });
+    expect(response.body.data).toEqual({
+      reference: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      code: 'GI-1001',
+      duplicate: false,
+    });
     expect(built.store.state.cases).toHaveLength(2);
   });
 
@@ -74,7 +78,7 @@ describe('POST /public/gate-reports', () => {
     const first = await request(built.app).post('/public/gate-reports').send(body(tokenAged(built, 10_000)));
     const again = await request(built.app).post('/public/gate-reports').send(body(tokenAged(built, 12_000)));
     expect(again.status).toBe(200);
-    expect(again.body.data).toEqual({ reference: first.body.data.reference, duplicate: true });
+    expect(again.body.data).toEqual({ reference: first.body.data.reference, code: 'GI-1001', duplicate: true });
     expect(built.store.state.cases).toHaveLength(1);
   });
 

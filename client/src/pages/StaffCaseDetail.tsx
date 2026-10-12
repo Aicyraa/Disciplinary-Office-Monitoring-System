@@ -267,7 +267,7 @@ function Details({ detail }: { detail: StaffCaseDetail }) {
     ['Student', whoLabel(detail)],
     ['Violation', `${detail.violation} (${detail.section})`],
     ['Reported', formatDate(detail.caseDate)],
-    ['Source', detail.source === 'gate' ? 'Gate report' : 'Recorded by staff'],
+    ['Source', detail.source === 'gate' ? `Gate report${detail.submissionCode ? ` · ${detail.submissionCode}` : ''}` : 'Recorded by staff'],
   ];
   if (detail.claimed?.program || detail.claimed?.year) {
     rows.push(['Typed on the form', [detail.claimed.program, detail.claimed.year].filter(Boolean).join(' · ')]);

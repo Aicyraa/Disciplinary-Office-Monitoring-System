@@ -391,6 +391,8 @@ export type StaffCaseRow = {
   claimed: { studentId: string | null; name: string | null; program: string | null; year: string | null } | null;
   /** Cases from one gate submit share this reference; validate and reject act on all of them. */
   submissionRef: string | null;
+  /** Display code of the gate submission, `GI-1042`; null for staff-recorded cases. */
+  submissionCode: string | null;
   /** This minor was counted into a 3-minor Major case. */
   isEscalated: boolean;
   /** Set on a converted Major case: the violation it was reported as. */

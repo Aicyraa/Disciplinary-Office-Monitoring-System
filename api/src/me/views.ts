@@ -26,7 +26,7 @@ const dateOnly = (date: Date): string => date.toISOString().slice(0, 10);
 export function toCaseView(record: CaseRecord): StudentCaseView {
   return {
     id: record.caseId,
-    code: displayCode('C', record.caseId),
+    code: record.code,
     status: record.status,
     caseDate: iso(record.caseDate),
     violation: record.violationType,
@@ -49,7 +49,7 @@ export function toSanctionView(record: CaseSanctionRecord, today: string): Stude
   return {
     id: record.caseSanctionId,
     caseId: record.caseId,
-    caseCode: displayCode('C', record.caseId),
+    caseCode: record.caseCode,
     sanctionId: record.sanctionId,
     sanctionCode: displayCode('S', record.sanctionId),
     type: record.sanctionType,

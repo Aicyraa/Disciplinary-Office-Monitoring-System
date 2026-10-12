@@ -61,7 +61,7 @@ export function CasesPage() {
           <input
             id="case-search"
             type="search"
-            placeholder="Search student, violation or case code (C005)"
+            placeholder="Search student, violation or case code (SDO-2026-005)"
             className={fieldClass}
             value={search}
             onChange={(event) => setSearch(event.target.value)}

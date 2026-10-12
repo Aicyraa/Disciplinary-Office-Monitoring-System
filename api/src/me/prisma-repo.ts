@@ -1,10 +1,11 @@
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { AppointmentStatus, CaseSanctionStatus, CaseStatus, Severity } from '@shared/types.js';
+import { loadCaseCodes } from '../cases/code-sql.js';
 import type { CaseRecord, StudentViewRepo } from './repo.js';
 
 type Db = Pick<
   PrismaClient,
-  'disciplinary_cases' | 'case_sanctions' | 'appointments' | 'clearances'
+  'disciplinary_cases' | 'case_sanctions' | 'appointments' | 'clearances' | '$queryRaw'
 >;
 
 const CURRENT = 'handbook_entries_disciplinary_cases_handbook_entry_idTohandbook_entries';
@@ -26,9 +27,10 @@ type CaseRow = {
   [ORIGINAL]: { violations: { violation_type: string } } | null;
 };
 
-function toCaseRecord(row: CaseRow): CaseRecord {
+function toCaseRecord(row: CaseRow, code: string): CaseRecord {
   return {
     caseId: row.disciplinary_case_id,
+    code,
     status: row.status as CaseStatus,
     caseDate: row.case_date,
     isEscalated: row.is_escalated,
@@ -50,7 +52,8 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         include: caseInclude,
         orderBy: { case_date: 'desc' },
       });
-      return rows.map((row) => toCaseRecord(row as unknown as CaseRow));
+      const codes = await loadCaseCodes(db, rows.map((row) => row.disciplinary_case_id));
+      return rows.map((row) => toCaseRecord(row as unknown as CaseRow, codes.get(row.disciplinary_case_id) ?? ''));
     },
 
     async getCase(studentId, caseId) {
@@ -59,8 +62,9 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         include: { ...caseInclude, case_status_history: { orderBy: { date_updated: 'asc' } } },
       });
       if (!row) return null;
+      const code = (await loadCaseCodes(db, [caseId])).get(caseId) ?? '';
       return {
-        ...toCaseRecord(row as unknown as CaseRow),
+        ...toCaseRecord(row as unknown as CaseRow, code),
         history: row.case_status_history.map((entry) => ({
           eventType: entry.event_type,
           statusAfter: entry.status_after as CaseStatus | null,
@@ -86,11 +90,13 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         },
         orderBy: { date_assigned: 'desc' },
       });
+      const caseCodes = await loadCaseCodes(db, [...new Set(rows.map((row) => row.disciplinary_case_id))]);
       return rows.map((row) => {
         const entry = (row.disciplinary_cases as unknown as CaseRow)[CURRENT];
         return {
           caseSanctionId: row.case_sanction_id,
           caseId: row.disciplinary_case_id,
+          caseCode: caseCodes.get(row.disciplinary_case_id) ?? '',
           caseSeverity: entry.violations.severity as Severity,
           sanctionId: row.sanction_id,
           sanctionType: row.sanctions.sanction_type,

@@ -1,8 +1,8 @@
 import type { StaffCaseDetail, StaffCaseRow } from '@shared/types.js';
-import { displayCode } from '../codes.js';
+import { assignCaseCodes, formatSubmissionCode, parseCaseCode } from '../codes.js';
 import type { MemoryCaseStore } from './memory-store.js';
 import { toStaffSanctionView } from '../sanctions/views.js';
-import { CASE_PAGE_SIZE, parseCaseCode, type CaseQueries } from './queries.js';
+import { CASE_PAGE_SIZE, type CaseQueries } from './queries.js';
 import type { CaseRecord } from './types.js';
 
 /** In-memory fake of the staff query side, reading the same state as the memory store. */
@@ -15,12 +15,24 @@ export function createMemoryCaseQueries(
 ): CaseQueries {
   const entryOf = (id: number) => store.state.handbook.find((h) => h.handbookEntryId === id);
 
+  /** Codes derived the same way the database query does (year of the case date, then id; submissions by first case). */
+  const codes = () => assignCaseCodes(store.state.cases.map((c) => ({ id: c.caseId, caseDate: c.caseDate })));
+  const submissionCodeOf = (ref: string | null): string | null => {
+    if (ref === null) return null;
+    const firstIds = new Map<string, number>();
+    for (const c of store.state.cases) {
+      if (c.submissionRef !== null) firstIds.set(c.submissionRef, Math.min(firstIds.get(c.submissionRef) ?? Infinity, c.caseId));
+    }
+    const ranked = [...firstIds.entries()].sort((a, b) => a[1] - b[1]).map(([r]) => r);
+    const rank = ranked.indexOf(ref) + 1;
+    return rank > 0 ? formatSubmissionCode(rank) : null;
+  };
   const toRow = (record: CaseRecord): StaffCaseRow => {
     const entry = entryOf(record.handbookEntryId);
     const original = record.originalHandbookEntryId === null ? null : entryOf(record.originalHandbookEntryId);
     return {
       id: record.caseId,
-      code: displayCode('C', record.caseId),
+      code: codes().get(record.caseId) ?? '',
       status: record.status,
       severity: entry?.severity ?? 'Minor',
       violation: entry?.violationType ?? 'Unknown',
@@ -33,6 +45,7 @@ export function createMemoryCaseQueries(
           ? { studentId: record.claimedStudentId, name: record.claimedName, program: null, year: null }
           : null,
       submissionRef: record.submissionRef,
+      submissionCode: submissionCodeOf(record.submissionRef),
       isEscalated: record.isEscalated,
       convertedFrom: original?.violationType ?? null,
     };
@@ -41,14 +54,14 @@ export function createMemoryCaseQueries(
   return {
     async list(filter) {
       const needle = filter.q?.trim().toLowerCase() ?? '';
-      const code = needle === '' ? null : parseCaseCode(needle);
+      const parsed = needle === '' ? null : parseCaseCode(needle);
       const rows = store.state.cases
         .map(toRow)
         .filter((row) => (filter.status ? row.status === filter.status : true))
         .filter((row) => (filter.severity ? row.severity === filter.severity : true))
         .filter((row) => {
           if (needle === '') return true;
-          if (code !== null && row.id === code) return true;
+          if (parsed !== null && row.code.toLowerCase() === `sdo-${parsed.year}-${String(parsed.ordinal).padStart(3, '0')}`) return true;
           return [row.student?.id, row.student?.name, row.claimed?.studentId, row.claimed?.name, row.violation].some((text) =>
             text?.toLowerCase().includes(needle),
           );

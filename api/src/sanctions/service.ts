@@ -109,7 +109,6 @@ export function createSanctionService({
     return tx.getCaseSanctionByFile(caseSanctionFileId);
   }
 
-  const caseCode = (caseId: number) => displayCode('C', caseId);
 
   /** Deletes objects, logging (never throwing) on failure: an orphan object is harmless, a failed request is not. */
   async function discardObjects(keys: string[]): Promise<void> {
@@ -244,7 +243,7 @@ export function createSanctionService({
           recipient: 'student',
           studentId: record.studentId,
           title: 'Sanction assigned',
-          message: `${sanction?.sanctionType ?? 'A sanction'} was assigned for case ${caseCode(caseId)}. Due ${dueDate}.`,
+          message: `${sanction?.sanctionType ?? 'A sanction'} was assigned for case ${await tx.caseCode(caseId)}. Due ${dueDate}.`,
           caseSanctionId,
           caseId,
           idempotencyKey: `san:${caseSanctionId}:assigned`,
@@ -328,7 +327,7 @@ export function createSanctionService({
               recipient: 'staff',
               studentId: null,
               title: 'Proof submitted',
-              message: `Proof was submitted for ${record.sanctionType} (case ${caseCode(record.caseId)}). It is waiting for verification.`,
+              message: `Proof was submitted for ${record.sanctionType} (case ${await tx.caseCode(record.caseId)}). It is waiting for verification.`,
               caseSanctionId,
               caseId: record.caseId,
               idempotencyKey: `san:${caseSanctionId}:submitted:${at.getTime()}`,
@@ -444,7 +443,7 @@ export function createSanctionService({
             recipient: 'student',
             studentId: record.studentId,
             title: 'Sanction verified',
-            message: `Your ${record.sanctionType} (case ${caseCode(record.caseId)}) was verified as completed.`,
+            message: `Your ${record.sanctionType} (case ${await tx.caseCode(record.caseId)}) was verified as completed.`,
             caseSanctionId,
             caseId: record.caseId,
             idempotencyKey: `san:${caseSanctionId}:completed`,
@@ -478,7 +477,7 @@ export function createSanctionService({
             recipient: 'student',
             studentId: record.studentId,
             title: 'Sanction returned',
-            message: `Your ${record.sanctionType} (case ${caseCode(record.caseId)}) was returned. Reason: ${text}`,
+            message: `Your ${record.sanctionType} (case ${await tx.caseCode(record.caseId)}) was returned. Reason: ${text}`,
             caseSanctionId,
             caseId: record.caseId,
             idempotencyKey: `san:${caseSanctionId}:returned:${at.getTime()}`,

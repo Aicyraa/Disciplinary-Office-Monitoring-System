@@ -257,7 +257,7 @@ describe('GET /cases', () => {
 
   test('searches by case code and by student name', async () => {
     const agent = await staff();
-    expect((await agent.get('/cases?q=C005')).body.data.cases.map((c: { id: number }) => c.id)).toEqual([5]);
+    expect((await agent.get('/cases?q=SDO-2026-005')).body.data.cases.map((c: { id: number }) => c.id)).toEqual([5]);
     expect((await agent.get('/cases?q=ana')).body.data.total).toBe(8);
     expect((await agent.get('/cases?q=nobody')).body.data.total).toBe(0);
   });
@@ -273,7 +273,7 @@ describe('GET /cases/:id', () => {
     const agent = await staff();
     for (const handbookEntryId of [1, 2, 1]) await agent.post('/cases').send({ studentId: S1, handbookEntryId });
     const major = (await agent.get('/cases/3')).body.data.case;
-    expect(major).toMatchObject({ code: 'C003', violation: '3 minor offense', severity: 'Major', convertedFrom: 'Improper uniform' });
+    expect(major).toMatchObject({ code: 'SDO-2026-003', violation: '3 minor offense', severity: 'Major', convertedFrom: 'Improper uniform' });
     expect(major.createdFromCaseIds).toEqual([1, 2]);
     const minor = (await agent.get('/cases/1')).body.data.case;
     expect(minor).toMatchObject({ isEscalated: true, countedTowardCaseId: 3 });
