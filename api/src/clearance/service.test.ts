@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { createMemoryClearanceStore, type MemoryClearanceStore } from './memory-store.js';
-import { createClearanceService, type ClearanceService } from './service.js';
+import { createClearanceService, isUniqueViolation, type ClearanceService } from './service.js';
+import type { ClearanceStore } from './types.js';
 
 const STAFF = 'E001';
 const S1 = '2025-0000001';
@@ -68,6 +69,57 @@ describe('setUp (the "set up the 4 standard requirements" button)', () => {
   test('set up sends no notification (only done, reversed and cleared do)', async () => {
     await setUp();
     expect(store.state.notifications).toHaveLength(0);
+  });
+});
+
+describe('lost races', () => {
+  test('a unique-key error from the database on set up is reported as clearance_exists, not thrown', async () => {
+    const racing: ClearanceStore = {
+      transaction: (work) =>
+        store.transaction(async (tx) =>
+          work({
+            ...tx,
+            insertClearance: async () => {
+              throw Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+            },
+          }),
+        ),
+    };
+    const raced = createClearanceService({ store: racing, now: () => NOW });
+    expect(await raced.setUp({ employeeId: STAFF, studentId: S1, academicYear: 2026, semester: 1 })).toMatchObject({
+      ok: false,
+      code: 'clearance_exists',
+    });
+    expect(store.state.clearances).toHaveLength(0);
+  });
+
+  test('a different database error is not swallowed', async () => {
+    const broken: ClearanceStore = {
+      transaction: (work) =>
+        store.transaction(async (tx) =>
+          work({
+            ...tx,
+            insertClearance: async () => {
+              throw new Error('connection reset');
+            },
+          }),
+        ),
+    };
+    const failing = createClearanceService({ store: broken, now: () => NOW });
+    await expect(failing.setUp({ employeeId: STAFF, studentId: S1, academicYear: 2026, semester: 1 })).rejects.toThrow('connection reset');
+  });
+});
+
+describe('isUniqueViolation', () => {
+  test.each([
+    [new Error('duplicate key value violates unique constraint "x"'), true],
+    [Object.assign(new Error('x'), { code: 'P2002' }), true],
+    [Object.assign(new Error('x'), { code: '23505' }), true],
+    [{ cause: { originalCode: '23505' } }, true],
+    [new Error('connection reset'), false],
+    ['a string', false],
+  ])('%#', (error, expected) => {
+    expect(isUniqueViolation(error)).toBe(expected);
   });
 });
 

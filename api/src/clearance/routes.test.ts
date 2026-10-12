@@ -73,6 +73,18 @@ describe('POST /clearances (set up the standard requirements)', () => {
     expect(again.body.error.code).toBe('clearance_exists');
   });
 
+  test('a forged status, items or id in the body is ignored: a new clearance is pending with the standard items', async () => {
+    const staff = await signedInAgent(build(), STAFF.email);
+    const response = await staff
+      .post('/clearances')
+      .send(term({ status: 'cleared', items: [{ requirementId: 99, status: 'completed' }], clearanceId: 50, employeeId: 'E999' }));
+    expect(response.status).toBe(201);
+    expect(response.body.data).toEqual({ clearanceId: 1 });
+    expect(store.state.clearances[0]).toMatchObject({ status: 'pending' });
+    expect(store.state.clearances[0].items.map((i) => i.requirementId)).toEqual([1, 2, 3, 4]);
+    expect(store.state.clearances[0].items.every((i) => i.status === 'pending')).toBe(true);
+  });
+
   test.each([
     ['a malformed student id', { studentId: '2025-12' }, 400, 'invalid_input'],
     ['semester 4', { semester: 4 }, 400, 'invalid_input'],
