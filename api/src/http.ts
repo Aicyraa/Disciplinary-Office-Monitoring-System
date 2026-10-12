@@ -33,6 +33,9 @@ export const notFoundHandler: RequestHandler = (_request, response) => {
   sendError(response, 404, 'route_not_found', 'There is no such route.');
 };
 
+/** The one message the public gate form gives for every refusal (see gate/routes.ts). */
+export const PUBLIC_REJECTION = 'We could not accept this report. Please check the form and try again.';
+
 interface BodyParserError {
   type?: string;
   status?: number;
@@ -57,6 +60,15 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, request, respo
   }
 
   const parserError = (typeof error === 'object' && error !== null ? error : {}) as BodyParserError;
+  // The public gate form answers every refusal the same way, including a body that is not JSON or is too big,
+  // so a bot cannot tell a parse failure from a failed check.
+  if (
+    request.path.startsWith('/public/') &&
+    (parserError.type === 'entity.parse.failed' || parserError.type === 'entity.too.large')
+  ) {
+    sendError(response, 400, 'invalid_input', PUBLIC_REJECTION);
+    return;
+  }
   if (parserError.type === 'entity.parse.failed') {
     sendError(response, 400, 'invalid_json', 'The request body is not valid JSON.');
     return;

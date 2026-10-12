@@ -107,13 +107,29 @@ describe('POST /public/gate-reports', () => {
     expect(built.store.state.cases).toHaveLength(0);
   });
 
-  test('a body that is not JSON is the same generic 400', async () => {
-    const built = build();
-    const response = await request(built.app)
+  test('a body that is not JSON, or is far too big, gets the very same generic answer', async () => {
+    const built = build({ submits: 100 });
+    const generic = await request(built.app).post('/public/gate-reports').send(body('bad'));
+    const notJson = await request(built.app)
       .post('/public/gate-reports')
       .set('Content-Type', 'application/json')
       .send('{"token": ');
+    const huge = await request(built.app)
+      .post('/public/gate-reports')
+      .send(body(tokenAged(built, 10_000), { padding: 'x'.repeat(150_000) }));
+    for (const response of [notJson, huge]) {
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual(generic.body);
+    }
+  });
+
+  test('a body over the report size cap is refused even when every field is valid', async () => {
+    const built = build();
+    const response = await request(built.app)
+      .post('/public/gate-reports')
+      .send(body(tokenAged(built, 10_000), { padding: 'x'.repeat(9_000) }));
     expect(response.status).toBe(400);
+    expect(built.store.state.cases).toHaveLength(0);
   });
 
   test('extra fields such as status, source or student_id are ignored', async () => {

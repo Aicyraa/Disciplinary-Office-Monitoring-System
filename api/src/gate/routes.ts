@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
-import { sendError, sendOk } from '../http.js';
+import { PUBLIC_REJECTION, sendError, sendOk } from '../http.js';
 import type { GateService } from './service.js';
 import { signFormToken, verifyHuman } from './token.js';
 import type { GateOptionsReader } from './types.js';
@@ -26,7 +26,7 @@ export interface GateRouterOptions {
 export const DEFAULT_GATE_LIMITS: GateLimits = { windowMs: 10 * 60_000, submits: 5, tokens: 30 };
 
 /** The one answer for every refusal of a report, so a bot learns nothing about which check failed. */
-export const GENERIC_REJECTION = 'We could not accept this report. Please check the form and try again.';
+export const GENERIC_REJECTION = PUBLIC_REJECTION;
 
 /** A report is a few short fields; anything bigger than this is not one. */
 const MAX_BODY_CHARACTERS = 8_000;
