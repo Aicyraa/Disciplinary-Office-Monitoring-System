@@ -29,7 +29,7 @@ The prototype is **front-end only**: state lives in memory, the date is fixed at
 | 16 | Proof of sanctions | **Online only.** A student uploads files; staff open every file and then verify. No in-person "record compliance" path (4.3). Settled 2026-10-12 |
 | 19 | Gate report email | **No separate Flow 1.** A gate report is stored by the API and delivered through the one notify flow (Flow 2, `type: "report"`): a "report received" email to the student when the typed ID matched, and one alert to every active employee account. `PA_GATE_URL` is not used. Settled 2026-10-12 |
 | 17 | Appointment reminders | **None.** The student is notified only when staff create or change an appointment; students have no appointment actions; no holiday list (4.5). Settled 2026-10-12 |
-| 18 | UI fidelity | The first UI passes (steps 2 to 9) use the design tokens and existing components; a **prototype-fidelity pass over every page is build step 10**. Settled 2026-10-12 | 
+| 18 | UI fidelity | The first UI passes (steps 2 to 9) use the design tokens and existing components; a **design-fidelity pass over every page is build step 10**. The screens are `design-reference/SDO_Portal_UI.pptx` (web and mobile, every state) and the logic and copy are `design-reference/sdo-portal.source.html`; the plan, the comparison and the logic changes it implies are in `UI-POLISH-SPEC.md`, and a logic change there is built only after the human accepts it. Settled 2026-10-12 | 
 
 ---
 
@@ -300,7 +300,7 @@ eives staff alerts are all employee accounts inside the employee table.
 - **Fonts:** Public Sans (text), Material Symbols Outlined (icons).
 - **Colors:** primary `#35408E` (active nav `#262F73`), gold `#F2D46B`, text `#1C2445`, muted `#5B6576`, body `#2E3646`, page `#F2F5F5`, borders `#DDE3E8` / `#C9D1D9`, danger `#B42318`, success `#1E6B3E`.
 - **Status pills (bg / fg):** pending/reported `#FDF3D3 / #7A5A00`; validated/Minor `#E8EBF7 / #2B347A`; for_sanction, pending_verification, rescheduled `#FCE9C6 / #7A4600`; resolved/completed/cleared `#E2F3E8 / #1E6B3E`; Major/returned `#F7E6E6 / #9B2C2C`; rejected/cancelled/expired `#ECEEF1 / #4A5260`.
-- The prototype source is Claude Design's `<x-dc>` format, not React. Re-implement in your stack; use it as a visual and behavioral reference.
+- The prototype source is Claude Design's `<x-dc>` format, not React. Re-implement in your stack; use it as a visual and behavioral reference. The screens of every page and state, on web and on a phone, are in `design-reference/SDO_Portal_UI.pptx`; see `UI-POLISH-SPEC.md` for how the two relate to this SPEC.
 
 ---
 

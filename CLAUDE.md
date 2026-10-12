@@ -1,6 +1,6 @@
 # CLAUDE.md — SDO Portal (NU Fairview Student Discipline Office)
 
-This repo builds a real, database-backed version of the SDO Portal. A Claude Design prototype exists; it is a visual and behavioral reference only. **The spec is the source of truth.** If code, this file and the spec disagree, stop and ask the human.
+This repo builds a real, database-backed version of the SDO Portal. A Claude Design package exists (the screen deck `SDO_Portal_UI.pptx` and the logic source `sdo-portal.source.html`, section 1); it is a visual and behavioral reference only. **The spec is the source of truth.** If code, this file and the spec disagree, stop and ask the human.
 
 Read order for every agent: this file, then your task row in `CONTEXT.md`, then the spec section and feature rules the row cites. Do not read the whole spec for one task.
 
@@ -10,7 +10,9 @@ All paths are under `docs/sdao-handoff/`.
 - `FEATURE-RULES.md` — the per-feature rules (3.1 to 3.12), moved out of this file. Read the one for your feature before coding.
 - `POWER-AUTOMATE.md` — the two Power Automate flows, the `{ "type", "payload" }` envelope, helper-function rules and the trust model (signed trigger URL, no shared secret, no callback).
 - `db/schema.sql` — final PostgreSQL schema (23 tables). `db/seed.sql` — handbook, sanctions, programs, requirements. `db/seed-dev-accounts.sql` — two development-only accounts (one student, one staff) with bcrypt hashes; never run on the production branch.
-- `design-reference/sdo-portal.source.html` — prototype in Claude Design's `<x-dc>` format. Not React: re-implement in this stack. Use it for layout and behavior, never copy its in-memory state, fixed date or plain-text passwords.
+- `design-reference/SDO_Portal_UI.pptx` — **screen reference** (199 slides: Part 1 web, Part 2 mobile; one page, tab or state per slide, labelled `WEB · STAFF · 17` and so on). Look here for what a page, a tab or a state looks like on web and on a phone. It is ignored by Git with the rest of `docs/` and lives only in the human's main checkout, so worktrees do not have it: read it from the main checkout path, or render it with `soffice.py --headless --convert-to pdf` and `pdftoppm`.
+- `design-reference/sdo-portal.source.html` — **logic and copy reference** (Claude Design `<x-dc>` source). Not React: re-implement in this stack. Use it for status ladders, validation and empty-state wording, notification text and sample data; never copy its in-memory state, fixed date or plain-text passwords. It still contains behavior `SPEC.md` removed (in-person compliance, student statement, hours); those stay removed.
+- `UI-POLISH-SPEC.md` — build step 10: the page-by-page comparison of the deck with what is built, the logic changes the package implies and the slices. Read it before any UI task; a logic change in it is built only after the human accepts it.
 - `assets/seal.png`, `assets/hero.png` — brand images.
 
 Rules for working from the spec:
@@ -80,7 +82,8 @@ The per-feature rules that must not be broken live in `docs/sdao-handoff/FEATURE
 1. Neon: schema + seed (schema already applied on dev), bucket and credentials, one upload/download smoke test. 2. Auth. 3. Handbook + read-only student pages. 4. Case workflow + escalation (tests first). 5. Sanctions + proof. 6. Notifications + Power Automate (Flow 2, the `{type, payload}` helper, in-API retry sweep). 7. Appointments → Clearance. 8. Templates + handbook admin. 9. Public gate form + bot protection + Flow 1. 10. Polish, starting with a prototype-fidelity pass over every page (SPEC decision 18).
 Work one feature at a time; finish and verify it before the next.
 
-## 7. Design and UI (from the prototype, SPEC 9)
+## 7. Design and UI (from the design package, SPEC 9, `UI-POLISH-SPEC.md`)
+- Screens: `design-reference/SDO_Portal_UI.pptx` (web and mobile, every state). Logic and copy: `design-reference/sdo-portal.source.html`. Gaps and slices: `UI-POLISH-SPEC.md`.
 - Fonts: Public Sans (text), Material Symbols Outlined (icons). Colors: primary `#35408E` (active nav `#262F73`), gold `#F2D46B`, text `#1C2445`, muted `#5B6576`, page `#F2F5F5`, borders `#DDE3E8`, danger `#B42318`, success `#1E6B3E`. Status pill colors are in SPEC section 9; reuse them exactly.
 - This is an internal, data-heavy office tool: calm, dense, readable, not a marketing site.
 - Client stack: React 19, Tailwind CSS v4 (`@tailwindcss/vite`), `@base-ui/react`, `class-variance-authority`, `clsx`/`tailwind-merge`, `lucide-react`, `react-hook-form`, `react-router-dom`. No `components.json` yet: initializing shadcn is a human decision.
@@ -135,7 +138,7 @@ Work one feature at a time; finish and verify it before the next.
 - Do not add or upgrade dependencies without a checkpoint. The spec already approves `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `multer` and `mammoth`; confirm anything else. Team agents cannot edit package files; they report `DEPENDENCY:` and stop.
 - Do not store or log real credentials, student data or discipline records in tests, fixtures or docs. Use fake data.
 - Small, reviewable changes. After each task: run lint, typecheck, tests and build, and state what you could not verify (live DB, Power Automate, Neon bucket). Independent review (the reviewer agent) and human acceptance (the human reads the integration branch) remain required.
-- Do not build anything the spec marks parked or removed: notices/announcements, the student statement, auto-clearance, the Power Automate growth path. (The prototype still shows notices; ignore them.)
+- Do not build anything the spec marks parked or removed: notices/announcements, the student statement, auto-clearance, the Power Automate growth path. (The design package still shows notices, for example the "Important notices" inbox filter; ignore them until the human un-parks the feature, `UI-POLISH-SPEC.md` question 1.)
 - **Power Automate helper rule.** Every outbound Power Automate call goes through one helper (`sendToPowerAutomate(type, payload)`) and the body is exactly `{ "type": "<notification kind, e.g. sanction>", "payload": { ... } }`, nothing else at the top level. `type` is the closed union of `notifications.kind` values from `shared/types.ts`; `payload` comes from a pure per-type builder. Full rules in `POWER-AUTOMATE.md` section 4.
 - README is a temporary description, not setup instructions.
 - Every agent ends its final chat message with "Concepts to check" (1 to 3 items, plain language, no formula-only explanations). It is chat output, not a file.
