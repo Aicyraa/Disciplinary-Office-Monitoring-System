@@ -10,6 +10,9 @@ import type { AppointmentQueries } from './appointments/queries.js';
 import { createAppointmentRouter } from './appointments/routes.js';
 import type { AppointmentService } from './appointments/service.js';
 import type { CaseQueries } from './cases/queries.js';
+import type { ClearanceQueries } from './clearance/queries.js';
+import { createClearanceRouter } from './clearance/routes.js';
+import type { ClearanceService } from './clearance/service.js';
 import { createCaseRouter } from './cases/routes.js';
 import type { CaseService } from './cases/service.js';
 import { createHandbookRouter } from './handbook/routes.js';
@@ -52,6 +55,8 @@ export interface AppDeps {
     sanctions?: { service: SanctionService };
     /** Staff appointment workflow: the rules (service) and the read side (queries). */
     appointments?: { service: AppointmentService; queries: AppointmentQueries };
+    /** Staff clearance workflow: the rules (service) and the read side (queries). */
+    clearance?: { service: ClearanceService; queries: ClearanceQueries };
     /** The in-app inbox: a student's own, and the single shared staff inbox. */
     notifications?: { inbox: InboxStore };
     /** Injected so tests control "today" (Asia/Manila). */
@@ -125,6 +130,7 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
       if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));
       if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
       if (data.appointments) app.use(createAppointmentRouter({ ...data.appointments, now: data.now }));
+      if (data.clearance) app.use(createClearanceRouter(data.clearance));
       if (data.notifications) app.use(createNotificationsRouter({ store: data.notifications.inbox }));
     }
   }

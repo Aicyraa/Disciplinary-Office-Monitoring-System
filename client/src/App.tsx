@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import { InboxPage } from './pages/Inbox';
 import { NotFoundPage } from './pages/Misc';
 import { RecordViolationPage } from './pages/RecordViolation';
+import { StaffClearancePage } from './pages/StaffClearance';
 import { MakeAppointmentPage, StaffAppointmentsPage } from './pages/StaffAppointments';
 import { CaseDetailPage } from './pages/StaffCaseDetail';
 import { CasesPage } from './pages/StaffCases';
@@ -61,6 +62,12 @@ function AppointmentsRoute() {
   return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffAppointmentsPage /> : <AppointmentsPage />;
 }
 
+/** One address, two screens: a student reads their own checklist, staff set up and mark everyone's. */
+function ClearanceRoute() {
+  const { state } = useAuth();
+  return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffClearancePage /> : <ClearancePage />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -72,11 +79,11 @@ function AppRoutes() {
           <Route path="handbook" element={<HandbookPage />} />
           <Route path="inbox" element={<InboxPage />} />
           <Route path="appointments" element={<AppointmentsRoute />} />
+          <Route path="clearance" element={<ClearanceRoute />} />
           <Route element={<RoleOnly role="student" />}>
             <Route path="violations" element={<ViolationsList />} />
             <Route path="violations/:id" element={<ViolationDetail />} />
             <Route path="sanctions" element={<SanctionsPage />} />
-            <Route path="clearance" element={<ClearancePage />} />
           </Route>
           <Route element={<RoleOnly role="staff" />}>
             <Route path="record" element={<RecordViolationPage />} />

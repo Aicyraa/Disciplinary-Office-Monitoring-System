@@ -52,7 +52,7 @@ describe('navFor', () => {
 
   test('staff get the case screens and no student-only pages', () => {
     const paths = navFor('staff').map((item) => item.to);
-    expect(paths).toEqual(['/', '/inbox', '/record', '/cases', '/appointments', '/handbook']);
+    expect(paths).toEqual(['/', '/inbox', '/record', '/cases', '/appointments', '/clearance', '/handbook']);
   });
 });
 

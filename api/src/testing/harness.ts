@@ -6,6 +6,8 @@ import { createAuthService } from '../auth/service.js';
 import type { AppointmentQueries } from '../appointments/queries.js';
 import type { AppointmentService } from '../appointments/service.js';
 import type { CaseQueries } from '../cases/queries.js';
+import type { ClearanceQueries } from '../clearance/queries.js';
+import type { ClearanceService } from '../clearance/service.js';
 import type { CaseService } from '../cases/service.js';
 import type { SanctionService } from '../sanctions/service.js';
 import type { HandbookRepo } from '../handbook/repo.js';
@@ -31,6 +33,7 @@ export interface HarnessOptions {
   cases?: { service: CaseService; queries: CaseQueries };
   sanctions?: { service: SanctionService };
   appointments?: { service: AppointmentService; queries: AppointmentQueries };
+  clearance?: { service: ClearanceService; queries: ClearanceQueries };
   notifications?: { inbox: InboxStore };
   onPasswordReset?: (studentId: string) => Promise<void>;
   now?: () => Date;
@@ -69,6 +72,7 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
       cases: options.cases,
       sanctions: options.sanctions,
       appointments: options.appointments,
+      clearance: options.clearance,
       notifications: options.notifications,
       now: options.now,
     },

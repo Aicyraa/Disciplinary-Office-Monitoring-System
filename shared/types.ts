@@ -49,6 +49,9 @@ export type ApiErrorCode =
   // appointments
   | 'invalid_date'
   | 'appointment_overlap'
+  // clearance
+  | 'clearance_exists'
+  | 'requirement_exists'
   // sanctions and proof files
   | 'sanction_not_allowed'
   | 'already_assigned'
@@ -264,6 +267,49 @@ export type StaffAppointmentView = {
 
 export type StaffAppointmentListResponse = {
   appointments: StaffAppointmentView[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+/** One row of a clearance's change log (SPEC 4.4). */
+export type ClearanceHistoryEntry = {
+  eventType: 'set_up' | 'marked_done' | 'reversed' | 'requirement_added' | 'requirement_removed';
+  /** The requirement the change was about, when there is one. */
+  requirement: string | null;
+  remarks: string | null;
+  /** ISO timestamp (UTC). */
+  date: string;
+  by: string;
+};
+
+export type StaffClearanceItemView = {
+  requirementId: number;
+  label: string;
+  status: 'pending' | 'completed';
+  remarks: string | null;
+  /** ISO timestamp (UTC), or null while pending. */
+  dateCompleted: string | null;
+  completedBy: string | null;
+  /** True for "No active violations" marked done while the student still has open cases (a hint, never a block). */
+  warning: boolean;
+};
+
+/** What staff see for one student's term (SPEC 4.4, 5). */
+export type StaffClearanceView = {
+  id: number;
+  student: { id: string; name: string };
+  academicYear: number;
+  semester: number;
+  status: 'pending' | 'cleared';
+  items: StaffClearanceItemView[];
+  /** The student's cases that are validated or for sanction, for the warning chip. */
+  openCases: number;
+  history: ClearanceHistoryEntry[];
+};
+
+export type StaffClearanceListResponse = {
+  clearances: StaffClearanceView[];
   total: number;
   page: number;
   pageSize: number;

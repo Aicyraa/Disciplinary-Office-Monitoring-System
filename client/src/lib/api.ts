@@ -12,6 +12,7 @@ import type {
   HandbookEntryView,
   SanctionAssignmentOptions,
   StaffAppointmentListResponse,
+  StaffClearanceListResponse,
   StaffCaseDetail,
   StaffCaseListResponse,
   StudentAppointmentView,
@@ -232,6 +233,25 @@ export const api = {
   completeAppointment: (appointmentId: number) => post<{ ok: true }>(`/appointments/${appointmentId}/complete`),
   cancelAppointment: (appointmentId: number, reason: string) =>
     post<{ ok: true }>(`/appointments/${appointmentId}/cancel`, { reason }),
+
+  // Staff clearance (SPEC 4.4, 7)
+  staffClearances: (query: { status?: 'pending' | 'cleared'; q?: string; page?: number }) => {
+    const params: Record<string, string | number> = {};
+    if (query.status) params.status = query.status;
+    if (query.q) params.q = query.q;
+    if (query.page && query.page > 1) params.page = query.page;
+    return get<StaffClearanceListResponse>('/clearances', params);
+  },
+  setUpClearance: (input: { studentId: string; academicYear: number; semester: number }) =>
+    post<{ clearanceId: number }>('/clearances', input),
+  markRequirementDone: (clearanceId: number, requirementId: number, remarks: string) =>
+    post<{ cleared: boolean }>(`/clearances/${clearanceId}/requirements/${requirementId}/complete`, { remarks }),
+  reverseRequirement: (clearanceId: number, requirementId: number, reason: string) =>
+    post<{ ok: true }>(`/clearances/${clearanceId}/requirements/${requirementId}/reverse`, { reason }),
+  addRequirement: (clearanceId: number, label: string) =>
+    post<{ requirementId: number }>(`/clearances/${clearanceId}/requirements`, { label }),
+  removeRequirement: (clearanceId: number, requirementId: number) =>
+    del<{ cleared: boolean }>(`/clearances/${clearanceId}/requirements/${requirementId}`),
 
   myClearance: (term?: { academicYear: number; semester: number }) =>
     get<StudentClearanceResponse>(

@@ -28,6 +28,7 @@ const STAFF_NAV: NavItem[] = [
   { to: '/record', label: 'Record violation', icon: 'edit_note' },
   { to: '/cases', label: 'Cases', icon: 'folder_open' },
   { to: '/appointments', label: 'Appointments', icon: 'event' },
+  { to: '/clearance', label: 'Clearance', icon: 'verified_user' },
   { to: '/handbook', label: 'Handbook', icon: 'menu_book' },
 ];
 
