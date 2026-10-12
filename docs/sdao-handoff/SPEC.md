@@ -25,7 +25,7 @@ The prototype is **front-end only**: state lives in memory, the date is fixed at
 | 12 | Gate-form protection | **No captcha and no third-party service.** The public endpoint is protected by a per-IP rate limit and a form-timing token (signed when the form opens; rejected if submitted under 3 seconds or over 30 minutes later), plus validation, a body-size limit and the duplicate unique index. All checks sit behind one `verifyHuman()` function so a captcha can be added later without changing the form flow |
 | 13 | Accounts and ids | Accounts are **added manually** (SQL seed file with bcrypt hashes; no create-account screen in version 1). Student id format is `YYYY-NNNNNNN`: 4 digits, a dash, 7 digits (11 digits in total, regex `^\d{4}-\d{7}$`), e.g. `2023-1030333`. Display codes are a letter plus the numeric id padded to **3 digits** (`S001`, `V001`, `C001`); ids above 999 simply grow (`S1000`) |
 | 14 | Offense number and retry cap | **Offense number** of a case = 1 + the number of the same student's earlier cases (by `case_date`, then id) for the same violation that are `validated`, `for_sanction` or `resolved`; `reported` and `rejected` never count. It selects the `handbook_entry_sanctions` rows offered to staff (4.3). **Notification retry cap:** the in-API sweep retries `pending` emails for 24 hours after `date_created`, then marks them `failed` (no schema change) |
-| 15 | Email sender | The **flow owner's own account** sends every email (their mail connection in "Send an email (V2)"). No shared mailbox, no "send as", no NU IT request. `SDO_STAFF_MAILBOX` is only the address that **receives** staff alerts |
+| 15 | Email sender | The **flow owner's own account** sends every email (their mail connection in "Send an email (V2)"). No shared mailbox, no "send as", no NU IT request. All employee accounts **recieves** the notifications both in-app and outlook address 
 
 ---
 
@@ -265,9 +265,11 @@ Authorization: a student reads only their own cases, sanctions, appointments, cl
 
 ## 8. Data to prepare before launch
 1. Real **student accounts** (id, name, program, year, NU email) and **staff accounts**, added manually with bcrypt-hashed passwords (decision 13). `db/seed-dev-accounts.sql` holds two **development-only** accounts; copy its pattern for real ones and never run it on production.
+
 2. Confirm the 67 handbook entries and the sanction mapping, and **write the sanction templates** (text and files) for each of the 10 sanctions.
 3. Current **term** and the default clearance checklist.
-4. Email sender setup (6.3, decision 15) and the address that receives staff alerts (`SDO_STAFF_MAILBOX`).
+4. Email sender setup (6.3, decision 15) and the address that re
+eives staff alerts are all employee accounts inside the employee table.
 5. Assets: `assets/seal.png`, `assets/hero.png`.
 
 ---
@@ -297,7 +299,7 @@ Already there: Express 5 + TypeScript 7 API, Prisma 7.10 (pg adapter) on Neon, R
 - **Use Prisma, not Drizzle.** Apply `db/schema.sql` + `db/seed.sql` to Neon, then run `prisma db pull` to generate the models (Prisma cannot express the appointment-overlap exclusion constraint, the CHECK constraints or partial indexes; keep them in the SQL file / a hand-written migration, and don't let `db push` overwrite them). Run live schema operations only when you decide to, as your `AGENTS.md` already requires.
 - `connect-pg-simple` creates its own `session` table; it is infrastructure and not part of the ERD.
 - Add `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` and `multer` for files (section 6.1). Use one private bucket (`assets` already exists) with the key prefixes `proof/` and `templates/`.
-- Add `PA_NOTIFY_URL`, `PA_GATE_URL`, `SDO_STAFF_MAILBOX`, `APP_BASE_URL` and the S3 variables to `.env.example` (fake values), per your env rules.
+- Add `PA_NOTIFY_URL`, `PA_GATE_URL`, `APP_BASE_URL` and the S3 variables to `.env.example` (fake values), per your env rules.
 
 ---
 

@@ -49,7 +49,7 @@ Visitor submits the web gate form
 | 2 | **Parse JSON** on the body | schema = the envelope, section 4 |
 | 3 | **Condition**: `payload.student_matched` | yes → email the student; no → skip (staff alert says "ID not on file") |
 | 4 | **Send an email (V2)** to the student | reference number, violations listed, "waiting for staff review" |
-| 5 | **Send an email (V2)** to the staff alert address (`SDO_STAFF_MAILBOX`, set in the flow) | link to the case in the staff app |
+| 5 | **Send an email (V2)** to the staff alert addresses (base on the available accounts on employee table)  (set in the flow) | link to the case in the staff app |
 | 6 | **Response** (200) | wrap steps 3–5 in a Scope; on success `{"status":"sent"}`, on failure (Configure run after: failed / timed out) `{"status":"failed","error":"<message>"}` |
 
 Flow 1 payload (`type` = `"report"`):
