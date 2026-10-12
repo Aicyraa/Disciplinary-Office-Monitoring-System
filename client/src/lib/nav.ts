@@ -100,7 +100,7 @@ const TITLES: Array<[RegExp, string, string]> = [
   [/^\/cases$/, 'Manage', 'Cases'],
   [/^\/students\/[^/]+$/, 'Manage', 'Students'],
   [/^\/students$/, 'Manage', 'Students'],
-  [/^\/appointments$/, 'Manage', 'Appointments'],
+  [/^\/appointments(\/\d+)?$/, 'Manage', 'Appointments'],
   [/^\/clearance(\/slip)?$/, 'Manage', 'Clearance'],
   [/^\/handbook$/, 'Handbook', 'Violations'],
   [/^\/account\/password$/, 'Account', 'Change password'],

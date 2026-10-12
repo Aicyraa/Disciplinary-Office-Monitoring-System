@@ -43,6 +43,7 @@ describe('breadcrumb', () => {
     expect(breadcrumb('staff', '/cases/12')).toEqual(['Staff', 'Manage', 'Case']);
     expect(breadcrumb('staff', '/record')).toEqual(['Staff', 'Create', 'Record violation']);
     expect(breadcrumb('staff', '/students/2025-1030808')).toEqual(['Staff', 'Manage', 'Students']);
+    expect(breadcrumb('staff', '/appointments/4')).toEqual(['Staff', 'Manage', 'Appointments']);
   });
 
   test('the handbook templates tab has its own crumb for staff', () => {

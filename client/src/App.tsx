@@ -86,6 +86,7 @@ function AppRoutes() {
           <Route path="account" element={<AccountDetailsPage />} />
           <Route path="account/password" element={<ChangePassword />} />
           <Route path="appointments" element={<AppointmentsRoute />} />
+          <Route path="appointments/:id" element={<AppointmentsRoute />} />
           <Route path="clearance" element={<ClearanceRoute />} />
           <Route element={<RoleOnly role="student" />}>
             <Route path="violations" element={<ViolationsList />} />

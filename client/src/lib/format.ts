@@ -12,12 +12,12 @@ export function formatDateTime(iso: string): string {
   }).format(new Date(iso));
 }
 
-/** Accepts a full ISO timestamp or a date-only `YYYY-MM-DD` string. */
 /** "10:40 AM" in Asia/Manila (the office clock), for "Last checked". */
 export function formatClock(date: Date): string {
   return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' }).format(date);
 }
 
+/** Accepts a full ISO timestamp or a date-only `YYYY-MM-DD` string. */
 export function formatDate(value: string): string {
   const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
   // A date-only value is a calendar day: pin it to UTC so no time zone shifts it.
