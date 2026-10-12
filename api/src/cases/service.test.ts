@@ -64,6 +64,27 @@ describe('recordViolation', () => {
     ]);
   });
 
+  test('optional remarks become the first entry of the remarks log', async () => {
+    const result = await service.recordViolation({ employeeId: STAFF, studentId: S1, handbookEntryId: 1, remarks: '  Seen at the library entrance  ' });
+    expect(result).toMatchObject({ ok: true, caseId: 1 });
+    expect(historyOf(1).map((h) => [h.eventType, h.remarks])).toEqual([
+      ['validated', 'Recorded by staff.'],
+      ['remark', 'Seen at the library entrance'],
+    ]);
+  });
+
+  test('blank remarks add nothing; wrong type or over-long remarks are refused and nothing is saved', async () => {
+    await service.recordViolation({ employeeId: STAFF, studentId: S1, handbookEntryId: 1, remarks: '   ' });
+    expect(historyOf(1)).toHaveLength(1);
+    for (const remarks of [42, 'x'.repeat(1001)]) {
+      expect(await service.recordViolation({ employeeId: STAFF, studentId: S1, handbookEntryId: 1, remarks })).toMatchObject({
+        ok: false,
+        code: 'invalid_input',
+      });
+    }
+    expect(store.state.cases).toHaveLength(1);
+  });
+
   test('rejects an unknown student, an unknown violation and a system-only violation', async () => {
     expect(await service.recordViolation({ employeeId: STAFF, studentId: '2025-9999999', handbookEntryId: 1 })).toMatchObject({
       ok: false,

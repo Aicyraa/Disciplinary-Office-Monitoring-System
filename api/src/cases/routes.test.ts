@@ -103,6 +103,16 @@ describe('POST /cases', () => {
     expect(store.state.cases[0]).toMatchObject({ reportedByEmployeeId: STAFF.id, status: 'validated', source: 'staff' });
   });
 
+  test('remarks are optional and kept as the first log entry; a non-text remark is 400', async () => {
+    const agent = await staff();
+    const ok = await agent.post('/cases').send({ studentId: S1, handbookEntryId: 1, remarks: 'Bring a guardian' });
+    expect(ok.status).toBe(201);
+    expect(store.state.history.filter((h) => h.eventType === 'remark').map((h) => h.remarks)).toEqual(['Bring a guardian']);
+    const bad = await agent.post('/cases').send({ studentId: S1, handbookEntryId: 1, remarks: { text: 'x' } });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe('invalid_input');
+  });
+
   test('the third minor returns the conversion', async () => {
     const agent = await staff();
     await agent.post('/cases').send({ studentId: S1, handbookEntryId: 1 });

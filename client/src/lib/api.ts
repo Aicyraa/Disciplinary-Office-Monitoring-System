@@ -180,8 +180,12 @@ export const api = {
     return get<StaffCaseListResponse>('/cases', params);
   },
   staffCase: (id: number) => get<{ case: StaffCaseDetail }>(`/cases/${id}`),
-  recordViolation: (studentId: string, handbookEntryId: number) =>
-    post<{ caseId: number; conversions: EscalationConversion[] }>('/cases', { studentId, handbookEntryId }),
+  recordViolation: (studentId: string, handbookEntryId: number, remarks?: string) =>
+    post<{ caseId: number; conversions: EscalationConversion[] }>('/cases', {
+      studentId,
+      handbookEntryId,
+      ...(remarks ? { remarks } : {}),
+    }),
   escalationPreview: (submissionRef: string) =>
     get<{ conversions: EscalationConversion[] }>(`/submissions/${submissionRef}/escalation-preview`),
   validateSubmission: (submissionRef: string) =>

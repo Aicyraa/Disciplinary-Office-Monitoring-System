@@ -43,6 +43,8 @@ export interface CaseService {
     employeeId: string;
     studentId: string;
     handbookEntryId: number;
+    /** Optional note recorded with the violation; it becomes the first entry of the remarks log. */
+    remarks?: unknown;
   }): Promise<CaseResult<{ caseId: number } & EscalationOutcome>>;
   previewEscalation(submissionRef: string): Promise<CaseResult<EscalationOutcome>>;
   validateSubmission(input: { employeeId: string; submissionRef: string }): Promise<CaseResult<{ caseIds: number[] } & EscalationOutcome>>;
@@ -146,7 +148,10 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
   }
 
   return {
-    async recordViolation({ employeeId, studentId, handbookEntryId }) {
+    async recordViolation({ employeeId, studentId, handbookEntryId, remarks }) {
+      const blank = remarks === undefined || remarks === null || (typeof remarks === 'string' && remarks.trim() === '');
+      const note = blank ? null : cleanText(remarks);
+      if (!blank && note === null) return fail('invalid_input', `Remarks must be text up to ${MAX_TEXT_LENGTH} characters.`);
       return store.transaction(async (tx) => {
         if (!(await tx.studentExists(studentId))) return fail('student_not_found', 'No student has that ID.');
         const entry = await tx.getHandbookEntry(handbookEntryId);
@@ -172,6 +177,9 @@ export function createCaseService({ store, now = () => new Date() }: { store: Ca
           employeeId,
           date: at,
         });
+        if (note !== null) {
+          await tx.addHistory({ caseId, eventType: 'remark', statusAfter: 'validated', remarks: note, employeeId, date: at });
+        }
         await tx.addNotification({
           studentId,
           kind: 'newviol',

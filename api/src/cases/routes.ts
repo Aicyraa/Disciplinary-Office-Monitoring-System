@@ -93,7 +93,12 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
       sendError(response, 400, 'invalid_input', 'studentId (YYYY-NNNNNNN) and handbookEntryId are required.');
       return;
     }
-    const result = await service.recordViolation({ employeeId: staffId(request), studentId, handbookEntryId });
+    const result = await service.recordViolation({
+      employeeId: staffId(request),
+      studentId,
+      handbookEntryId,
+      remarks: request.body?.remarks,
+    });
     if (!result.ok) return sendFailure(response, result);
     sendOk(response, { caseId: result.caseId, conversions: result.conversions }, 201);
   });
