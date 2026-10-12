@@ -175,7 +175,7 @@ Human:          git diff main...integrate/<date>, then merge to main yourself
 
 ### MCP usage
 - Serena symbol tools before reading whole files; `get_diagnostics_for_file` after edits. Only dev uses Serena editing tools.
-- Context7 before using any third-party API. Playwright is for the reviewer only.
+- Serena and Context7 are used every task, by every role: Serena symbol tools before whole-file reads, Context7 before using any third-party API. Playwright is for testing UI: dev drives changed screens while building, reviewer re-checks independently; lead, scout and integrator do not use it.
 - Neon MCP (dev branch, read-only plus dev SQL) for lead, dev and reviewer; scout has no Neon access. Rules in section 8.
 - Each new worktree needs its own `npm ci` runs and `serena project index`.
 

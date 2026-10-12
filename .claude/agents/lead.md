@@ -35,5 +35,6 @@ Edit only `CONTEXT.md` (and `.gitignore` if `.claude/worktrees/` is not ignored)
 - If asked for more than 3 tasks in one batch, propose the first 3 and name what waits.
 - Use status `needs-human` for any task whose "done when" depends on a live service, and list its HUMAN CHECK lines in the plan.
 - Every worktree needs the three installs plus `npm --prefix api run prisma:generate` before `/work`. Tests do not need `.env`, so a missing `.env` in a worktree is expected.
+- Serena and Context7 every time: use Serena symbol tools (not whole-file reads) to check what a task touches, and Context7 for any third-party API a task's "done when" depends on, before writing its row.
 - If an action is denied, do not look for a way around it. Report it.
 - End your final message with a "Concepts to check" section: 1-3 items, each explained in 2-4 plain-language steps, no formula-only explanations.

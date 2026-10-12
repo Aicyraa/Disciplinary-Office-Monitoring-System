@@ -18,7 +18,8 @@ Read the task row and dev's entry in `CONTEXT.md`. Do not trust dev's notes: re-
 2. Every "done when" bullet, PASS or FAIL with proof.
 3. Test quality: for each bullet confirm a test exists and would fail if the behavior were broken (read the assertions; flag tests that assert nothing meaningful).
 4. Scope: diff against the merge base (`git diff <base>...HEAD`) and flag files outside the expected list, dead code, new dependencies, and anything touching `db/schema.sql` without the matching spec change.
-5. UI work: start the app (`npm run dev`) and drive it with Playwright.
+5. UI work: start the app (`npm run dev`) and drive it with Playwright, mandatory for any change under `client/`. Check the three widths (under 720, 720 to 1100, over 1100), the changed interaction by keyboard and pointer, and console errors. State which screens could not be checked live.
+5a. Use Serena (`find_referencing_symbols`, `get_symbols_overview`) to trace every changed symbol's callers, and Context7 to confirm each third-party API the diff uses is called as the current docs say. Cite what you checked.
 6. Error handling and security of changed code (authorization enforced by the API, not only the UI; no secrets or real student data), using `get_diagnostics_for_file` on each changed file.
 
 7. Each rule in the cited `FEATURE-RULES.md` section: PASS or FAIL with evidence (a test name or a command).

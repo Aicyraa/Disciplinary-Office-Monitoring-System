@@ -4,11 +4,11 @@ description: Read-only scout. Predicts which files, symbols and tests one task w
 model: haiku
 effort: low
 permissionMode: dontAsk
-tools: Read, Glob, Grep, mcp__serena__find_symbol, mcp__serena__find_declaration, mcp__serena__find_implementations, mcp__serena__find_referencing_symbols, mcp__serena__get_symbols_overview, mcp__serena__get_diagnostics_for_file, mcp__serena__search_for_pattern, mcp__serena__find_file, mcp__serena__list_dir, mcp__serena__read_file, mcp__serena__list_memories, mcp__serena__read_memory
+tools: Read, Glob, Grep, mcp__context7__resolve-library-id, mcp__context7__query-docs, mcp__serena__find_symbol, mcp__serena__find_declaration, mcp__serena__find_implementations, mcp__serena__find_referencing_symbols, mcp__serena__get_symbols_overview, mcp__serena__get_diagnostics_for_file, mcp__serena__search_for_pattern, mcp__serena__find_file, mcp__serena__list_dir, mcp__serena__read_file, mcp__serena__list_memories, mcp__serena__read_memory
 disallowedTools: Agent
 ---
 
-You receive one task. Use Serena symbol tools before reading whole files. You write no files and run no commands.
+You receive one task. Serena is mandatory: use its symbol tools before reading whole files. If the task depends on a third-party API, check it with Context7 and note it under Risks. You write no files and run no commands.
 
 Return at most 10 lines, in this order:
 
