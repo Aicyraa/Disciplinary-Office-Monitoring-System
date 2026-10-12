@@ -728,3 +728,20 @@ Findings and smallest next step:
 **Data scripts (human runs them, dev branch only):** `docs/sdao-handoff/db/delete.sql` (wipes everything created while testing, including both account tables; keeps programs, violations, handbook entries, sanctions, standard requirements and template text) and an updated `docs/sdao-handoff/db/seed-dev-accounts.sql` (adds `catolicoasr` as a student and `feleoagd` as an SDO officer; EDIT the placeholder student id and first names). Both were dry-run on the development branch inside a transaction that was forced to roll back (all statements valid, no data changed).
 
 HUMAN CHECK: run `delete.sql`, then `seed-dev-accounts.sql`, then sign in as each of the three accounts (temporary password, forced change) and confirm `feleoagd` opens the staff portal.
+
+## ui-polish: logic slices built 2026-10-13 (API, before the UI slices)
+
+**Built (all with API-level tests, `npm test` 1032 passed, lint/typecheck/build clean):**
+- Display codes (UI-POLISH-SPEC decision 3), derived and never stored: `S-021`, `A-104`, `V-001`, `H-001`, cases `SDO-<year>-<n>` (restarts yearly by Asia/Manila year of `case_date`, ranked by id; window-function SQL in `api/src/cases/code-sql.ts`, pure twin in `api/src/codes.ts`), gate submissions `GI-<1000+rank>` (returned by `POST /public/gate-reports` as `code`, used in notification text). Staff case search accepts `SDO-YYYY-NNN`.
+- Status words (labels only) and the three fixed terms in `client/src/lib/format.ts`.
+- One file per sanction template: a second file in one request is `too_many_files`; uploading again replaces the row and removes the old object after commit (`api/src/templates/service.ts`). Client file manager is single-file.
+- `POST /cases` accepts optional `remarks` (text up to 1000); it becomes the first `remark` log entry.
+- `GET /me/profile` (own account details), `GET /students?q=&page=` and `GET /students/:id` (staff only; the record reuses the student views), `GET /case-sanctions?filter=active|pending_verification|overdue&page=` (staff queue with counts), `GET /me/clearance/slip?academic_year=&semester=` (409 `not_cleared` until the term is cleared).
+- SPEC 7, SPEC decision 13, CLAUDE.md data rules and FEATURE-RULES 3.7 updated in the same change.
+
+**Not built yet (next):** notices with email (needs a new table: SPEC CHANGE, human applies it), dashboard extras (Will escalate chip, Last checked and refresh, Overdue tile) and every UI slice P0 to P11 in `UI-POLISH-SPEC.md` section 4 (chrome, master-detail, Students page, clearance slip page, student pages, public pages, PWA).
+
+**Not verified:** anything against the live database. `code-sql.ts` window functions, the `searchStudents` and `sanctionQueue` Prisma queries run only against fakes.
+HUMAN CHECK: with the API running on the dev branch, open `GET /students`, `GET /case-sanctions` and a case list as staff and confirm codes read `SDO-<year>-<n>` and counts match the tables.
+
+### Review (reviewer fills this)
