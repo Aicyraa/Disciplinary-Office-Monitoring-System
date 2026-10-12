@@ -537,11 +537,19 @@ describe('verify', () => {
     expect(store.state.sanctionNotifications.at(-1)).toMatchObject({ recipient: 'student', idempotencyKey: `san:${id}:completed` });
   });
 
-  test('a compliance-recorded sanction (no files) can be verified', async () => {
+  test('a sanction with no uploaded file can never be verified (online proof only)', async () => {
     const id = await assigned();
-    expect(await service.recordCompliance({ employeeId: STAFF, caseSanctionId: id, note: 'Served in person' })).toEqual({ ok: true });
-    expect(sanction(id)).toMatchObject({ status: 'pending_verification', complianceNote: 'Served in person' });
-    expect(await service.verify({ employeeId: STAFF, caseSanctionId: id })).toEqual({ ok: true });
+    sanction(id).status = 'pending_verification'; // e.g. a row left over from the removed in-person path
+    const result = await service.verify({ employeeId: STAFF, caseSanctionId: id });
+    expect(result).toMatchObject({ ok: false, code: 'files_not_viewed' });
+    if (!result.ok) expect(result.message).toMatch(/no proof file/i);
+    expect(sanction(id).status).toBe('pending_verification');
+  });
+
+  test('a sanction cannot be completed before the student has uploaded a file', async () => {
+    const id = await assigned();
+    expect(await service.verify({ employeeId: STAFF, caseSanctionId: id })).toMatchObject({ ok: false, code: 'invalid_status' });
+    expect(sanction(id).status).toBe('assigned');
   });
 
   test.each(['assigned', 'returned', 'completed'] as const)('is invalid from %s', async (status) => {
@@ -552,7 +560,7 @@ describe('verify', () => {
 
   test('a verify that waited for a return to commit sees it and refuses', async () => {
     const id = await assigned();
-    await service.recordCompliance({ employeeId: STAFF, caseSanctionId: id, note: 'Done' });
+    await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf()] });
     store.onFirstLock((working) => {
       const target = working.caseSanctions.find((s) => s.caseSanctionId === id);
       if (target) target.status = 'returned';
@@ -599,13 +607,8 @@ describe('returnForRevision and re-upload', () => {
   });
 });
 
-describe('recordCompliance', () => {
-  test('needs a note and an assigned or returned sanction', async () => {
-    const id = await assigned();
-    expect(await service.recordCompliance({ employeeId: STAFF, caseSanctionId: id, note: '' })).toMatchObject({ code: 'invalid_input' });
-    await service.recordCompliance({ employeeId: STAFF, caseSanctionId: id, note: 'Done' });
-    expect(await service.recordCompliance({ employeeId: STAFF, caseSanctionId: id, note: 'Again' })).toMatchObject({
-      code: 'invalid_status',
-    });
+describe('online proof only', () => {
+  test('the service has no way to record compliance without a file', () => {
+    expect('recordCompliance' in service).toBe(false);
   });
 });

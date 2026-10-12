@@ -16,6 +16,7 @@ This file is the parallel dev team's only notes file. It records what changed (f
 | api-envelope-origin | worktree-api-envelope-origin | .claude/worktrees/api-envelope-origin | Human request: one localhost origin (dev and prod), API handlers for invalid routes and route errors, one shared success and one shared error response type, `@shared/` imports | handlers tested alone and in the real app; envelope on every route; client unwraps in one place; lint, typecheck, test, build green | api/src/{http,cors,app,server}.ts, api/src/*/routes.ts, api/src/auth/guards.ts, shared/types.ts, api/tsconfig.json, client/tsconfig.json, client/vite.config.ts, client/src/lib/{api,apiBase}.ts, tests, .env.example, about 40 import lines | cors-preview-origin | after 5 | reviewed (PASS) |
 | notifications-pa | worktree-notifications-pa | .claude/worktrees/notifications-pa | Build step 6 (SPEC 4.6, 6.3, 7; FEATURE-RULES 3.10, 3.11; POWER-AUTOMATE): one outbound helper, pure payload builders, commit-then-notify delivery with retry, sweep and 24 h expiry, inbox API for students and the shared staff inbox, bell, toast and inbox page | helper body is exactly {type,payload}; outcome to email_status mapping; sent only after commit; 24 h rule with a fake clock; inbox scoping; lint, typecheck, test, build green | api/src/{integrations,notifications}/*, api/src/{app,server}.ts, api/src/auth/routes.ts, api/src/sanctions/service.ts, api/src/cases/{types,prisma-store}.ts, shared/types.ts, client/src/{notifications,pages,components,lib}/*, .env.example | api-envelope-origin | 6 | review |
 | delivery-throttle-ssl | worktree-delivery-throttle-ssl | .claude/worktrees/delivery-throttle-ssl | Bug fix (human report): `npm run dev` fires HTTP requests at the flow in a loop; pg SSL-mode warning at startup | one request per row per pass, cooldown 1 min doubling to 30 min, pause between sends, batch 20; 2xx without a status counts as sent; sslmode rewritten to verify-full; lint, typecheck, test, build green | api/src/{db-url,prisma,server}.ts, api/src/db-url.test.ts, api/src/integrations/power-automate.ts, api/src/notifications/{delivery.ts,notifications.test.ts} | notifications-pa | after 6 | review |
+| proof-flow-polish | worktree-proof-flow-polish | .claude/worktrees/proof-flow-polish | Human polish request after testing: (1) hoverable drag-and-drop upload container with an upload progress indicator; (2) remove in-person compliance, a sanction completes only after the student uploads a file and staff open it; (3) bucket env names BUCKET_STORAGE_FILES / BUCKET_STORAGE_TEMPLATES | no record-compliance route or service method; verify refuses a sanction with no file; bucket lookup order and no templates fallback; progress and label helpers; lint, typecheck, test, build green | api/src/sanctions/{service,routes}.ts and tests, api/src/storage/{config,s3}.ts and tests, api/src/server.ts, api/scripts/storage-smoke.ts, .env.example, client/src/{components/ProofPanel,pages/StaffSanctions,lib/api,lib/files}.ts(x) and tests | proof-upload-fix | after 6 | review |
 | proof-upload-fix | worktree-proof-upload-fix | .claude/worktrees/proof-upload-fix | Bug fix (human report): proof upload had no visible Upload button; uploading a PDF failed with a generic 500 | clear "Choose files" + "Upload" controls with a list of chosen files; a storage refusal is a 503 `storage_unavailable` with a plain message and the real reason in the server log; lint, typecheck, test, build green | api/src/storage/{s3,unavailable,s3.test}.ts, api/src/sanctions/routes.test.ts, shared/types.ts, client/src/components/{ProofPanel.tsx,ProofPanel.test.tsx} | delivery-throttle-ssl | after 6 | review |
 
 <!-- Per-task sections go below, laid out as:
@@ -472,3 +473,51 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 - 5 Scope: PASS. 8 files (s3.ts, unavailable.ts, shared/types.ts, ProofPanel.tsx and the three test files, CONTEXT.md); no package.json, lockfile, `.env*`, `docs/**`, schema; no dependency; nothing parked built; fixtures are fake (`AKIAFAKEFAKEFAKE`, 127.0.0.1).
 - 6 Diagnosis: consistent with the code (a 400 from the SDK was unhandled, so a generic 500) and with the dev log. Not independently checked: the bucket list (Neon bucket tools are not available to me).
 - Not verified: real upload/download, new layout at three widths in a browser (screen needs the live API; no Playwright run). Dev's HUMAN CHECK is complete (exact `.env` change, restart, expected result and the wrong-bucket message) and listed as needed.
+
+
+## proof-flow-polish branch worktree-proof-flow-polish
+
+**Request (human, after testing):** (1) the proof upload area should be one hoverable container (like the shared mock-up) with an indicator while uploading; (2) remove face-to-face compliance: only online file upload, and a sanction is completed only when the student uploaded a file and staff opened it; (3) the bucket variables are now `BUCKET_STORAGE_FILES` (student proof files) and `BUCKET_STORAGE_TEMPLATES` (sanction templates staff upload).
+
+**Changed:**
+- API: `POST /case-sanctions/:id/record-compliance` and `service.recordCompliance` are removed (the route now answers 404). `verify` refuses a sanction with no uploaded file (`files_not_viewed`, "There is no proof file to review") on top of the existing rule that every file must have been opened. The only way into `pending_verification` is a student upload (`POST /files`).
+- Storage config: new `storage/config.ts`. `filesBucketFromEnv` reads `STORAGE_BUCKET_FILES`, then `BUCKET_STORAGE_FILES`, `BUCKET_STORAGE` and the old `STORAGE_BUCKET`. `templatesBucketFromEnv` reads `STORAGE_BUCKET_TEMPLATES` (or the earlier `BUCKET_STORAGE_TEMPLATES`) only and never falls back to the files bucket. `server.ts`, `s3.ts`, `api/scripts/storage-smoke.ts` and `.env.example` use them. Nothing reads the templates bucket yet: it is build step 8 (staff upload sanction templates, students download them).
+- Client: the staff "Record compliance" button and form are gone; staff see "Waiting for the student to upload proof" while a sanction is assigned or returned, and "No proof file is attached. Return it..." for an old pending row with no file. The student upload area is one bordered container: click, Enter/Space or drag files onto it, hover and drag highlight, list of chosen files with per-file Remove, a progress bar (real bytes sent via axios `onUploadProgress`) and a full-width button that reads "Add a file to submit", "Upload N files", "Uploading… 40%", "Processing…".
+
+**SPEC CHANGE: SPEC 4.3 / FEATURE-RULES 3.6 still describe staff recording compliance in person (`compliance_recorded`, `compliance_note`). The human asked to remove it, so the code now allows online upload only. Please edit those sections. `case_sanctions.compliance_note` and the `compliance_recorded` history event stay in the schema (unused; old rows keep them).** SPEC 6.1 and CLAUDE.md section 8 still say `STORAGE_BUCKET`; the human edits them to `BUCKET_STORAGE_FILES` (and add `BUCKET_STORAGE_TEMPLATES`).
+
+**Not changed:** `.env` (human-owned; the human already renamed the keys), schema, buckets. A row left `pending_verification` with no file by the removed path can be Returned by staff; the student then uploads.
+
+**Evidence:** 31 files / 632 tests pass; lint, typecheck, build clean.
+
+**Not verified / HUMAN CHECK:**
+- HUMAN CHECK: `.env` has `STORAGE_BUCKET_FILES=<an existing bucket>` (the dev branch currently lists only `student-files`; create the bucket named in `.env.example` or point the key at one that exists); restart `npm run dev`; as a student pick a PDF in the drop area -> progress bar moves, then the file appears under "Proof of completion" and the sanction is Pending verification.
+- HUMAN CHECK: as staff, open the sanction -> Verify stays disabled until the file is opened; there is no Record compliance button.
+- Not verified: the layout at three widths and the drag-and-drop in a real browser (needs the live API).
+
+### Review (reviewer fills this)
+
+**Verdict: PASS** (commit 64ff558, reviewed as `HEAD~1..HEAD`, 18 files; `main...HEAD` is too large to be useful because main is far behind).
+- Commands (fresh): `npm test` 31 files / 632 tests pass; `npm run lint` clean; `npm run typecheck` (api + client) clean; `npm run build` exit 0 for both packages.
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | record-compliance gone | PASS | diff removes the route, `SanctionService.recordCompliance`, `api.recordCompliance`, the staff button/form; test `there is no record-compliance route` expects 404 and status stays `assigned`; `'recordCompliance' in service` is false. Only `uploadProof` (assigned/returned -> pending_verification, service.ts:325) sets pending. |
+| 2 | verify needs a file and all viewed | PASS | service.ts:421 guard; `a sanction with no uploaded file can never be verified` sets pending with no files and expects `files_not_viewed`. Without the guard the old loop (0 < 0 false) would verify, so the test would fail. Route test covers 409 from assigned. Student remove/replace code (`removeProof`, `checkUpload`) untouched. |
+| 3 | bucket env | PASS | `config.ts` order FILES, BUCKET_STORAGE, STORAGE_BUCKET; templates reads only `BUCKET_STORAGE_TEMPLATES`; 4 config tests assert order, blank, no fallback. `server.ts`, `s3.ts`, `storage-smoke.ts`, `.env.example` use it; `server.ts` still throws in production when the files bucket or AWS_* is missing. |
+| 4 | ProofPanel | PASS (static) | read the code: one `role="button"` tabIndex 0 container, Enter/Space, dragenter highlight, drop adds files (deduped), per-file Remove with aria-label, real `onUploadProgress` via `api.uploadProof`, labels from `uploadButtonLabel`, selection cleared only on success, `aria-disabled` while busy, replace/remove intact. Pure helpers unit-tested. |
+| 5 | scope | PASS | no package.json, lockfile, `.env`, docs, schema; no new dependency; nothing parked built. |
+| 6 | SPEC CHANGE note | PASS | accurate: SPEC 4.3/FEATURE-RULES 3.6 and SPEC 6.1/CLAUDE.md STORAGE_BUCKET need the human's edit; compliance_note and history event stay in schema. |
+
+Findings (none blocking):
+- Test gap: ProofPanel tests are `renderToStaticMarkup` only. Nothing exercises drop, Enter/Space, progress bar rendering, selection kept on failure, or that `api.uploadProof` actually forwards `onUploadProgress` (lib/api.test.ts unchanged). The interaction behavior rests on code reading and the HUMAN CHECK.
+- Minor: `onDragLeave` clears the highlight when the pointer crosses child elements (flicker); cosmetic.
+- I did not mutate source (reviewers may not edit code); the zero-file mutation is established by reading, as above. The serena symbol index returned stale hits for removed code, so leftovers were checked through the diff and a green typecheck rather than a search.
+- Not verified: drag-and-drop and layout at three widths in a browser, real upload to the bucket (live API/bucket needed). Dev's two HUMAN CHECK lines are complete and listed under Not verified.
+
+
+## Human decisions log (lead notes)
+
+- **2026-10-12 UI fidelity is deferred to step 10 (human).** The current UI is a first working pass: spec colors, fonts and status pills, but not a screen-by-screen port of `design-reference/sdo-portal.source.html`. Step 10 carries a prototype-fidelity pass over every page (layout, components, copy, three widths). Until then, new screens in steps 7 to 9 follow the existing component set (`components/ui.tsx`) and are not pixel-matched to the prototype.
+- **2026-10-12 Proof is online only (human).** No in-person compliance; see `proof-flow-polish`. SPEC 4.3 / FEATURE-RULES 3.6 and the bucket key names in SPEC 6.1 / CLAUDE.md section 8 are the human edit.
+- **2026-10-12 Next: step 7 (appointments, then clearance), plan to the human first.**

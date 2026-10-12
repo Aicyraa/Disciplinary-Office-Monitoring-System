@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { MAX_FILE_BYTES, addDays, checkSelection, formatSize, manilaToday } from './files';
+import { MAX_FILE_BYTES, addDays, checkSelection, formatSize, manilaToday, progressPercent, uploadButtonLabel } from './files';
 
 const file = (name: string, size = 1024) => ({ name, size });
 
@@ -52,5 +52,30 @@ describe('dates', () => {
   test('manilaToday rolls over at Manila midnight', () => {
     expect(manilaToday(new Date('2026-10-11T15:59:00Z'))).toBe('2026-10-11');
     expect(manilaToday(new Date('2026-10-11T16:00:00Z'))).toBe('2026-10-12');
+  });
+});
+
+describe('progressPercent', () => {
+  test('whole percent of bytes sent, capped at 100, null when the total is unknown', () => {
+    expect(progressPercent(0, 200)).toBe(0);
+    expect(progressPercent(50, 200)).toBe(25);
+    expect(progressPercent(199, 200)).toBe(99);
+    expect(progressPercent(250, 200)).toBe(100);
+    expect(progressPercent(10, undefined)).toBeNull();
+    expect(progressPercent(10, 0)).toBeNull();
+  });
+});
+
+describe('uploadButtonLabel', () => {
+  test('tells the student what pressing the button will do', () => {
+    expect(uploadButtonLabel({ count: 0, busy: false, percent: null })).toBe('Add a file to submit');
+    expect(uploadButtonLabel({ count: 1, busy: false, percent: null })).toBe('Upload 1 file');
+    expect(uploadButtonLabel({ count: 3, busy: false, percent: null })).toBe('Upload 3 files');
+  });
+
+  test('while uploading it shows the percentage, then Processing once every byte is sent', () => {
+    expect(uploadButtonLabel({ count: 2, busy: true, percent: null })).toBe('Uploading…');
+    expect(uploadButtonLabel({ count: 2, busy: true, percent: 40 })).toBe('Uploading… 40%');
+    expect(uploadButtonLabel({ count: 2, busy: true, percent: 100 })).toBe('Processing…');
   });
 });

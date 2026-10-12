@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { resolveApiBaseUrl } from './apiBase';
+import { progressPercent } from './files';
 import type {
   ApiErrorCode,
   ApiFailure,
@@ -194,17 +195,23 @@ export const api = {
   sanctionOptions: (caseId: number) => get<{ options: SanctionAssignmentOptions }>(`/cases/${caseId}/sanction-options`),
   assignSanction: (caseId: number, sanctionId: number, dueDate: string, staffNote: string) =>
     post<{ caseSanctionId: number }>(`/cases/${caseId}/sanctions`, { sanctionId, dueDate, staffNote }),
-  recordCompliance: (caseSanctionId: number, note: string) =>
-    post<{ ok: true }>(`/case-sanctions/${caseSanctionId}/record-compliance`, { note }),
   verifySanction: (caseSanctionId: number) => post<{ ok: true }>(`/case-sanctions/${caseSanctionId}/verify`),
   returnSanction: (caseSanctionId: number, reason: string) =>
     post<{ ok: true }>(`/case-sanctions/${caseSanctionId}/return`, { reason }),
-  uploadProof: (caseSanctionId: number, files: File[], replaceFileId?: number) => {
+  /** `onProgress` receives the whole percent of the request body sent so far (0-100). */
+  uploadProof: (caseSanctionId: number, files: File[], replaceFileId?: number, onProgress?: (percent: number) => void) => {
     const form = new FormData();
     form.append('caseSanctionId', String(caseSanctionId));
     if (replaceFileId !== undefined) form.append('replaceFileId', String(replaceFileId));
     for (const file of files) form.append('files', file);
-    return post<{ fileIds: number[] }>('/files', form);
+    return request<{ fileIds: number[] }>(() =>
+      http.post('/files', form, {
+        onUploadProgress: (event) => {
+          const percent = progressPercent(event.loaded, event.total);
+          if (percent !== null) onProgress?.(percent);
+        },
+      }),
+    );
   },
   deleteProofFile: (fileId: number) => del(`/files/${fileId}`),
   fileUrl: (fileId: number) => get<{ url: string; expiresInSeconds: number }>(`/files/${fileId}/url`),

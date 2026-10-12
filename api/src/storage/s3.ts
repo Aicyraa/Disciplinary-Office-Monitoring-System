@@ -1,5 +1,6 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { filesBucketFromEnv } from './config.js';
 import { PRESIGN_TTL_SECONDS, type ObjectStorage } from './types.js';
 import { storageUnavailable } from './unavailable.js';
 
@@ -10,7 +11,7 @@ function requireEnv(name: string): string {
 }
 
 // Construct only when file behavior is explicitly needed (mirrors createPrismaClient).
-export function createS3Storage(bucket: string = requireEnv('STORAGE_BUCKET')): ObjectStorage {
+export function createS3Storage(bucket: string = filesBucketFromEnv() ?? requireEnv('STORAGE_BUCKET_FILES')): ObjectStorage {
   const client = new S3Client({
     region: requireEnv('AWS_REGION'),
     endpoint: requireEnv('AWS_ENDPOINT_URL_S3'),

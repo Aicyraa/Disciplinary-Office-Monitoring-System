@@ -83,7 +83,7 @@ describe('createS3Storage', () => {
 
 describe('createUnavailableStorage', () => {
   test('every file operation is a 503 storage_unavailable', async () => {
-    const storage = createUnavailableStorage('set STORAGE_BUCKET');
+    const storage = createUnavailableStorage('set STORAGE_BUCKET_FILES');
     for (const operation of [
       () => storage.put('k', new Uint8Array([1]), 'application/pdf'),
       () => storage.delete('k'),

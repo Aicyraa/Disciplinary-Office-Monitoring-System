@@ -44,28 +44,38 @@ describe('ProofPanel', () => {
     expect(html).toContain('Upload your proof');
     expect(html).toContain('multiple');
     expect(html).toContain('accept=".pdf,.docx"');
-    expect(html).toContain('at most 5 files');
+    expect(html).toContain('5 files max');
     expect(html).toContain('No file uploaded yet.');
     expect(html).not.toContain('Replace');
   });
 
-  test('the upload area has a visible "Choose files" button and an "Upload" button that waits for a file', () => {
+  test('the drop area is one hoverable, keyboard-operable container that says what to do', () => {
     const html = render(base);
-    // Button text must sit inside one <button>, not across two.
-    expect(html).toMatch(/<button type="button"(?:(?!<\/button>)[^])*Choose files<\/button>/);
-    expect(html).toContain('No file chosen yet');
-    expect(html).toMatch(/<button type="button" disabled=""(?:(?!<\/button>)[^])*>Upload<\/button>/);
+    expect(html).toContain('Choose files to upload');
+    expect(html).toContain('Click to choose or drag files here');
+    expect(html).toContain('PDF or DOCX, up to 10 MB each, 5 files max');
+    expect(html).toMatch(/<div role="button" tabindex="0"[^>]*hover:border-primary/);
+    expect(html).toContain('border-dashed');
+  });
+
+  test('the main button waits for a file: "Add a file to submit", disabled', () => {
+    const html = render(base);
+    expect(html).toMatch(/<button type="button" disabled=""(?:(?!<\/button>)[^])*>Add a file to submit<\/button>/);
     expect(html).not.toContain('Submit proof');
   });
 
-  test('the hidden file input is not a keyboard tab stop (the visible button is)', () => {
+  test('the hidden file input is not a keyboard tab stop (the drop area is)', () => {
     expect(render(base)).toMatch(/<input id="proof-7"[^>]*tabindex="-1"/);
   });
 
-  test('a returned sanction still offers Choose files and Upload', () => {
+  test('no progress bar before an upload starts', () => {
+    expect(render(base)).not.toContain('role="progressbar"');
+  });
+
+  test('a returned sanction still offers the drop area', () => {
     const html = render({ ...base, status: 'returned', canUpload: true, canChangeFiles: true, files: [file(1)] });
-    expect(html).toMatch(/<button type="button"(?:(?!<\/button>)[^])*Choose files<\/button>/);
-    expect(html).toMatch(/>Upload<\/button>/);
+    expect(html).toContain('Choose files to upload');
+    expect(html).toContain('Add a file to submit');
   });
 
   test('pending and unreviewed: lists files with Replace and Remove, no new upload', () => {
@@ -105,7 +115,7 @@ describe('viewedSummary', () => {
     expect(viewedSummary([{ viewed: true }, { viewed: true }])).toEqual({ viewed: 2, total: 2, allViewed: true });
   });
 
-  test('no files counts as all viewed (a compliance-recorded sanction can be verified)', () => {
-    expect(viewedSummary([])).toEqual({ viewed: 0, total: 0, allViewed: true });
+  test('no files is never "all viewed": there is nothing to verify without an uploaded file', () => {
+    expect(viewedSummary([])).toEqual({ viewed: 0, total: 0, allViewed: false });
   });
 });

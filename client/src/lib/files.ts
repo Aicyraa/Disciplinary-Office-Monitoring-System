@@ -41,3 +41,19 @@ export function manilaToday(now: Date = new Date()): string {
     day: '2-digit',
   }).format(now);
 }
+
+/** Whole percent of the bytes sent so far (0-100), or null when the browser cannot tell the total. */
+export function progressPercent(loaded: number, total: number | undefined): number | null {
+  if (!total || total <= 0) return null;
+  return Math.min(100, Math.max(0, Math.floor((loaded / total) * 100)));
+}
+
+/** What the main upload button says: what it will do, or how far the upload is. */
+export function uploadButtonLabel({ count, busy, percent }: { count: number; busy: boolean; percent: number | null }): string {
+  if (busy) {
+    if (percent === null) return 'Uploading…';
+    return percent >= 100 ? 'Processing…' : `Uploading… ${percent}%`;
+  }
+  if (count === 0) return 'Add a file to submit';
+  return `Upload ${count} file${count === 1 ? "" : "s"}`;
+}

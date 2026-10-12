@@ -4,7 +4,7 @@
 //   cd api && ./node_modules/.bin/tsx --env-file=../.env scripts/storage-smoke.ts [--expiry]
 //
 // Needs in the root .env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINT_URL_S3, AWS_REGION.
-// Optional: STORAGE_BUCKET (default "assets", the bucket declared in neon.ts), CORS_TEST_ORIGIN
+// Optional: STORAGE_BUCKET_FILES (default "assets-files"), CORS_TEST_ORIGIN
 // (default http://localhost:5173), --expiry (also waits 65 s to prove the presigned URL expires).
 //
 // What it proves: upload, direct read-back, presigned GET (60 s), a server-side CORS probe,
@@ -48,7 +48,16 @@ if (endpoint.includes('example.invalid')) {
   console.error('AWS_ENDPOINT_URL_S3 is still the .env.example placeholder.');
   process.exit(2);
 }
-const bucket = process.env.STORAGE_BUCKET ?? 'assets';
+// Same lookup order as the API (src/storage/config.ts), then the default name from .env.example.
+const bucket =
+  [
+    process.env.STORAGE_BUCKET_FILES,
+    process.env.BUCKET_STORAGE_FILES,
+    process.env.BUCKET_STORAGE,
+    process.env.STORAGE_BUCKET,
+  ]
+    .map((value) => value?.trim())
+    .find(Boolean) ?? 'assets-files';
 const origin = process.env.CORS_TEST_ORIGIN ?? 'http://localhost:5173';
 const withExpiry = process.argv.includes('--expiry');
 
