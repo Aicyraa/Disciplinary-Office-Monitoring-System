@@ -7,7 +7,7 @@ const template = (sanctionId: number, over: Partial<SanctionTemplateView>): Sanc
 
 describe('filterTemplates', () => {
   const list = [
-    template(1, { files: [{ id: 1, name: 'slip.pdf', mimeType: 'application/pdf', sizeBytes: 10 }] }),
+    template(1, { files: [{ id: 1, name: 'slip.pdf', mimeType: 'application/pdf', sizeBytes: 10, dateUploaded: '2026-10-09T02:00:00Z' }] }),
     template(2, { requirements: 'Bring a parent.' }),
     template(3, {}),
   ];
