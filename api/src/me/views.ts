@@ -104,7 +104,6 @@ export function toCaseDetailView(
   };
 }
 
-/** Calendar day in Asia/Manila as YYYY-MM-DD (SPEC decision: display in Manila time). */
 export function toProfileView(record: StudentProfileRecord): StudentProfileView {
   return {
     studentId: record.studentId,
@@ -132,6 +131,7 @@ export function toSlipView(profile: StudentProfileRecord, record: ClearanceRecor
   };
 }
 
+/** Calendar day in Asia/Manila as YYYY-MM-DD (SPEC decision: display in Manila time). */
 export function manilaToday(now: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Manila',

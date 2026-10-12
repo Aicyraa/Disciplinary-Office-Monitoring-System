@@ -147,6 +147,13 @@ describe('GET /students/:id', () => {
     expect(record.clearanceTerms).toEqual([{ academicYear: 2026, semester: 1, status: 'pending' }]);
   });
 
+  test('no response body carries a password or hash field', async () => {
+    const staff = await signedInAgent(build(), STAFF.email);
+    const list = JSON.stringify((await staff.get('/students')).body);
+    const record = JSON.stringify((await staff.get(`/students/${STUDENT_A.id}`)).body);
+    for (const body of [list, record]) expect(body).not.toMatch(/password|hash/i);
+  });
+
   test('an unknown or malformed id is 404 and a student is 403', async () => {
     const app = build();
     const staff = await signedInAgent(app, STAFF.email);

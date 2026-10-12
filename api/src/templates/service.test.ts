@@ -117,6 +117,25 @@ describe('uploadFiles', () => {
   });
 });
 
+describe('replace failure', () => {
+  test('if the replacing write fails the old row and object stay and the new object is removed', async () => {
+    await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [pdf('old.pdf')] });
+    const [oldKey] = [...storage.objects.keys()];
+    let calls = 0;
+    const flaky = createTemplateService({
+      store: {
+        ...store,
+        transaction: (work) => (++calls === 1 ? store.transaction(work) : Promise.reject(new Error('db down'))),
+      },
+      storage,
+      now: () => NOW,
+    });
+    await expect(flaky.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [docx()] })).rejects.toThrow('db down');
+    expect([...storage.objects.keys()]).toEqual([oldKey]);
+    expect(store.readAll().find((t) => t.sanctionId === 1)?.files.map((f) => f.originalName)).toEqual(['old.pdf']);
+  });
+});
+
 describe('removeFile', () => {
   test('deletes the row and the object', async () => {
     await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [pdf()] });

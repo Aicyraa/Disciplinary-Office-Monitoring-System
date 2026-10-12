@@ -63,6 +63,17 @@ const toProfile = (row: AccountRow): StudentProfileRecord => ({
   isActive: row.is_active,
 });
 
+/** Only the columns the profile needs: the password hash is never loaded. */
+const ACCOUNT_SELECT = {
+  student_id: true,
+  student_email: true,
+  first_name: true,
+  last_name: true,
+  year_level: true,
+  is_active: true,
+  programs: { select: { program_name: true } },
+} as const;
+
 const OPEN_CASE_STATUSES = ['reported', 'validated', 'for_sanction'];
 const ACTIVE_SANCTION_STATUSES = ['assigned', 'pending_verification', 'returned'];
 
@@ -180,7 +191,7 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
     async getProfile(studentId) {
       const row = await db.student_accounts.findUnique({
         where: { student_id: studentId },
-        include: { programs: true },
+        select: ACCOUNT_SELECT,
       });
       return row ? toProfile(row as unknown as AccountRow) : null;
     },
@@ -201,7 +212,7 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         db.student_accounts.count({ where }),
         db.student_accounts.findMany({
           where,
-          include: { programs: true },
+          select: ACCOUNT_SELECT,
           orderBy: [{ last_name: 'asc' }, { first_name: 'asc' }, { student_id: 'asc' }],
           skip: (page - 1) * pageSize,
           take: pageSize,

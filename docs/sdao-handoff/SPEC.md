@@ -268,6 +268,7 @@ GET  /case-sanctions?filter=active|pending_verification|overdue&page=   (staff q
 GET  /students?q=&page=   GET /students/:id                  (staff: the student records; 20 per page)
 POST /staff/students/:studentId/reset-password                (staff: one-time temp password)
 GET  /me/profile                                              (student: own account details)
+GET  /me/clearance/slip?academic_year=&semester=              (student: slip data; 409 `not_cleared` until the term is cleared)
 GET  /clearances?status=&q=&page=   GET /clearances/:id   POST /clearances (studentId, academicYear, semester)
 POST /clearances/:id/requirements (label)   DELETE /clearances/:id/requirements/:rid
 POST /clearances/:id/requirements/:rid/complete (remarks) | /reverse (reason)   GET /me/clearance (student)
