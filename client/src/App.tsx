@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import { InboxPage } from './pages/Inbox';
 import { NotFoundPage } from './pages/Misc';
 import { RecordViolationPage } from './pages/RecordViolation';
+import { MakeAppointmentPage, StaffAppointmentsPage } from './pages/StaffAppointments';
 import { CaseDetailPage } from './pages/StaffCaseDetail';
 import { CasesPage } from './pages/StaffCases';
 import { SanctionsPage } from './pages/Sanctions';
@@ -54,6 +55,12 @@ function Home() {
   return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffHome /> : <StudentDashboard />;
 }
 
+/** One address, two screens: students see their own appointments, staff manage everyone's. */
+function AppointmentsRoute() {
+  const { state } = useAuth();
+  return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffAppointmentsPage /> : <AppointmentsPage />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -64,17 +71,18 @@ function AppRoutes() {
           <Route index element={<Home />} />
           <Route path="handbook" element={<HandbookPage />} />
           <Route path="inbox" element={<InboxPage />} />
+          <Route path="appointments" element={<AppointmentsRoute />} />
           <Route element={<RoleOnly role="student" />}>
             <Route path="violations" element={<ViolationsList />} />
             <Route path="violations/:id" element={<ViolationDetail />} />
             <Route path="sanctions" element={<SanctionsPage />} />
-            <Route path="appointments" element={<AppointmentsPage />} />
             <Route path="clearance" element={<ClearancePage />} />
           </Route>
           <Route element={<RoleOnly role="staff" />}>
             <Route path="record" element={<RecordViolationPage />} />
             <Route path="cases" element={<CasesPage />} />
             <Route path="cases/:id" element={<CaseDetailPage />} />
+            <Route path="appointments/new" element={<MakeAppointmentPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

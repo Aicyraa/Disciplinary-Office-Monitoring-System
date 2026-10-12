@@ -11,6 +11,7 @@ import type {
   EscalationConversion,
   HandbookEntryView,
   SanctionAssignmentOptions,
+  StaffAppointmentListResponse,
   StaffCaseDetail,
   StaffCaseListResponse,
   StudentAppointmentView,
@@ -215,6 +216,22 @@ export const api = {
   },
   deleteProofFile: (fileId: number) => del(`/files/${fileId}`),
   fileUrl: (fileId: number) => get<{ url: string; expiresInSeconds: number }>(`/files/${fileId}/url`),
+
+  // Staff appointments (SPEC 4.5, 7)
+  staffAppointments: (query: { bucket?: 'upcoming' | 'history'; q?: string; page?: number }) => {
+    const params: Record<string, string | number> = {};
+    if (query.bucket) params.bucket = query.bucket;
+    if (query.q) params.q = query.q;
+    if (query.page && query.page > 1) params.page = query.page;
+    return get<StaffAppointmentListResponse>('/appointments', params);
+  },
+  createAppointment: (input: { studentId: string; startDate: string; purpose: string; notes: string }) =>
+    post<{ appointmentId: number }>('/appointments', input),
+  updateAppointment: (appointmentId: number, input: { startDate?: string; purpose?: string; notes?: string }) =>
+    patch<{ ok: true }>(`/appointments/${appointmentId}`, input),
+  completeAppointment: (appointmentId: number) => post<{ ok: true }>(`/appointments/${appointmentId}/complete`),
+  cancelAppointment: (appointmentId: number, reason: string) =>
+    post<{ ok: true }>(`/appointments/${appointmentId}/cancel`, { reason }),
 
   myClearance: (term?: { academicYear: number; semester: number }) =>
     get<StudentClearanceResponse>(

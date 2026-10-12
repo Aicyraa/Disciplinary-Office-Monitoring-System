@@ -6,6 +6,9 @@ import type { HealthResponse } from '@shared/types.js';
 import { clientOriginFrom, defaultClientOrigin } from './cors.js';
 import { createAuthRouter, type LoginRateLimitOptions } from './auth/routes.js';
 import type { AuthService } from './auth/service.js';
+import type { AppointmentQueries } from './appointments/queries.js';
+import { createAppointmentRouter } from './appointments/routes.js';
+import type { AppointmentService } from './appointments/service.js';
 import type { CaseQueries } from './cases/queries.js';
 import { createCaseRouter } from './cases/routes.js';
 import type { CaseService } from './cases/service.js';
@@ -47,6 +50,8 @@ export interface AppDeps {
     cases?: { service: CaseService; queries: CaseQueries };
     /** Sanction assignment, proof files and verification. */
     sanctions?: { service: SanctionService };
+    /** Staff appointment workflow: the rules (service) and the read side (queries). */
+    appointments?: { service: AppointmentService; queries: AppointmentQueries };
     /** The in-app inbox: a student's own, and the single shared staff inbox. */
     notifications?: { inbox: InboxStore };
     /** Injected so tests control "today" (Asia/Manila). */
@@ -119,6 +124,7 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
       app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
       if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));
       if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
+      if (data.appointments) app.use(createAppointmentRouter({ ...data.appointments, now: data.now }));
       if (data.notifications) app.use(createNotificationsRouter({ store: data.notifications.inbox }));
     }
   }

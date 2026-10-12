@@ -1,4 +1,7 @@
-import type { CaseStore } from '../cases/types.js';
+/** Any store that runs work atomically in a transaction (the case store, the appointment store). */
+interface TransactionalStore<Tx> {
+  transaction<T>(work: (tx: Tx) => Promise<T>): Promise<T>;
+}
 
 /**
  * Wraps a store so that `onCommit` runs after a transaction that finished without throwing. This is the
@@ -6,9 +9,10 @@ import type { CaseStore } from '../cases/types.js';
  * transaction, and only once it has committed is a delivery pass asked for. `onCommit` must not throw; the
  * scheduler's `kick` never does. If the transaction rolls back, nothing is delivered.
  */
-export function withAfterCommit(store: CaseStore, onCommit: () => void): CaseStore {
+export function withAfterCommit<Tx, S extends TransactionalStore<Tx>>(store: S, onCommit: () => void): S {
   return {
-    async transaction(work) {
+    ...store,
+    async transaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
       const result = await store.transaction(work);
       onCommit();
       return result;

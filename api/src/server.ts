@@ -6,6 +6,8 @@ import { clientOriginFrom, defaultClientOrigin } from './cors.js';
 import { withExplicitSsl } from './db-url.js';
 import { createPrismaAccountRepo } from './auth/prisma-repo.js';
 import { createAuthService } from './auth/service.js';
+import { createPrismaAppointmentQueries, createPrismaAppointmentStore } from './appointments/prisma-store.js';
+import { createAppointmentService } from './appointments/service.js';
 import { createPrismaCaseQueries, createPrismaCaseStore } from './cases/prisma-store.js';
 import { createCaseService } from './cases/service.js';
 import { createPrismaHandbookRepo } from './handbook/prisma-repo.js';
@@ -96,6 +98,7 @@ function buildApp(): Built {
     },
   });
   const caseStore = withAfterCommit(createPrismaCaseStore(prisma), scheduler.kick);
+  const appointmentStore = withAfterCommit(createPrismaAppointmentStore(prisma), scheduler.kick);
   const notificationWriter = createPrismaNotificationWriter(prisma);
 
   // File storage is optional in development (everything but proof files keeps working) and required in production.
@@ -143,6 +146,10 @@ function buildApp(): Built {
         queries: createPrismaCaseQueries(prisma),
       },
       sanctions: { service: createSanctionService({ store: caseStore, storage }) },
+      appointments: {
+        service: createAppointmentService({ store: appointmentStore }),
+        queries: createPrismaAppointmentQueries(prisma),
+      },
       notifications: { inbox: createPrismaInboxStore(prisma) },
     },
   });

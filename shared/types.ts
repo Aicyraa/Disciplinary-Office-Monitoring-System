@@ -46,6 +46,9 @@ export type ApiErrorCode =
   | 'student_not_matched'
   | 'student_already_linked'
   | 'sanctions_incomplete'
+  // appointments
+  | 'invalid_date'
+  | 'appointment_overlap'
   // sanctions and proof files
   | 'sanction_not_allowed'
   | 'already_assigned'
@@ -230,6 +233,40 @@ export type StudentAppointmentView = {
   cancelReason: string | null;
   /** Upcoming: live status and the window has not ended (Asia/Manila date). Everything else is history. */
   bucket: 'upcoming' | 'history';
+};
+
+/** One row of an appointment's change log (SPEC 4.5): assigned, rescheduled, notes changed, completed, cancelled. */
+export type AppointmentHistoryEntry = {
+  eventType: 'assigned' | 'rescheduled' | 'remarks_updated' | 'completed' | 'cancelled';
+  remarks: string | null;
+  /** ISO timestamp (UTC). */
+  date: string;
+  /** The staff member's name. */
+  by: string;
+};
+
+/** What staff see (SPEC 5): every appointment of every student, with its log. */
+export type StaffAppointmentView = {
+  id: number;
+  student: { id: string; name: string };
+  startDate: string;
+  endDate: string;
+  purpose: string;
+  notes: string | null;
+  status: AppointmentStatus;
+  cancelReason: string | null;
+  bucket: 'upcoming' | 'history';
+  assignedBy: string;
+  /** ISO timestamp (UTC). */
+  dateCreated: string;
+  history: AppointmentHistoryEntry[];
+};
+
+export type StaffAppointmentListResponse = {
+  appointments: StaffAppointmentView[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 export type ClearanceTermView = {

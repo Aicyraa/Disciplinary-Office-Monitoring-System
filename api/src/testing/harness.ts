@@ -3,6 +3,8 @@ import request from 'supertest';
 import { createApp } from '../app.js';
 import { createMemoryAccountRepo } from '../auth/memory-repo.js';
 import { createAuthService } from '../auth/service.js';
+import type { AppointmentQueries } from '../appointments/queries.js';
+import type { AppointmentService } from '../appointments/service.js';
 import type { CaseQueries } from '../cases/queries.js';
 import type { CaseService } from '../cases/service.js';
 import type { SanctionService } from '../sanctions/service.js';
@@ -28,6 +30,7 @@ export interface HarnessOptions {
   studentViews?: StudentViewRepo;
   cases?: { service: CaseService; queries: CaseQueries };
   sanctions?: { service: SanctionService };
+  appointments?: { service: AppointmentService; queries: AppointmentQueries };
   notifications?: { inbox: InboxStore };
   onPasswordReset?: (studentId: string) => Promise<void>;
   now?: () => Date;
@@ -65,6 +68,7 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
       studentViews: options.studentViews ?? createMemoryStudentViewRepo(),
       cases: options.cases,
       sanctions: options.sanctions,
+      appointments: options.appointments,
       notifications: options.notifications,
       now: options.now,
     },
