@@ -72,7 +72,7 @@ The per-feature rules that must not be broken live in `docs/sdao-handoff/FEATURE
 
 
 ## 5. Data model rules (SPEC 3, `db/schema.sql`)
-- 23 tables. Primary keys are **numeric identity columns**; only `student_accounts` and `employee_accounts` use text ids. Workbook codes (V001, S001, C001: letter plus the id padded to 3 digits) are display codes derived in the app, never stored or typed by hand. Student ids are `YYYY-NNNNNNN` (regex `^\d{4}-\d{7}$`).
+- 23 tables. Primary keys are **numeric identity columns**; only `student_accounts` and `employee_accounts` use text ids. Display codes (`V-001`, `S-021`, `A-104`; cases `SDO-<year>-<number>`; gate submissions `GI-<1000+rank>`; SPEC decision 13) are derived in the app, never stored or typed by hand. Student ids are `YYYY-NNNNNNN` (regex `^\d{4}-\d{7}$`).
 - Enums are CHECK constraints in SQL. Timestamps are `timestamptz` (UTC); display in Asia/Manila.
 - Prisma cannot express the appointment exclusion constraint, the CHECK constraints or the partial/expression indexes. Keep them in `schema.sql` / hand-written migrations. **`prisma db push` must never overwrite them.** Flow: apply `schema.sql` + `seed.sql`, then `prisma db pull`, then maintain Prisma models to match. Status: `schema.sql` is already applied on the Neon development branch and `api/prisma/schema.prisma` has the 23 models; confirm drift with the Neon MCP schema comparison before relying on either, and never re-run `schema.sql`.
 - `connect-pg-simple` creates its own `session` table; it is infrastructure, not part of the ERD.
