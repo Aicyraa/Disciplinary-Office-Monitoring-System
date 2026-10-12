@@ -1,5 +1,6 @@
 import type {
   CaseTimelineEntry,
+  ClearanceSlipView,
   ClearanceTermView,
   StudentAppointmentView,
   StudentCaseDetailView,
@@ -113,6 +114,21 @@ export function toProfileView(record: StudentProfileRecord): StudentProfileView 
     program: record.program,
     yearLevel: record.yearLevel,
     isActive: record.isActive,
+  };
+}
+
+export function toSlipView(profile: StudentProfileRecord, record: ClearanceRecord): ClearanceSlipView {
+  const done = record.items.map((item) => item.dateCompleted).filter((date): date is Date => date !== null);
+  const last = done.length > 0 ? new Date(Math.max(...done.map((date) => date.getTime()))) : null;
+  return {
+    student: toProfileView(profile),
+    academicYear: record.academicYear,
+    semester: record.semester,
+    clearedOn: last ? manilaToday(last) : '',
+    items: record.items.map((item) => ({
+      label: item.label,
+      dateCompleted: item.dateCompleted ? manilaToday(item.dateCompleted) : null,
+    })),
   };
 }
 

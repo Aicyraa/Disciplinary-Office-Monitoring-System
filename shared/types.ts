@@ -38,6 +38,7 @@ export type ApiErrorCode =
   | 'invalid_input'
   | 'not_found'
   | 'invalid_status'
+  | 'not_cleared'
   // cases
   | 'student_not_found'
   | 'violation_not_found'
@@ -402,6 +403,16 @@ export type StaffStudentRecord = {
   sanctions: StudentSanctionView[];
   appointments: StudentAppointmentView[];
   clearanceTerms: ClearanceTermView[];
+};
+
+/** What the printable clearance slip shows. Only produced for a cleared term (UI-POLISH-SPEC decision 2). */
+export type ClearanceSlipView = {
+  student: StudentProfileView;
+  academicYear: number;
+  semester: number;
+  /** Date the last requirement was completed, YYYY-MM-DD (Asia/Manila). */
+  clearedOn: string;
+  items: Array<{ label: string; dateCompleted: string | null }>;
 };
 
 export type StudentClearanceResponse = {
