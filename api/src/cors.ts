@@ -1,21 +1,33 @@
 const LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '[::1]'] as const;
 
+/** The port `vite preview` (`npm start` in client/) serves the production build on; see client/vite.config.ts. */
+export const LOCAL_PREVIEW_PORT = 4173;
+
 /**
- * The browser origins the API accepts (CORS). The configured client origin is always allowed. In development
- * only, a loopback origin also allows its loopback aliases on the same scheme and port: Vite prints
- * `http://127.0.0.1:5173` while people type `http://localhost:5173`, and both are the same machine. The port
- * and scheme are never widened, and nothing but loopback hosts is added.
+ * The browser origins the API accepts (CORS). The configured client origin is always allowed.
+ *
+ * In development only (`loopbackAliases`), and only when the configured origin is on loopback:
+ * - its loopback spellings are allowed on the same scheme and port (Vite prints `http://127.0.0.1:5173` while
+ *   people type `http://localhost:5173`; both are the same machine), and
+ * - so is the local preview server for the built client (`LOCAL_PREVIEW_PORT`), on the same scheme and the
+ *   same loopback spellings, so `npm run build` then `npm start` can sign in.
+ *
+ * No other port, no other scheme and no non-loopback host is ever added.
  */
 export function allowedClientOrigins(clientOrigin: string, { loopbackAliases }: { loopbackAliases: boolean }): Set<string> {
   let url: URL;
   try {
     url = new URL(clientOrigin);
   } catch {
-    return new Set([clientOrigin]);
+    // Not a URL (for example the string "null"): allow nothing rather than guess. The caller reports it.
+    return new Set();
   }
   const allowed = new Set([url.origin]);
   if (loopbackAliases && (LOOPBACK_HOSTS as readonly string[]).includes(url.hostname)) {
-    for (const host of LOOPBACK_HOSTS) allowed.add(`${url.protocol}//${host}${url.port ? `:${url.port}` : ''}`);
+    const ports = new Set([url.port, String(LOCAL_PREVIEW_PORT)]);
+    for (const host of LOOPBACK_HOSTS) {
+      for (const port of ports) allowed.add(`${url.protocol}//${host}${port ? `:${port}` : ''}`);
+    }
   }
   return allowed;
 }

@@ -32,6 +32,9 @@ function buildApp() {
     console.warn(`${reason} Serving /health only; every other route answers 503.`);
     return createApp({ unconfigured: { clientOrigin, reason, loopbackAliases } });
   };
+  if (origins.length === 0) {
+    return misconfigured(`APP_BASE_URL must be a full URL such as http://localhost:5173 (got "${clientOrigin}").`);
+  }
   if (!DATABASE_URL || !SESSION_SECRET) {
     return misconfigured('DATABASE_URL and SESSION_SECRET must be set in the root .env.');
   }

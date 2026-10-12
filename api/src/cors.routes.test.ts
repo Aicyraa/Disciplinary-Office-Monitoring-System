@@ -68,6 +68,37 @@ describe('CORS for the browser client', () => {
     expect(login.headers['access-control-allow-credentials']).toBe('true');
   });
 
+  test.each(['http://localhost:4173', 'http://127.0.0.1:4173'])(
+    'in development the built client served by `npm start` (%s) can preflight and sign in',
+    async (origin) => {
+      const app = appWith(true);
+      const preflight = await request(app)
+        .options('/auth/login')
+        .set('Origin', origin)
+        .set('Access-Control-Request-Method', 'POST')
+        .set('Access-Control-Request-Headers', 'content-type');
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers['access-control-allow-origin']).toBe(origin);
+
+      const me = await request(app).get('/auth/me').set('Origin', origin);
+      expect(me.status).toBe(401);
+      expect(me.headers['access-control-allow-origin']).toBe(origin);
+      expect(me.headers['access-control-allow-credentials']).toBe('true');
+
+      const login = await request(app)
+        .post('/auth/login')
+        .set('Origin', origin)
+        .send({ email: 'ana@students.nu-fairview.edu.ph', password: 'Passw0rd1' });
+      expect(login.status).toBe(200);
+      expect(login.headers['access-control-allow-origin']).toBe(origin);
+    },
+  );
+
+  test('in production the preview origin is refused like any other', async () => {
+    const response = await request(appWith(false)).get('/auth/me').set('Origin', 'http://localhost:4173');
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
   test('without aliases (production) the 127.0.0.1 spelling is refused: no CORS headers', async () => {
     const response = await request(appWith(false)).get('/auth/me').set('Origin', ALIAS);
     expect(response.headers['access-control-allow-origin']).toBeUndefined();
