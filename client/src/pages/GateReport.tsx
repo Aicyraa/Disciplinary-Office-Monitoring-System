@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
+import seal from '../assets/seal.png';
+import { StageTracker } from '../components/StageTracker';
 import { buttonClass, fieldClass, Icon, LoadingState } from '../components/ui';
 import { api, toApiError } from '../lib/api';
 import {
@@ -11,7 +14,7 @@ import {
 type Options = { violations: Array<{ id: number; name: string; section: string }>; programs: string[] };
 
 const EMPTY: GateFormValues = { studentId: '', name: '', program: '', year: '', violationIds: [] };
-const STEPS = ['Student', 'Program', 'Violations'] as const;
+const STEPS = ['Details', 'Violations', 'Review'] as const;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -101,12 +104,18 @@ export default function GateReportPage() {
   }
 
   const shell = (children: React.ReactNode) => (
-    <div className="flex min-h-screen items-start justify-center bg-page px-4 py-8">
-      <div className="w-full max-w-xl rounded-lg border border-line bg-white p-5 shadow-sm sm:p-6">
-        <p className="text-sm font-semibold text-primary">NU Fairview · Student Discipline Office</p>
-        <h1 className="mt-1 text-2xl font-bold text-ink">Report a violation</h1>
-        {children}
-      </div>
+    <div className="min-h-screen bg-page">
+      <header className="flex items-center gap-3 border-b border-line bg-white px-4 py-2">
+        <Link to="/login" aria-label="Back to sign in" className="inline-flex min-h-11 min-w-11 items-center justify-center text-ink">
+          <Icon name="arrow_back" />
+        </Link>
+        <img src={seal} alt="" className="size-8 rounded-full" />
+        <div className="leading-tight">
+          <h1 className="text-sm font-bold text-ink">Violation Form</h1>
+          <p className="text-[11px] text-muted">Student Discipline Office</p>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-lg px-4 py-6">{children}</main>
     </div>
   );
 
@@ -149,23 +158,14 @@ export default function GateReportPage() {
 
   return shell(
     <>
-      <ol className="mt-4 flex gap-2" aria-label="Steps">
-        {STEPS.map((label, index) => (
-          <li
-            key={label}
-            aria-current={step === index + 1 ? 'step' : undefined}
-            className={`flex-1 rounded-md px-2 py-1 text-center text-xs font-semibold ${
-              step === index + 1 ? 'bg-primary text-white' : step > index + 1 ? 'bg-line text-ink' : 'bg-page text-muted'
-            }`}
-          >
-            {index + 1}. {label}
-          </li>
-        ))}
-      </ol>
+      <div className="mb-4">
+        <StageTracker steps={STEPS} current={step - 1} label="Steps" />
+      </div>
 
-      <form onSubmit={step === 3 ? submit : next} noValidate className="mt-5 space-y-4">
+      <form onSubmit={step === 3 ? submit : next} noValidate className="space-y-4 rounded-lg border border-line bg-white p-5">
         {step === 1 ? (
           <>
+            <h2 className="text-base font-bold text-ink">Student details</h2>
             <div>
               <label htmlFor="gate-id" className="mb-1 block text-sm font-medium text-ink">
                 Student ID
@@ -182,7 +182,7 @@ export default function GateReportPage() {
             </div>
             <div>
               <label htmlFor="gate-name" className="mb-1 block text-sm font-medium text-ink">
-                Student name
+                Full name
               </label>
               <input
                 id="gate-name"
@@ -193,11 +193,6 @@ export default function GateReportPage() {
                 onChange={(event) => set('name', event.target.value)}
               />
             </div>
-          </>
-        ) : null}
-
-        {step === 2 ? (
-          <>
             <div>
               <label htmlFor="gate-program" className="mb-1 block text-sm font-medium text-ink">
                 Program
@@ -232,9 +227,10 @@ export default function GateReportPage() {
           </>
         ) : null}
 
-        {step === 3 ? (
+        {step === 2 ? (
           <fieldset>
-            <legend className="mb-1 text-sm font-medium text-ink">What did the student do? Choose one or more.</legend>
+            <legend className="mb-1 text-base font-bold text-ink">What did the student do?</legend>
+            <p className="mb-2 text-xs text-muted">Choose one or more.</p>
             <label htmlFor="gate-search" className="sr-only">
               Search violations
             </label>
@@ -279,6 +275,37 @@ export default function GateReportPage() {
           </fieldset>
         ) : null}
 
+        {step === 3 ? (
+          <div>
+            <h2 className="text-base font-bold text-ink">Check and submit</h2>
+            <dl className="mt-3 rounded-lg border border-line">
+              {(
+                [
+                  ['Student ID', values.studentId.trim()],
+                  ['Full name', values.name.trim()],
+                  ['Program', values.program],
+                  ['Year level', YEAR_LEVEL_OPTIONS.find((option) => option.value === values.year)?.label ?? ''],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="grid grid-cols-[6.5rem_1fr] gap-2 border-b border-line px-3 py-2 last:border-0">
+                  <dt className="text-sm text-muted">{label}</dt>
+                  <dd className="text-sm font-medium text-ink">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <h3 className="mt-4 text-xs font-semibold tracking-wide text-muted uppercase">Violations</h3>
+            <ul className="mt-2 space-y-1">
+              {options.violations
+                .filter((violation) => values.violationIds.includes(violation.id))
+                .map((violation) => (
+                  <li key={violation.id} className="rounded-md bg-page px-3 py-2 text-sm text-ink">
+                    {violation.name} <span className="text-muted">({violation.section})</span>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ) : null}
+
         {problem ? (
           <p role="alert" className="text-sm font-medium text-danger">
             {problem}
@@ -294,12 +321,12 @@ export default function GateReportPage() {
                 setProblem(null);
                 setStep((current) => (current - 1) as 1 | 2);
               }}
-              className="rounded-md border border-line-strong bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-page"
+              className="inline-flex min-h-11 items-center rounded-full border border-primary px-5 text-sm font-semibold text-primary hover:bg-page"
             >
               Back
             </button>
           ) : null}
-          <button type="submit" disabled={busy} className={`${buttonClass} flex-1`}>
+          <button type="submit" disabled={busy} className={`${buttonClass} min-h-11 flex-1 rounded-full`}>
             {step < 3 ? 'Next' : busy ? 'Submitting…' : 'Submit report'}
           </button>
         </div>
