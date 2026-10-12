@@ -251,7 +251,7 @@ GET  /sanction-templates/files/:fileId/url    (any signed-in user: 60 s download
 
 GET  /cases?status=&class=&q=&sort=&page=     (staff)     GET /me/cases (student)
 GET  /cases/:id                               (staff)     GET /me/cases/:id (student)
-POST /cases                                   (staff records violation)
+POST /cases                                   (staff records violation; optional remarks become the first log entry)
 POST /submissions/:id/validate | /reject      GET /submissions/:id/escalation-preview
 PATCH /cases/:id/student                      (staff links a reported case to a student id)
 GET  /cases/:id/sanction-options              (staff: offense number + allowed sanctions, computed by the API)
@@ -264,7 +264,9 @@ POST /files (multipart; this one request IS the submission)   GET /files/:id/url
 #   `:id` is the `case_sanction_files` id. A replace sends `replaceFileId` with exactly one file.
 POST /case-sanctions/:id/verify | /return       # no /submit and no /record-compliance (online proof only)
 
-GET  /students  GET /students/:id   POST /students/:id/reset-password
+GET  /students?q=&page=   GET /students/:id                  (staff: the student records; 20 per page)
+POST /staff/students/:studentId/reset-password                (staff: one-time temp password)
+GET  /me/profile                                              (student: own account details)
 GET  /clearances?status=&q=&page=   GET /clearances/:id   POST /clearances (studentId, academicYear, semester)
 POST /clearances/:id/requirements (label)   DELETE /clearances/:id/requirements/:rid
 POST /clearances/:id/requirements/:rid/complete (remarks) | /reverse (reason)   GET /me/clearance (student)
