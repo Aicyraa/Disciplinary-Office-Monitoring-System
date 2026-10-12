@@ -3,6 +3,16 @@ const LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '[::1]'] as const;
 /** The port `vite preview` (`npm start` in client/) serves the production build on; see client/vite.config.ts. */
 export const LOCAL_PREVIEW_PORT = 4173;
 
+/** `http(s)://localhost|127.0.0.1|[::1]` on any port: a page served from the developer's own machine. */
+export function isLoopbackOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return (url.protocol === 'http:' || url.protocol === 'https:') && (LOOPBACK_HOSTS as readonly string[]).includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The browser origins the API accepts (CORS). The configured client origin is always allowed.
  *
@@ -22,6 +32,9 @@ export function allowedClientOrigins(clientOrigin: string, { loopbackAliases }: 
     // Not a URL (for example the string "null"): allow nothing rather than guess. The caller reports it.
     return new Set();
   }
+  // `new URL('localhost:5173')` parses (scheme "localhost:") and its origin is the string "null". Only real
+  // web origins are acceptable.
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return new Set();
   const allowed = new Set([url.origin]);
   if (loopbackAliases && (LOOPBACK_HOSTS as readonly string[]).includes(url.hostname)) {
     const ports = new Set([url.port, String(LOCAL_PREVIEW_PORT)]);

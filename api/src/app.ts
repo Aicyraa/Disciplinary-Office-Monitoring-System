@@ -3,7 +3,7 @@ import express from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import type { HealthResponse } from '../../shared/types.js';
-import { allowedClientOrigins } from './cors.js';
+import { allowedClientOrigins, isLoopbackOrigin } from './cors.js';
 import { createAuthRouter, type LoginRateLimitOptions } from './auth/routes.js';
 import type { AuthService } from './auth/service.js';
 import type { CaseQueries } from './cases/queries.js';
@@ -67,7 +67,17 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
   });
 
   if (!auth && unconfigured) {
-    app.use(clientCors(unconfigured.clientOrigin, unconfigured.loopbackAliases));
+    // Development only: this app serves nothing but a fixed reason (no data, no cookies), so any page on the
+    // developer's own machine may read it. That keeps the reason readable even when the client origin setting
+    // is the thing that is wrong.
+    const configured = allowedClientOrigins(unconfigured.clientOrigin, { loopbackAliases: unconfigured.loopbackAliases ?? false });
+    app.use(
+      cors({
+        origin: (origin, callback) =>
+          callback(null, origin !== undefined && (configured.has(origin) || isLoopbackOrigin(origin))),
+        credentials: true,
+      }),
+    );
     app.use((_request, response) => {
       response.status(503).json({ error: 'server_not_configured', message: unconfigured.reason });
     });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { LOCAL_PREVIEW_PORT, allowedClientOrigins } from './cors.js';
+import { LOCAL_PREVIEW_PORT, allowedClientOrigins, isLoopbackOrigin } from './cors.js';
 
 describe('allowedClientOrigins', () => {
   test('the configured origin is always allowed', () => {
@@ -51,4 +51,24 @@ describe('allowedClientOrigins', () => {
   test.each(['not a url', 'null', ''])('an unparsable origin (%j) allows nothing', (value) => {
     expect(allowedClientOrigins(value, { loopbackAliases: true })).toEqual(new Set());
   });
+
+  test.each(['localhost:5173', '127.0.0.1:5173', 'ftp://localhost:5173', 'file:///tmp/x', 'javascript:alert(1)'])(
+    'a scheme-less or non-web value (%j) allows nothing (its URL origin would be the string "null")',
+    (value) => {
+      expect(allowedClientOrigins(value, { loopbackAliases: true })).toEqual(new Set());
+    },
+  );
+});
+
+describe('isLoopbackOrigin', () => {
+  test.each(['http://localhost:5173', 'http://127.0.0.1:9', 'https://localhost', 'http://[::1]:3000'])('%s is loopback', (origin) => {
+    expect(isLoopbackOrigin(origin)).toBe(true);
+  });
+
+  test.each(['http://evil.example', 'http://localhost.evil.example:5173', 'null', 'ftp://localhost', 'localhost:5173', ''])(
+    '%j is not',
+    (origin) => {
+      expect(isLoopbackOrigin(origin)).toBe(false);
+    },
+  );
 });

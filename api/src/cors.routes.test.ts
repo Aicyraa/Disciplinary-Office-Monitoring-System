@@ -138,6 +138,14 @@ describe('unconfigured development server', () => {
     expect(response.headers['access-control-allow-origin']).toBe(ALIAS);
   });
 
+  test('when the client origin setting is itself the problem, a page on the developer machine can still read the reason', async () => {
+    const app = createApp({ unconfigured: { clientOrigin: 'localhost:5173', reason: 'APP_BASE_URL must be a full URL.', loopbackAliases: true } });
+    const response = await request(app).get('/auth/me').set('Origin', 'http://127.0.0.1:4173');
+    expect(response.status).toBe(503);
+    expect(response.headers['access-control-allow-origin']).toBe('http://127.0.0.1:4173');
+    expect(response.body.message).toBe('APP_BASE_URL must be a full URL.');
+  });
+
   test('a foreign origin still gets no CORS headers', async () => {
     const response = await request(unconfigured()).get('/auth/me').set('Origin', 'http://evil.example');
     expect(response.status).toBe(503);
