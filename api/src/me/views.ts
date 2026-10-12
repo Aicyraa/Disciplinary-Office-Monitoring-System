@@ -5,6 +5,7 @@ import type {
   StudentCaseDetailView,
   StudentCaseView,
   StudentClearanceView,
+  StudentProfileView,
   StudentSanctionView,
 } from '@shared/types.js';
 import { displayCode } from '../codes.js';
@@ -16,6 +17,7 @@ import type {
   CaseSanctionRecord,
   ClearanceRecord,
   ClearanceTermRecord,
+  StudentProfileRecord,
 } from './repo.js';
 
 const iso = (date: Date): string => date.toISOString();
@@ -102,6 +104,18 @@ export function toCaseDetailView(
 }
 
 /** Calendar day in Asia/Manila as YYYY-MM-DD (SPEC decision: display in Manila time). */
+export function toProfileView(record: StudentProfileRecord): StudentProfileView {
+  return {
+    studentId: record.studentId,
+    firstName: record.firstName,
+    lastName: record.lastName,
+    email: record.email,
+    program: record.program,
+    yearLevel: record.yearLevel,
+    isActive: record.isActive,
+  };
+}
+
 export function manilaToday(now: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Manila',

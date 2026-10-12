@@ -10,6 +10,7 @@ import {
   toCaseDetailView,
   toCaseView,
   toClearanceView,
+  toProfileView,
   toSanctionView,
 } from './views.js';
 
@@ -29,6 +30,15 @@ export function createMeRouter({ repo, now = () => new Date() }: MeRouterOptions
   router.use('/me', ...requireStudent);
 
   const studentId = (request: { user?: unknown }): string => (request.user as AuthUser).id;
+
+  router.get('/me/profile', async (request, response) => {
+    const profile = await repo.getProfile(studentId(request));
+    if (!profile) {
+      sendError(response, 404, 'not_found', 'Not found.');
+      return;
+    }
+    sendOk(response, { profile: toProfileView(profile) });
+  });
 
   router.get('/me/cases', async (request, response) => {
     const cases = await repo.listCases(studentId(request));

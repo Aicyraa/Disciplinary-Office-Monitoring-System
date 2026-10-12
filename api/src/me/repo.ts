@@ -83,6 +83,21 @@ export interface ClearanceRecord extends ClearanceTermRecord {
   }>;
 }
 
+export interface StudentProfileRecord {
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  program: string;
+  yearLevel: number;
+  isActive: boolean;
+}
+
+export interface StudentSummaryRecord extends StudentProfileRecord {
+  openCases: number;
+  activeSanctions: number;
+}
+
 /**
  * Read-only views of one student's own data. Every method takes the student id from the signed-in
  * session (never from the request), and implementations must filter by it.
@@ -94,4 +109,10 @@ export interface StudentViewRepo {
   listAppointments(studentId: string): Promise<AppointmentRecord[]>;
   listClearanceTerms(studentId: string): Promise<ClearanceTermRecord[]>;
   getClearance(studentId: string, academicYear: number, semester: number): Promise<ClearanceRecord | null>;
+  getProfile(studentId: string): Promise<StudentProfileRecord | null>;
+  /**
+   * Staff directory (SPEC 5): newest ids last, optional text match on id, name, email or program. Only the staff
+   * routes call it; the student routes never do.
+   */
+  searchStudents(input: { q: string | null; page: number; pageSize: number }): Promise<{ total: number; rows: StudentSummaryRecord[] }>;
 }

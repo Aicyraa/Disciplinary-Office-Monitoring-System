@@ -369,6 +369,41 @@ export type StudentClearanceView = ClearanceTermView & {
   items: ClearanceItemView[];
 };
 
+/** A student's own account details (read-only), and the head of a staff student record. */
+export type StudentProfileView = {
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  program: string;
+  yearLevel: number;
+  isActive: boolean;
+};
+
+/** One row of the staff Students list (SPEC 5). */
+export type StaffStudentRow = StudentProfileView & {
+  /** Cases that are reported, validated or for_sanction. */
+  openCases: number;
+  /** Sanctions that are assigned, pending verification or returned. */
+  activeSanctions: number;
+};
+
+export type StaffStudentListResponse = {
+  students: StaffStudentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+/** A student's record as staff see it: the same views the student sees, plus the account details. */
+export type StaffStudentRecord = {
+  profile: StudentProfileView;
+  cases: StudentCaseView[];
+  sanctions: StudentSanctionView[];
+  appointments: StudentAppointmentView[];
+  clearanceTerms: ClearanceTermView[];
+};
+
 export type StudentClearanceResponse = {
   /** Newest first. */
   terms: ClearanceTermView[];
