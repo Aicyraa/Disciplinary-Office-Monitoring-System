@@ -17,13 +17,22 @@ export interface LoginRateLimitOptions {
 export interface AuthRouterOptions {
   service: AuthService;
   loginRateLimit?: LoginRateLimitOptions;
+  /**
+   * Called after staff reset a student's password (an `account` notification). It must not carry the temporary
+   * password. A failure here is logged and never undoes or hides the reset.
+   */
+  onPasswordReset?: (studentId: string) => Promise<void>;
 }
 
 
 
 const asString = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
-export function createAuthRouter({ service, loginRateLimit = { windowMs: 15 * 60 * 1000, limit: 10 } }: AuthRouterOptions): Router {
+export function createAuthRouter({
+  service,
+  loginRateLimit = { windowMs: 15 * 60 * 1000, limit: 10 },
+  onPasswordReset,
+}: AuthRouterOptions): Router {
   const authenticator = new Passport();
 
   authenticator.use(
@@ -133,6 +142,12 @@ export function createAuthRouter({ service, loginRateLimit = { windowMs: 15 * 60
     if (!result.ok) {
       sendError(response, 404, 'student_not_found', 'No student has that ID.');
       return;
+    }
+    try {
+      await onPasswordReset?.(studentId);
+    } catch (error) {
+      // The password is already reset and the temp password must reach the staff member: never fail here.
+      console.error('Could not record the password-reset notification', error);
     }
     response.set('Cache-Control', 'no-store');
     sendOk(response, { tempPassword: result.tempPassword });

@@ -288,8 +288,9 @@ function createTx(db: Prisma.TransactionClient): CaseTx {
             kind: 'sanction',
             title: input.title,
             message: input.message,
-            link_type: 'sanction',
-            link_id: input.caseSanctionId,
+            // A student opens the sanction list; staff open the case that holds the sanction.
+            link_type: input.recipient === 'staff' ? 'case' : 'sanction',
+            link_id: input.recipient === 'staff' ? input.caseId : input.caseSanctionId,
             idempotency_key: input.idempotencyKey,
           },
         ],

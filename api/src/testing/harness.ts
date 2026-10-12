@@ -10,6 +10,7 @@ import type { HandbookRepo } from '../handbook/repo.js';
 import { createMemoryHandbookRepo } from '../handbook/memory-repo.js';
 import type { StudentViewRepo } from '../me/repo.js';
 import { createMemoryStudentViewRepo } from '../me/memory-repo.js';
+import type { InboxStore } from '../notifications/inbox.js';
 
 /** Fake accounts and an app wired with in-memory repositories. Test-only; never imported by production code. */
 export const PASSWORD = 'Passw0rd1';
@@ -27,6 +28,8 @@ export interface HarnessOptions {
   studentViews?: StudentViewRepo;
   cases?: { service: CaseService; queries: CaseQueries };
   sanctions?: { service: SanctionService };
+  notifications?: { inbox: InboxStore };
+  onPasswordReset?: (studentId: string) => Promise<void>;
   now?: () => Date;
 }
 
@@ -55,12 +58,14 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
       sessionSecret: 'test-secret-test-secret-test-secret-1',
       clientOrigin: 'http://localhost:5173',
       loginRateLimit: { windowMs: 60_000, limit: 1000 },
+      onPasswordReset: options.onPasswordReset,
     },
     data: {
       handbook: options.handbook ?? createMemoryHandbookRepo(),
       studentViews: options.studentViews ?? createMemoryStudentViewRepo(),
       cases: options.cases,
       sanctions: options.sanctions,
+      notifications: options.notifications,
       now: options.now,
     },
   });

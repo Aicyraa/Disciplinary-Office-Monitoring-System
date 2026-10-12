@@ -70,6 +70,34 @@ export type ApiFailure = {
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
+// ---- Notifications (SPEC 4.6, 6.3; POWER-AUTOMATE.md section 4) ---------------------------------
+
+/**
+ * The closed set of notification kinds: the `notifications.kind` values, and the `type` of every
+ * Power Automate request. A new kind is a spec change, not an ad-hoc string.
+ */
+export type NotificationKind = 'report' | 'case' | 'esc' | 'sanction' | 'appt' | 'clr' | 'account' | 'newviol';
+
+export type NotificationLinkType = 'case' | 'sanction' | 'appointment' | 'student' | 'clearance' | 'inbox';
+
+export type NotificationView = {
+  id: number;
+  kind: NotificationKind;
+  title: string;
+  message: string;
+  isRead: boolean;
+  /** ISO timestamp (UTC). */
+  dateCreated: string;
+  /** The app page this notification points to, or null. Built by the API (one mapping for inbox and email). */
+  href: string | null;
+};
+
+export type NotificationListResponse = {
+  /** Newest first. */
+  notifications: NotificationView[];
+  unreadCount: number;
+};
+
 export type AccountRole = 'student' | 'staff';
 
 /** The signed-in user as the API exposes it. Never carries a password hash. */

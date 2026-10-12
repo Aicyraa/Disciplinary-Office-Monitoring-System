@@ -1,6 +1,7 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import type { AccountRole } from '@shared/types';
 import { useAuth } from '../auth/AuthContext';
+import { UnreadProvider, badgeText, useUnread } from '../notifications/UnreadContext';
 import { Icon } from './ui';
 
 interface NavItem {
@@ -23,6 +24,7 @@ const STUDENT_NAV: NavItem[] = [
 // Staff pages arrive step by step; the rest of the ten staff pages follow in later build steps.
 const STAFF_NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: 'home', end: true },
+  { to: '/inbox', label: 'Inbox', icon: 'inbox' },
   { to: '/record', label: 'Record violation', icon: 'edit_note' },
   { to: '/cases', label: 'Cases', icon: 'folder_open' },
   { to: '/handbook', label: 'Handbook', icon: 'menu_book' },
@@ -70,7 +72,58 @@ function TabLink({ item }: { item: NavItem }) {
   );
 }
 
+/** The bell in the top bar: a link to the inbox with the unread count. */
+function Bell() {
+  const { unreadCount } = useUnread();
+  const text = badgeText(unreadCount);
+  return (
+    <Link
+      to="/inbox"
+      aria-label={text === null ? 'Inbox, no unread notifications' : `Inbox, ${unreadCount} unread`}
+      className="relative inline-flex items-center rounded-md p-1 text-ink hover:bg-page"
+    >
+      <Icon name="notifications" />
+      {text === null ? null : (
+        <span className="absolute -top-1 -right-1 min-w-5 rounded-full bg-danger px-1 text-center text-[11px] leading-5 font-semibold text-white">
+          {text}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+/** "You have N unread" after sign-in. A status message, so screen readers announce it without taking focus. */
+function UnreadToast() {
+  const { toast, dismissToast } = useUnread();
+  if (toast === null) return null;
+  return (
+    <div
+      role="status"
+      className="fixed top-3 right-3 z-20 flex max-w-sm items-center gap-3 rounded-lg border border-line-strong bg-white px-4 py-3 text-sm shadow-lg"
+    >
+      <Icon name="notifications" className="text-primary" />
+      <span className="text-ink">{toast}</span>
+      <Link to="/inbox" onClick={dismissToast} className="font-medium text-primary underline">
+        View
+      </Link>
+      <button type="button" onClick={dismissToast} aria-label="Dismiss" className="text-muted hover:text-ink">
+        <Icon name="close" />
+      </button>
+    </div>
+  );
+}
+
 export function Shell() {
+  const { state } = useAuth();
+  if (state.status !== 'authenticated') return null;
+  return (
+    <UnreadProvider role={state.user.role}>
+      <ShellFrame />
+    </UnreadProvider>
+  );
+}
+
+function ShellFrame() {
   const { state, signOut } = useAuth();
   if (state.status !== 'authenticated') return null;
   const { user } = state;
@@ -100,9 +153,10 @@ export function Shell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-3">
           <span className="text-sm font-semibold text-ink rail:hidden">SDO Portal</span>
-          <span className="ml-auto text-sm text-muted">
+          <span className="ml-auto flex items-center gap-2 text-sm text-muted">
+            <Bell />
             {user.firstName} {user.lastName}
-            <span className="ml-2 rounded bg-page px-1.5 py-0.5 text-xs font-medium text-ink">
+            <span className="rounded bg-page px-1.5 py-0.5 text-xs font-medium text-ink">
               {user.role === 'staff' ? 'Staff' : user.id}
             </span>
           </span>
@@ -114,6 +168,7 @@ export function Shell() {
             Sign out
           </button>
         </div>
+        <UnreadToast />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-24 rail:pb-6">
           <Outlet />
         </main>

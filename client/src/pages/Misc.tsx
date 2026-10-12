@@ -1,15 +1,5 @@
 import { Link } from 'react-router-dom';
-import { EmptyState, PageHeader } from '../components/ui';
-
-/** Notifications are built in step 6; until then the inbox is honestly empty. */
-export function InboxPage() {
-  return (
-    <>
-      <PageHeader title="Inbox" subtitle="Updates from the SDO office about your cases, sanctions and appointments." />
-      <EmptyState title="No notifications yet." hint="Updates from the office will show up here." />
-    </>
-  );
-}
+import { PageHeader } from '../components/ui';
 
 export function NotFoundPage() {
   return (

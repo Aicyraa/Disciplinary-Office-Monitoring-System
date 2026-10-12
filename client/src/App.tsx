@@ -9,7 +9,8 @@ import { ClearancePage } from './pages/Clearance';
 import { StaffHome, StudentDashboard } from './pages/Dashboard';
 import { HandbookPage } from './pages/Handbook';
 import Login from './pages/Login';
-import { InboxPage, NotFoundPage } from './pages/Misc';
+import { InboxPage } from './pages/Inbox';
+import { NotFoundPage } from './pages/Misc';
 import { RecordViolationPage } from './pages/RecordViolation';
 import { CaseDetailPage } from './pages/StaffCaseDetail';
 import { CasesPage } from './pages/StaffCases';
@@ -62,8 +63,8 @@ function AppRoutes() {
         <Route element={<Shell />}>
           <Route index element={<Home />} />
           <Route path="handbook" element={<HandbookPage />} />
+          <Route path="inbox" element={<InboxPage />} />
           <Route element={<RoleOnly role="student" />}>
-            <Route path="inbox" element={<InboxPage />} />
             <Route path="violations" element={<ViolationsList />} />
             <Route path="violations/:id" element={<ViolationDetail />} />
             <Route path="sanctions" element={<SanctionsPage />} />

@@ -13,6 +13,8 @@ import { createHandbookRouter } from './handbook/routes.js';
 import type { HandbookRepo } from './handbook/repo.js';
 import { errorHandler, notFoundHandler, sendError } from './http.js';
 import { createMeRouter } from './me/routes.js';
+import type { InboxStore } from './notifications/inbox.js';
+import { createNotificationsRouter } from './notifications/routes.js';
 import { createSanctionRouter } from './sanctions/routes.js';
 import type { SanctionService } from './sanctions/service.js';
 import type { StudentViewRepo } from './me/repo.js';
@@ -28,6 +30,8 @@ export interface AppDeps {
     sessionStore?: session.Store;
     secureCookies?: boolean;
     loginRateLimit?: LoginRateLimitOptions;
+    /** See AuthRouterOptions.onPasswordReset. */
+    onPasswordReset?: (studentId: string) => Promise<void>;
   };
   /**
    * Used instead of `auth` when required configuration is missing (development). Every route except /health
@@ -43,6 +47,8 @@ export interface AppDeps {
     cases?: { service: CaseService; queries: CaseQueries };
     /** Sanction assignment, proof files and verification. */
     sanctions?: { service: SanctionService };
+    /** The in-app inbox: a student's own, and the single shared staff inbox. */
+    notifications?: { inbox: InboxStore };
     /** Injected so tests control "today" (Asia/Manila). */
     now?: () => Date;
   };
@@ -100,13 +106,20 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
         },
       }),
     );
-    app.use(createAuthRouter({ service: auth.service, loginRateLimit: auth.loginRateLimit }));
+    app.use(
+      createAuthRouter({
+        service: auth.service,
+        loginRateLimit: auth.loginRateLimit,
+        onPasswordReset: auth.onPasswordReset,
+      }),
+    );
 
     if (data) {
       app.use(createHandbookRouter({ repo: data.handbook }));
       app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
       if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));
       if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
+      if (data.notifications) app.use(createNotificationsRouter({ store: data.notifications.inbox }));
     }
   }
 

@@ -3,8 +3,10 @@ import { resolveApiBaseUrl } from './apiBase';
 import type {
   ApiErrorCode,
   ApiFailure,
+  AccountRole,
   ApiSuccess,
   AuthUser,
+  NotificationListResponse,
   EscalationConversion,
   HandbookEntryView,
   SanctionAssignmentOptions,
@@ -131,6 +133,8 @@ const post = <T>(path: string, body?: unknown) => request<T>(() => http.post(pat
 const patch = <T>(path: string, body?: unknown) => request<T>(() => http.patch(path, body));
 const del = <T = null>(path: string) => request<T>(() => http.delete(path));
 
+const inboxBase = (role: AccountRole): string => (role === 'staff' ? '/notifications' : '/me/notifications');
+
 export interface StaffCaseQuery {
   status?: string;
   class?: string;
@@ -152,6 +156,17 @@ export const api = {
   myCase: (id: number) => get<{ case: StudentCaseDetailView }>(`/me/cases/${id}`),
   mySanctions: () => get<{ sanctions: StudentSanctionView[] }>('/me/sanctions'),
   myAppointments: () => get<{ appointments: StudentAppointmentView[] }>('/me/appointments'),
+  // Notifications (SPEC 7): students read `/me/notifications`; staff share one inbox at `/notifications`.
+  notifications: (role: AccountRole, query: { limit?: number; unread?: boolean } = {}) => {
+    const params: Record<string, string | number> = {};
+    if (query.limit !== undefined) params.limit = query.limit;
+    if (query.unread !== undefined) params.unread = String(query.unread);
+    return get<NotificationListResponse>(inboxBase(role), params);
+  },
+  markNotificationRead: (role: AccountRole, id: number) =>
+    post<{ unreadCount: number }>(`${inboxBase(role)}/${id}/read`),
+  markAllNotificationsRead: (role: AccountRole) => post<{ unreadCount: number }>(`${inboxBase(role)}/read-all`),
+
   // Staff case workflow (SPEC 7)
   staffCases: (query: StaffCaseQuery) => {
     const params: Record<string, string | number> = {};

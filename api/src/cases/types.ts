@@ -146,6 +146,8 @@ export interface SanctionNotificationInput {
   title: string;
   message: string;
   caseSanctionId: number;
+  /** The sanction's case. Staff have no page per sanction, so their notification links to the case. */
+  caseId: number;
   idempotencyKey: string;
 }
 

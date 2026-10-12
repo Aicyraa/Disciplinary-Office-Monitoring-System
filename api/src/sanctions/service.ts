@@ -247,6 +247,7 @@ export function createSanctionService({
           title: 'Sanction assigned',
           message: `${sanction?.sanctionType ?? 'A sanction'} was assigned for case ${caseCode(caseId)}. Due ${dueDate}.`,
           caseSanctionId,
+          caseId,
           idempotencyKey: `san:${caseSanctionId}:assigned`,
         });
         return { ok: true as const, caseSanctionId };
@@ -283,6 +284,7 @@ export function createSanctionService({
             title: 'Compliance recorded',
             message: `The SDO office recorded your compliance for ${record.sanctionType} (case ${caseCode(record.caseId)}). It is awaiting verification.`,
             caseSanctionId,
+            caseId: record.caseId,
             idempotencyKey: `san:${caseSanctionId}:compliance:${at.getTime()}`,
           });
         }
@@ -368,6 +370,7 @@ export function createSanctionService({
               title: 'Proof submitted',
               message: `Proof was submitted for ${record.sanctionType} (case ${caseCode(record.caseId)}). It is waiting for verification.`,
               caseSanctionId,
+              caseId: record.caseId,
               idempotencyKey: `san:${caseSanctionId}:submitted:${at.getTime()}`,
             });
           }
@@ -479,6 +482,7 @@ export function createSanctionService({
             title: 'Sanction verified',
             message: `Your ${record.sanctionType} (case ${caseCode(record.caseId)}) was verified as completed.`,
             caseSanctionId,
+            caseId: record.caseId,
             idempotencyKey: `san:${caseSanctionId}:completed`,
           });
         }
@@ -512,6 +516,7 @@ export function createSanctionService({
             title: 'Sanction returned',
             message: `Your ${record.sanctionType} (case ${caseCode(record.caseId)}) was returned. Reason: ${text}`,
             caseSanctionId,
+            caseId: record.caseId,
             idempotencyKey: `san:${caseSanctionId}:returned:${at.getTime()}`,
           });
         }

@@ -8,7 +8,16 @@ import { createAuthService } from './auth/service.js';
 import { createPrismaCaseQueries, createPrismaCaseStore } from './cases/prisma-store.js';
 import { createCaseService } from './cases/service.js';
 import { createPrismaHandbookRepo } from './handbook/prisma-repo.js';
+import { createSendToPowerAutomate, urlsFromEnv } from './integrations/power-automate.js';
 import { createPrismaStudentViewRepo } from './me/prisma-repo.js';
+import { withAfterCommit } from './notifications/after-commit.js';
+import { deliverPending } from './notifications/delivery.js';
+import {
+  createPrismaInboxStore,
+  createPrismaNotificationWriter,
+  createPrismaOutboxStore,
+} from './notifications/prisma.js';
+import { createDeliveryScheduler, type DeliveryScheduler } from './notifications/scheduler.js';
 import { createPrismaClient } from './prisma.js';
 import { createSanctionService } from './sanctions/service.js';
 import { createS3Storage } from './storage/s3.js';
@@ -16,8 +25,16 @@ import { createUnavailableStorage } from './storage/unavailable.js';
 
 const port = Number(process.env.SERVER_PORT ?? process.env.PORT ?? 3000);
 const isProduction = process.env.NODE_ENV === 'production';
+/** How often the sweep looks for pending notifications (also catches rows left over by an outage). */
+const SWEEP_INTERVAL_MS = 60_000;
 
-function buildApp() {
+interface Built {
+  app: ReturnType<typeof createApp>;
+  /** Present only when the full app was built. Started after the server is listening, never in app.ts. */
+  scheduler?: DeliveryScheduler;
+}
+
+function buildApp(): Built {
   const { DATABASE_URL, SESSION_SECRET } = process.env;
   // One browser origin, the same in development and production: the client app. `APP_BASE_URL` overrides the
   // default `http://localhost:<CLIENT_PORT>` when the client is hosted elsewhere.
@@ -27,10 +44,10 @@ function buildApp() {
 
   // Development keeps running with a clear 503 on every route (and CORS headers, so the browser shows the
   // reason instead of "cannot reach the server"); production refuses to start.
-  const misconfigured = (reason: string) => {
+  const misconfigured = (reason: string): Built => {
     if (isProduction) throw new Error(reason);
     console.warn(`${reason} Serving /health only; every other route answers 503.`);
-    return createApp({ unconfigured: { clientOrigin: configuredOrigin, reason } });
+    return { app: createApp({ unconfigured: { clientOrigin: configuredOrigin, reason } }) };
   };
   if (clientOrigin === null) {
     return misconfigured(`APP_BASE_URL must be a full URL such as http://localhost:5173 (got "${configuredOrigin}").`);
@@ -44,7 +61,24 @@ function buildApp() {
   const sessionStore = new PgStore({ pool: new Pool({ connectionString: DATABASE_URL }), createTableIfMissing: true });
   const prisma = createPrismaClient();
   const service = createAuthService({ repo: createPrismaAccountRepo(prisma) });
-  const caseStore = createPrismaCaseStore(prisma);
+
+  // Email delivery (POWER-AUTOMATE.md sections 2, 4, 5). Notification rows are written inside each transaction;
+  // once it commits, a delivery pass is kicked off in the background, and the sweep retries what stayed pending.
+  const flowsConfigured = Boolean(urlsFromEnv().notify);
+  if (!flowsConfigured) {
+    console.warn('PA_NOTIFY_URL is not set: notification emails are skipped (the in-app inbox still works).');
+  }
+  const scheduler = createDeliveryScheduler({
+    intervalMs: SWEEP_INTERVAL_MS,
+    run: () =>
+      deliverPending({
+        store: createPrismaOutboxStore(prisma),
+        send: createSendToPowerAutomate({ urls: urlsFromEnv }),
+        appBaseUrl: clientOrigin,
+      }),
+  });
+  const caseStore = withAfterCommit(createPrismaCaseStore(prisma), scheduler.kick);
+  const notificationWriter = createPrismaNotificationWriter(prisma);
 
   // File storage is optional in development (everything but proof files keeps working) and required in production.
   const bucketConfigured = Boolean(
@@ -54,7 +88,7 @@ function buildApp() {
   if (!bucketConfigured) console.warn('Object storage variables missing: proof file upload and download are disabled.');
   const storage = bucketConfigured ? createS3Storage() : createUnavailableStorage('set STORAGE_BUCKET and the AWS_* keys');
 
-  return createApp({
+  const app = createApp({
     auth: {
       service,
       sessionSecret: SESSION_SECRET,
@@ -63,6 +97,21 @@ function buildApp() {
       // Secure cookies exactly when the client is served over https (a real deployment). A local production-mode
       // run over http://localhost must still be able to hold a session.
       secureCookies: clientOrigin.startsWith('https:'),
+      // The notification never carries the temporary password.
+      onPasswordReset: async (studentId) => {
+        await notificationWriter.add({
+          recipient: 'student',
+          studentId,
+          kind: 'account',
+          title: 'Your password was reset',
+          message:
+            'The SDO office reset your password. Sign in with the temporary password you were given, then choose a new one.',
+          linkType: 'inbox',
+          linkId: null,
+          idempotencyKey: `acct:${studentId}:reset:${Date.now()}`,
+        });
+        scheduler.kick();
+      },
     },
     data: {
       handbook: createPrismaHandbookRepo(prisma),
@@ -72,12 +121,17 @@ function buildApp() {
         queries: createPrismaCaseQueries(prisma),
       },
       sanctions: { service: createSanctionService({ store: caseStore, storage }) },
+      notifications: { inbox: createPrismaInboxStore(prisma) },
     },
   });
+  return { app, scheduler };
 }
 
-const server = buildApp().listen(port, () => {
+const { app, scheduler } = buildApp();
+const server = app.listen(port, () => {
   console.log(`API listening on port ${port}`);
+  scheduler?.start();
+  scheduler?.kick();
 });
 
 server.on('error', (error) => {
@@ -87,6 +141,7 @@ server.on('error', (error) => {
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
+    scheduler?.stop();
     server.close();
     server.closeAllConnections();
   });
