@@ -273,7 +273,7 @@ GET  /clearances?status=&q=&page=   GET /clearances/:id   POST /clearances (stud
 POST /clearances/:id/requirements (label)   DELETE /clearances/:id/requirements/:rid
 POST /clearances/:id/requirements/:rid/complete (remarks) | /reverse (reason)   GET /me/clearance (student)
 #   A clearance always keeps at least one requirement (the last cannot be removed).
-GET  /appointments?bucket=&q=&page=   POST /appointments   PATCH /appointments/:id
+GET  /appointments?bucket=&q=&page=   GET /appointments/:id   POST /appointments   PATCH /appointments/:id
 POST /appointments/:id/complete | /cancel        GET /me/appointments (student)
 GET  /me/notifications   POST /me/notifications/:id/read | /read-all
 GET  /notifications      POST /notifications/:id/read | /read-all      (staff: the one shared inbox)

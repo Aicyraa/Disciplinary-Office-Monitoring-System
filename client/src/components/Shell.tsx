@@ -68,7 +68,7 @@ function SideLink({ item, count }: { item: NavItem; count: number }) {
 
 function Sidebar({ groups, countFor, role }: { groups: NavGroup[]; countFor: (item: NavItem) => number; role: 'staff' | 'student' }) {
   return (
-    <aside className="hidden bg-primary text-white rail:sticky rail:top-0 rail:flex rail:h-screen rail:w-16 rail:flex-col rail:overflow-y-auto rail:p-2 full:w-60 full:p-3">
+    <aside className="hidden bg-primary text-white print:hidden rail:sticky rail:top-0 rail:flex rail:h-screen rail:w-16 rail:flex-col rail:overflow-y-auto rail:p-2 full:w-60 full:p-3">
       <div className="mb-3 flex items-center gap-3 border-b border-white/15 px-1 py-3">
         <img src={seal} alt="" className="size-9 shrink-0 rounded-full bg-white object-contain" />
         <span className="hidden text-sm leading-tight font-bold full:inline">
@@ -238,7 +238,7 @@ function PhoneBar({
   const tabs = phoneTabs(role);
   const tabClass = 'relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-medium';
   return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-white rail:hidden">
+    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-white print:hidden rail:hidden">
       {tabs.map((item) => {
         const count = countFor(item);
         return (
@@ -356,7 +356,7 @@ function ShellFrame() {
       <Sidebar groups={groups} countFor={countFor} role={user.role} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-1.5">
+        <div className="flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-1.5 print:hidden">
           <div className="flex min-w-0 items-center gap-2 rail:hidden">
             <img src={seal} alt="" className="size-8 rounded-full" />
             <span className="text-sm leading-tight font-bold text-ink">

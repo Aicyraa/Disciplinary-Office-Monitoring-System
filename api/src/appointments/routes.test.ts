@@ -231,3 +231,29 @@ describe('what the student sees', () => {
     expect((await student.get('/appointments')).status).toBe(403);
   });
 });
+
+describe('GET /appointments/:id', () => {
+  test('staff read one appointment with its history', async () => {
+    const staff = await signedInAgent(build(), STAFF.email);
+    await staff.post('/appointments').send(body());
+    const response = await staff.get('/appointments/1');
+    expect(response.status).toBe(200);
+    expect(response.body.data.appointment).toMatchObject({
+      id: 1,
+      code: 'A-001',
+      student: { id: STUDENT_A.id, name: 'Ana Cruz' },
+      status: 'scheduled',
+      bucket: 'upcoming',
+    });
+    expect(response.body.data.appointment.history[0]).toMatchObject({ eventType: 'assigned', by: 'Officer One' });
+  });
+
+  test('an unknown or malformed id is 404; students and signed-out visitors are refused', async () => {
+    const app = build();
+    const staff = await signedInAgent(app, STAFF.email);
+    expect((await staff.get('/appointments/99')).status).toBe(404);
+    expect((await staff.get('/appointments/abc')).status).toBe(404);
+    const student = await signedInAgent(app, STUDENT_A.email);
+    expect((await student.get('/appointments/1')).status).toBe(403);
+  });
+});

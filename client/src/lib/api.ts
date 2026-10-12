@@ -13,6 +13,8 @@ import type {
   SanctionAssignmentOptions,
   SanctionTemplateView,
   StaffAppointmentListResponse,
+  StaffAppointmentView,
+  StaffClearanceView,
   StaffClearanceListResponse,
   StaffCaseDetail,
   StaffCaseListResponse,
@@ -21,6 +23,7 @@ import type {
   StudentCaseView,
   StudentProfileView,
   StaffSanctionQueueResponse,
+  ClearanceSlipView,
   StaffStudentListResponse,
   StaffStudentRecord,
   StudentClearanceResponse,
@@ -160,6 +163,8 @@ export const api = {
 
   handbook: () => get<{ entries: HandbookEntryView[] }>('/handbook'),
 
+  myClearanceSlip: (academicYear: number, semester: number) =>
+    get<{ slip: ClearanceSlipView }>('/me/clearance/slip', { academic_year: academicYear, semester }),
   myProfile: () => get<{ profile: StudentProfileView }>('/me/profile'),
   myCases: () => get<{ cases: StudentCaseView[] }>('/me/cases'),
   myCase: (id: number) => get<{ case: StudentCaseDetailView }>(`/me/cases/${id}`),
@@ -251,6 +256,7 @@ export const api = {
     if (query.page && query.page > 1) params.page = query.page;
     return get<StaffAppointmentListResponse>('/appointments', params);
   },
+  staffAppointment: (id: number) => get<{ appointment: StaffAppointmentView }>(`/appointments/${id}`),
   createAppointment: (input: { studentId: string; startDate: string; purpose: string; notes: string }) =>
     post<{ appointmentId: number }>('/appointments', input),
   updateAppointment: (appointmentId: number, input: { startDate?: string; purpose?: string; notes?: string }) =>
@@ -317,6 +323,7 @@ export const api = {
     if (query.page && query.page > 1) params.page = query.page;
     return get<StaffClearanceListResponse>('/clearances', params);
   },
+  staffClearance: (id: number) => get<{ clearance: StaffClearanceView }>(`/clearances/${id}`),
   setUpClearance: (input: { studentId: string; academicYear: number; semester: number }) =>
     post<{ clearanceId: number }>('/clearances', input),
   markRequirementDone: (clearanceId: number, requirementId: number, remarks: string) =>

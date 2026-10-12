@@ -453,22 +453,15 @@ function AppointmentQueue({ selectedId, reloadRef }: { selectedId: number | null
 
 function SelectedAppointment({ appointmentId, onChanged }: { appointmentId: number; onChanged: () => void }) {
   const today = manilaToday();
-  // The list endpoint carries the history, so a selected appointment is read from the same two lists.
-  const upcoming = useApi(() => api.staffAppointments({ bucket: 'upcoming' }), []);
-  const past = useApi(() => api.staffAppointments({ bucket: 'history' }), []);
-  if (upcoming.status === 'loading' || past.status === 'loading') return <LoadingState label="Loading appointment…" cards={2} />;
-  if (upcoming.status === 'error') return <ErrorState message={upcoming.error.message} onRetry={upcoming.reload} />;
-  if (past.status === 'error') return <ErrorState message={past.error.message} onRetry={past.reload} />;
-  const all = [...upcoming.data.appointments, ...past.data.appointments];
-  const found = all.find((item) => item.id === appointmentId);
-  if (!found) return <ErrorState message="This appointment is not in the newest list. Search for it." />;
+  const resource = useApi(() => api.staffAppointment(appointmentId), [appointmentId]);
+  if (resource.status === 'loading') return <LoadingState label="Loading appointment…" cards={2} />;
+  if (resource.status === 'error') return <ErrorState message={resource.error.message} onRetry={resource.reload} />;
   return (
     <AppointmentDetail
-      appointment={found}
+      appointment={resource.data.appointment}
       today={today}
       onChanged={() => {
-        upcoming.reload();
-        past.reload();
+        resource.reload();
         onChanged();
       }}
     />

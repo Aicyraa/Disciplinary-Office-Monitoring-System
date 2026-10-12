@@ -93,8 +93,10 @@ export interface ConfirmModalProps {
   danger?: boolean;
   /** No Cancel button: a notice with one acknowledgement (for example the one-time temporary password). */
   hideCancel?: boolean;
-  /** When set, the dialog has a required text field; its trimmed value is passed to `onConfirm`. */
+  /** When set, the dialog has a text field; its trimmed value is passed to `onConfirm`. */
   reasonLabel?: string;
+  /** The text field may stay empty (for example optional remarks). */
+  reasonOptional?: boolean;
   /** Resolve to close the dialog; throw (or reject) to keep it open and show the message. */
   onConfirm: (reason: string) => Promise<void> | void;
   onClose: () => void;
@@ -109,6 +111,7 @@ export function ConfirmModal({
   danger = false,
   hideCancel = false,
   reasonLabel,
+  reasonOptional = false,
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
@@ -157,7 +160,7 @@ export function ConfirmModal({
   async function submit(event: FormEvent) {
     event.preventDefault();
     const text = reason.trim();
-    if (reasonLabel && text === '') {
+    if (reasonLabel && !reasonOptional && text === '') {
       setError('Enter a reason.');
       return;
     }
@@ -189,6 +192,7 @@ export function ConfirmModal({
             <div className="mt-4">
               <label htmlFor={fieldId} className="mb-1 block text-sm font-medium text-ink">
                 {reasonLabel}
+                {reasonOptional ? <span className="font-normal text-muted"> (optional)</span> : null}
               </label>
               <textarea
                 id={fieldId}

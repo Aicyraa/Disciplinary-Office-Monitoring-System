@@ -7,7 +7,7 @@ import { ToastProvider } from './components/feedback';
 import { AccountDetailsPage } from './pages/AccountDetails';
 import { AppointmentsPage } from './pages/Appointments';
 import ChangePassword from './pages/ChangePassword';
-import { ClearancePage } from './pages/Clearance';
+import { ClearancePage, ClearanceSlipPage } from './pages/Clearance';
 import { StaffHome, StudentDashboard } from './pages/Dashboard';
 import { AddViolationPage, HandbookPage } from './pages/Handbook';
 import GateReportPage from './pages/GateReport';
@@ -89,10 +89,12 @@ function AppRoutes() {
           <Route path="appointments" element={<AppointmentsRoute />} />
           <Route path="appointments/:id" element={<AppointmentsRoute />} />
           <Route path="clearance" element={<ClearanceRoute />} />
+          <Route path="clearance/:id" element={<ClearanceRoute />} />
           <Route element={<RoleOnly role="student" />}>
             <Route path="violations" element={<ViolationsList />} />
             <Route path="violations/:id" element={<ViolationDetail />} />
             <Route path="sanctions" element={<SanctionsPage />} />
+            <Route path="clearance/slip" element={<ClearanceSlipPage />} />
           </Route>
           <Route element={<RoleOnly role="staff" />}>
             <Route path="record" element={<RecordViolationPage />} />
