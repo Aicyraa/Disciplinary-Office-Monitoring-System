@@ -515,6 +515,24 @@ describe('deliverPending', () => {
     expect(log).toHaveBeenCalled();
     log.mockRestore();
   });
+
+  test('a row that was sent but whose result could not be recorded is not sent again on the next pass', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const store = memoryOutbox([row()], { '2025-0000001': [student] });
+    store.markResult = async () => {
+      throw new Error('db hiccup');
+    };
+    const send = vi.fn(async () => 'sent' as const);
+    const retryState = new Map();
+    let clock = NOW.getTime();
+    const run = () =>
+      deliverPending({ store, send, sleep: noSleep, appBaseUrl: 'http://localhost:5173', now: () => new Date(clock), retryState });
+    await run();
+    clock += 30_000;
+    expect(await run()).toMatchObject({ deferred: 1 });
+    expect(send).toHaveBeenCalledTimes(1);
+    log.mockRestore();
+  });
 });
 
 describe('combineOutcomes', () => {

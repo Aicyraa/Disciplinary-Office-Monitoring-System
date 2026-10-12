@@ -214,8 +214,12 @@ export async function deliverPending({
         report[final] += 1;
       }
     } catch (error) {
-      // Recording the result failed (database trouble). The row stays pending; carry on with the others.
+      // Recording the result failed (database trouble). The row stays pending; carry on with the others. It gets a
+      // cooldown too, so a row that was already sent is not emailed again on every pass while the database is down.
       report.stillPending += 1;
+      const attempts = (cooling?.attempts ?? 0) + 1;
+      const wait = Math.min(COOLDOWN_MAX_MS, COOLDOWN_BASE_MS * 2 ** (attempts - 1));
+      retryState.set(row.notificationId, { attempts, notBefore: now().getTime() + wait });
       console.error(`Could not process notification ${row.notificationId}`, error);
     }
   }

@@ -431,4 +431,13 @@ Keep at least three unchanged lines between sections so parallel branches merge 
 - HUMAN CHECK: the startup log no longer prints the pg SSL warning.
 
 ### Review
-(reviewer fills this)
+**Verdict: PASS** (one non-blocking gap, one human decision pending).
+- Commands (re-run by reviewer): `npm test` 29 files / 614 tests pass; `npm run lint` clean; `npm run typecheck` clean (api + client); `npm run build` exit 0 (only the known Vite config-loader warning).
+- 1 One request per row per pass, cooldown: PASS. `maxAttempts` default 1; `retryState` Map kept in `server.ts` for the process, so it persists across 60 s passes; tests "one request per row per pass, then 1, 2, 4 ... cap 30 min" and "forgotten once decided" assert call counts and `notBefore`. Backlog bounded (batch 20 test) and paced (250 ms test).
+- 2 Outcomes: PASS. Table test: 200 `not json`, 202 empty, 200 `{}` are `sent`; `{status:'something-else'}`, 500, 429, 404 stay `unknown`; timeout/network `unknown`; warning once with no URL (asserted). Code path read: `!response.ok` returns before the new branch.
+- 3 Body `{type,payload}`: PASS, unchanged `PowerAutomateRequest` in `power-automate.ts`.
+- 4 `withExplicitSsl`: PASS with a gap. Applied to the session `Pool` (`server.ts`) and the Prisma `PrismaPg` adapter (`prisma.ts`); CLI config untouched. Credentials: WHATWG URL keeps userinfo percent-encoding for non-special schemes, only the query is re-serialized (`%20` becomes `+`, which pg's own `searchParams` parse decodes). NOT executed: `node -e` is denied to the reviewer, and no test covers a password with `@ / : # %`. Non-blocking: dev should add one round-trip test (special-character password, `options=` value) and the human confirms with the third HUMAN CHECK that login still works.
+- 5 Scope: PASS. 8 files, all in the row's expected list plus `CONTEXT.md`; no `package.json`, lockfile, `docs/**`, `.env*`, schema, `shared/` edits; no new dependency; nothing parked built.
+- 6 SPEC CHANGE: PASS, raised in bold in the section (POWER-AUTOMATE.md section 4 rule 5: unreadable 2xx becomes `sent`), human to decide; revert is one branch.
+- Minor, non-blocking: if `store.markResult` throws after the flow was told to send, the `catch` records no cooldown, so that row is re-sent every pass (pre-existing path, now the only unthrottled one). Smallest step: set the cooldown in the `catch` too.
+- Not verified (live only): the three HUMAN CHECK lines above are complete and listed; flow run history, scale-to-zero DB and startup log need the human.
