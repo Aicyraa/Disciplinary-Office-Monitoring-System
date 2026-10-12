@@ -120,6 +120,7 @@ export function appointmentBucket(record: AppointmentRecord, today: string): 'up
 export function toAppointmentView(record: AppointmentRecord, today: string): StudentAppointmentView {
   return {
     id: record.appointmentId,
+    code: displayCode('A', record.appointmentId),
     startDate: dateOnly(record.startDate),
     endDate: dateOnly(record.endDate),
     purpose: record.purpose,

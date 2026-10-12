@@ -50,6 +50,7 @@ describe('caseCounts / activeCases', () => {
 describe('nextAppointment', () => {
   const appointment = (id: number, startDate: string, bucket: 'upcoming' | 'history'): StudentAppointmentView => ({
     id,
+    code: `A-${String(id).padStart(3, '0')}`,
     startDate,
     endDate: startDate,
     purpose: 'x',

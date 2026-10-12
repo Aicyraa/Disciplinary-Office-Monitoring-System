@@ -201,6 +201,7 @@ function AppointmentCard({ appointment, today, onChanged }: { appointment: Staff
         <div>
           <div className="font-medium text-ink">
             {appointment.student.name} <span className="font-normal text-muted">({appointment.student.id})</span>
+            <span className="ml-2 text-xs font-normal text-muted">{appointment.code}</span>
           </div>
           <div className="text-sm text-muted">{windowLabel(appointment)}</div>
         </div>

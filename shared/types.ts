@@ -259,6 +259,8 @@ export type StudentCaseDetailView = StudentCaseView & {
 
 export type StudentAppointmentView = {
   id: number;
+  /** Display code, `A-104`. */
+  code: string;
   startDate: string;
   endDate: string;
   purpose: string;
@@ -282,6 +284,8 @@ export type AppointmentHistoryEntry = {
 /** What staff see (SPEC 5): every appointment of every student, with its log. */
 export type StaffAppointmentView = {
   id: number;
+  /** Display code, `A-104`. */
+  code: string;
   student: { id: string; name: string };
   startDate: string;
   endDate: string;
