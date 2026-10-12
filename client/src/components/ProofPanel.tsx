@@ -146,6 +146,7 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
             multiple
             accept={ACCEPTED_EXTENSIONS.join(',')}
             className="sr-only"
+            tabIndex={-1}
             onChange={(event) => {
               const picked = Array.from(event.target.files ?? []);
               event.target.value = '';

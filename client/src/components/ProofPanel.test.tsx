@@ -58,6 +58,10 @@ describe('ProofPanel', () => {
     expect(html).not.toContain('Submit proof');
   });
 
+  test('the hidden file input is not a keyboard tab stop (the visible button is)', () => {
+    expect(render(base)).toMatch(/<input id="proof-7"[^>]*tabindex="-1"/);
+  });
+
   test('a returned sanction still offers Choose files and Upload', () => {
     const html = render({ ...base, status: 'returned', canUpload: true, canChangeFiles: true, files: [file(1)] });
     expect(html).toMatch(/<button type="button"(?:(?!<\/button>)[^])*Choose files<\/button>/);
