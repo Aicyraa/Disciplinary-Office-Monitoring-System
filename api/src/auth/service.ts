@@ -41,8 +41,23 @@ export function createAuthService({ repo, rounds = 12, generateTemp = generateTe
 
   return {
     async login(email, password) {
-      const role = roleForEmail(email);
-      const record = role ? await repo.findByEmail(role, normalizeEmail(email)) : null;
+      // The address must be an NU address (SPEC 4.8). The role is the table the account lives in: the address's
+      // own domain is tried first, then the other table, so a staff account may use a student address (the
+      // demo accounts do). Accounts are added by hand, so the two tables never hold the same address.
+      const domainRole = roleForEmail(email);
+      let role: AccountRole | null = null;
+      let record: AccountRecord | null = null;
+      if (domainRole) {
+        const order: AccountRole[] = domainRole === 'student' ? ['student', 'staff'] : ['staff', 'student'];
+        for (const candidate of order) {
+          const found = await repo.findByEmail(candidate, normalizeEmail(email));
+          if (found) {
+            role = candidate;
+            record = found;
+            break;
+          }
+        }
+      }
       const matches = await bcrypt.compare(password, record?.passwordHashed ?? (await getDummyHash()));
       if (!role || !record || !record.isActive || !matches) return null;
       return toUser(role, record);

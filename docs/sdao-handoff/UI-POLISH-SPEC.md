@@ -1,6 +1,6 @@
 # UI polish SPEC (build step 10)
 
-Status: draft for the human to accept. Rewritten 2026-10-12 against the new design package (section 1). It replaces the first draft, which was written from the older 48-slide state reference. Scope is the client **and** the logic changes the new package implies; every logic change is listed in section 5 and none is built until the human accepts it.
+Status: draft for the human to accept. Rewritten 2026-10-12 against the new design package (section 1); the human's answers of 2026-10-13 are folded into sections 5 to 7. It replaces the first draft, which was written from the older 48-slide state reference. Scope is the client **and** the logic changes the new package implies; every logic change is listed in section 5 and none is built until the human accepts it.
 
 ## 1. Sources (the design package)
 
@@ -10,7 +10,7 @@ Status: draft for the human to accept. Rewritten 2026-10-12 against the new desi
 | **Logic and copy** | `docs/sdao-handoff/design-reference/sdo-portal.source.html` (Claude Design `<x-dc>` source, about 3,500 lines) | The rules behind the screens: status ladders, validation messages, empty-state copy, notification text, sample data |
 
 - The deck is organised as **Part 1 Web** (slides 4 to 92, labelled `WEB · ROLE · 01 to 89`) and **Part 2 Mobile** (slides 94 to 199, labelled `MOBILE · ROLE · 01 to 101`). Slide labels are used below as `W17` or `M20`.
-- The deck file is git-ignored with the rest of `docs/` and about 12 MB, so it exists only in the human's main checkout and not in worktrees. To read it: copy it to a scratch directory, `soffice.py --headless --convert-to pdf`, then `pdftoppm -r 40` for contact sheets, or `python-pptx` for the text (each slide's notes repeat its caption).
+- The deck is about 12 MB. The human removed `docs` from `.gitignore` on 2026-10-13 so that worktrees see it; it appears in a worktree once it is committed on the branch the worktree starts from (until then read it from the human's main checkout path). To read it: copy it to a scratch directory, `soffice.py --headless --convert-to pdf`, then `pdftoppm -r 40` for contact sheets, or `python-pptx` for the text (each slide's notes repeat its caption).
 - `SPEC.md` stays the source of truth for data and business rules. Where the package disagrees with `SPEC.md`, the disagreement is a question in section 6, and the package does **not** win until the human decides.
 - The HTML source also carries behavior that `SPEC.md` already removed on purpose (in-person "record compliance", the student statement, hours tracking, 10 h / 20 h / referral sanction options). Those stay removed unless section 6 says otherwise.
 
@@ -75,7 +75,7 @@ Legend: **OK** matches closely, **Part** exists but differs, **Missing** not bui
 
 | Slice | Covers | Done when |
 |---|---|---|
-| **P0 Chrome and feedback** | 3.1 | Grouped sidebar with badges, breadcrumb bar, avatar menu, phone bar of 5 + More drawer; `Toast`, `ConfirmModal` (required reason option) and locked-button components; No access page; skeleton cards; account details and voluntary change password (client plus `GET /me/profile` if the human accepts it) |
+| **P0 Chrome and feedback** | 3.1 | Grouped sidebar with badges, breadcrumb bar, avatar menu, phone bar of 5 + More drawer; `Toast`, `ConfirmModal` (required reason option) and locked-button components; No access page; skeleton cards; account details and voluntary change password (client plus `GET /me/profile`, accepted) |
 | **P1 Dashboards** | 3.3 W15 | Built; follow-ups: Last checked and refresh, Sanctions card (needs P3b), Will escalate chip only if Logic 9 is accepted |
 | **P2 Master-detail** | all two-pane screens | A shared list-and-detail layout that stacks on phone, with its keyboard and focus behavior and tests |
 | **P3 Cases (staff)** | W17 to W32, M19 to M32 | Layout, tracker, Details / History tabs, modals, file preview; behavior stays as built; grouping and filter logic are pure and tested |
@@ -86,41 +86,44 @@ Legend: **OK** matches closely, **Part** exists but differs, **Missing** not bui
 | **P7 Clearance** | W53 to W59, W79 | Term list, student list with progress, Requirements / Activity history tabs; student slip per Logic 2 |
 | **P8 Student pages** | W58 to W76 | Inbox chips and dialog, My violations and My sanctions two-pane, upload placement per Logic 5, handbook entry pane |
 | **P9 Public** | W01 to W14 | Sign-in hero and links, gate form Details / Violations / Review, "Not sent" state, reference per Logic 3 |
-| **P10 Notices** | W60 | Only if Logic 1 is accepted: notices model, staff editor with expiry, inbox category, email |
+| **P10 Notices** | W60 | Only after question A is answered: notices model, staff editor with expiry, inbox category, email or in-app only |
 | **P11 PWA and accessibility** | M15 to M18 phone layout | Manifest and icons, reduced motion, 44 px audit with a test |
 
-## 5. Logic changes implied by the package (none built yet)
+## 5. Logic changes implied by the package
 
-| # | Package says | Built / SPEC says | Needs |
+Decisions are the human's answers of 2026-10-13. "Open" rows are built only after the answer.
+
+| # | Package says | Built / SPEC says | Decision |
 |---|---|---|---|
-| 1 | **Important notices**: staff publish a notice (title, message, instructions, optional expiry) that appears in every student's bell and inbox and is emailed; edit and remove; inbox category "Important notice" (HTML lines 1610 to 1664, 2238, 2259) | Parked in SPEC (notices/announcements) and CLAUDE.md section 9 | Human decision to un-park; then a `SPEC CHANGE`, a table, API, editor |
-| 2 | **Clearance slip**: student downloads a slip once every requirement is done; locked until then | No slip | Decide content and format (PDF needs a library: `DEPENDENCY:`) |
-| 3 | **Display codes**: cases `SDO-2026-016`, gate submissions `GI-1042`, sanctions `S-021`, appointments `A-104`, students `2023-100123` (6 digits) | Letter + 3 digits (`C016`, `S021`); student ID `YYYY-NNNNNNN` (7 digits, decision 13) | Decide whether display codes change (derivable, no schema change) and whether sample student ids are only samples |
-| 4 | **Terms**: "1st Term 2026-2027", "3rd Term 2025-2026"; the term list is configured and staff pick a term chip; every student is listed with progress | `semester` 1 to 3, staff type a student ID to set up | Term list source (config or table); needs P4 |
-| 5 | **Proof upload lives in My violations** (the case detail), and My sanctions is read-only with "Next step" pointing there | Upload on My sanctions | Move only the entry point; the API is unchanged |
-| 6 | **Remarks** on a new case (Record violation) and a single editable "Remarks for the student" on the case | Remarks are an append-only log with a notification each; none at creation | Decide: single field or log; add optional remarks to `POST /cases` |
-| 7 | **Template** is one file with name, short description and requirements; page shows Posted / Not posted | Up to 5 files, title, description, requirements | Keep 5 or cap at 1 |
-| 8 | Sanction ladder labels **Assigned, In progress, Complied, Verified**; statuses shown In progress, Pending verification, Returned, Cleared | `assigned`, `pending_verification`, `returned`, `completed` | Label mapping only (assigned shows as In progress, pending_verification as Complied / Pending verification) |
-| 9 | Staff dashboard: **Will escalate** chip, Last checked and refresh, Overdue tile | None | Optional; Will escalate costs one `escalation-preview` call per report |
-| 10 | Staff Cases badge = reports needing review; Students badge = sanctions to verify; Inbox badge = unread | Only the bell | Needs P3b |
-| 11 | Sign-in checks the email domain (`nu-fairview.edu.ph`) in the form | API validates the account only | Client copy only (the API stays the authority) |
+| 1 | **Important notices**: staff publish a notice (title, message, instructions, optional expiry) shown in every student's bell and inbox, emailed; edit and remove | Parked | **Open** (question A) |
+| 2 | **Clearance slip** a student downloads once every requirement is done; locked until then | No slip | **Build.** No new library: a print-styled slip page that the browser saves as PDF (a PDF library would need a `DEPENDENCY:` approval). Locked in the UI and refused by the API until the clearance is `cleared`. Slice P7 |
+| 3 | **Display codes**: cases `SDO-2026-016`, gate submissions `GI-1042`, sanctions `S-021`, appointments `A-104` | `C016`, `S021`, `A` none, short uuid for a submission | **Change.** Letter + hyphen + 3 digits for sanctions (`S-021`), appointments (`A-104`), violations and handbook entries (`V-001`, `H-001`); cases `SDO-<year>-<number>` with the number restarting every year (year of `case_date`, Asia/Manila; ranked by id); gate submissions `GI-<1000 + rank>`. Codes stay **derived, never stored**; no schema change (section 6, answer to "does it conflict in the database") |
+| 4 | **Terms** `1st Term 2026-2027` to `3rd Term` | `semester` 1 to 3, label "Semester n" | **Fixed list of three terms.** Label change only ("1st / 2nd / 3rd Term" + school year); no term table; staff pick year and term as today. Slice P7 |
+| 5 | **Proof upload lives in My violations** (case detail); My sanctions is read-only with a "Next step" | Upload on My sanctions | **Move the entry point**; API unchanged. Slice P8 |
+| 6 | **Remarks**: optional remarks when a violation is recorded; "Remarks for the student" on the case | Append-only log, each entry notifies the student | **Keep the append-only log, shown on the Timeline / History tab.** Add an optional `remarks` to `POST /cases` that becomes the first log entry. Slice P3 |
+| 7 | **Template is one file** per sanction, with name, short description, requirements | Up to 5 files | **One file per template.** Uploading again replaces the file; the service refuses a second file. Slice P6 |
+| 8 | Sanction ladder **Assigned, In progress, Complied, Verified**; pills In progress, Pending verification, Returned, Cleared | `assigned`, `pending_verification`, `returned`, `completed` | **Open** (question B): label mapping |
+| 9 | Dashboard: **Will escalate** chip, Last checked and refresh, Overdue | None | **Open** (question C) |
+| 10 | Badges: Cases = reports needing review; Students = sanctions to verify; Inbox = unread | Only the bell | Built with P3b |
+| 11 | Sign-in form hint about the NU email domain | API validates the account | Client copy only; the API stays the authority |
+| 12 | **Staff accounts may use a student-domain address** (the demo admin) | The role came from the address domain | **Built (2026-10-13):** the role is the table the address is found in; both NU domains still required (`api/src/auth/service.ts`, SPEC 4.8) |
+| 13 | **Student records page for staff** (list, record pane, reset password) | Missing | **Build** (P4): `GET /students`, `GET /students/:id`, reset uses the existing route |
+| 14 | **Account details** (read-only) and voluntary change password | Missing | **Build** (P0): `GET /me/profile` with name, student ID, email, program, year level |
+| 15 | **Fidelity target** | Old prototype | **Settled:** screens = `SDO_Portal_UI.pptx`, logic and copy = `sdo-portal.source.html`, order = this SPEC (SPEC decision 18) |
 
-## 6. Questions for the human
+## 6. Answers to the questions asked
 
-1. **Notices (Logic 1).** The deck's student inbox has an "Important notices" filter and the HTML has a full staff editor. SPEC and CLAUDE.md park notices. Un-park now (P10), later, or never?
-2. **Clearance slip (Logic 2).** Build it? What does it show (student, term, requirements, date, officer) and is a PDF acceptable (a library needs your approval)?
-3. **Display codes (Logic 3).** Switch to `SDO-2026-016`, `GI-1042`, `S-021`, `A-104`? Case numbers restart each year in the sample; do you want that, or just a prefix change on the existing ids?
-4. **Student ID shape.** The deck's samples are `2023-100123` (6 digits) while decision 13 says 7 digits. Keep 7, or move to 6?
-5. **Terms (Logic 4).** Where does the list of terms come from (a config list, or staff add a term)? Is the third term a regular term of the year?
-6. **Remarks (Logic 6).** One editable "Remarks for the student" field per case, or keep the append-only log?
-7. **Template files (Logic 7).** One file per template or up to five?
-8. **Status wording (Logic 8).** Confirm the label mapping, data unchanged.
-9. **Staff dashboard extras (Logic 9).** Build Will escalate, Last checked and Overdue, or leave them out?
-10. **Students page (P4).** Confirm it belongs in this step (it is in SPEC 5 and was never built).
-11. **Account details (P0).** `student_accounts` already holds name, email, `program_id` and `year_level` (1 to 6; the gate form offers 1st to 5th). Show name, student ID, email, program and year level read-only through a new `GET /me/profile`?
-12. **Reset password route.** SPEC 7 sketches `POST /students/:id/reset-password`; the built route is `POST /staff/students/:studentId/reset-password`. Update SPEC 7 to the built path?
-13. **Fidelity target.** Decision 18 names the old prototype; this SPEC makes the deck the screen reference and the HTML the logic reference. Confirm and update decision 18.
+**Display codes and the database (decision 3).** The database keeps its numeric identity ids; nothing about them changes. A code is only how an id is shown. For `SDO-2026-016` the number is the position of the case among that year's cases ordered by id, computed when it is displayed (a window function), so there is no new column and no conflict. Two cases can show the same number only in different years, which is the point. What it touches is code, not data: every place that prints a code (notifications, emails, lists, the search box) must know the case's year and position, and the staff search must accept the new format. Old notification texts already written keep the old code (the clean-up script removes them anyway). The one real caveat: if a case were ever deleted, later numbers in that year would shift; cases are never deleted in this system. If you ever prefer numbers that can never shift, store the number in a new column (a schema change and a SPEC change).
 
-## 7. Out of scope
+**Out of scope (section 7).** It is the list of things this polish step does **not** do. It holds two kinds of item: things the deck does not show at all (dark mode, a design-system rewrite), and behavior the HTML source still contains but `SPEC.md` removed on purpose (in-person compliance, the student statement, hours tracking, the 10 h / 20 h / referral sanction list). It does not hold anything the deck shows that I "cannot process": every screen of the deck is planned. What I cannot do myself is only live work: real bucket uploads, real email flows, applying SQL outside the development branch, and approving a new library.
 
-Dark mode, a design-system rewrite, shadcn initialisation (a human decision), any change to the escalation, sanction, appointment or clearance rules beyond section 5, and any behavior the HTML carries that SPEC removed (section 1).
+## 7. Questions still open
+
+- **A. Notices (decision 1).** Notices are a broadcast: staff write a message (title, text, instructions, optional expiry date) and every student sees it in the bell and inbox under "Important notice", with a copy emailed to every student's school address. The HTML shows "Uniform inspection week, Oct 12 to 17" and "Clearance requirements for the 1st Term". Cost: a new table, a staff editor (create, edit, remove, expiry), a staff-only API, and one email notification per student per notice; the delivery sweep sends 20 emails a minute, so 1,000 students take about 50 minutes and use that many Power Automate runs. Options: (1) build it with email, (2) build it in-app only (bell and inbox, no email; cheap), (3) keep it parked. My recommendation is (2) later, as slice P10.
+- **B. Status wording (decision 8).** The stored statuses stay; only the words change. Case: `reported` shows "Pending review", `for_sanction` "Sanction in progress", `rejected` "Not verified" (already). Sanction: `assigned` shows step "In progress" (the student has it and is working on it), `pending_verification` shows step "Complied" and the pill "Pending verification", `returned` the pill "Returned" at step "In progress", `completed` step "Verified" and the pill "Cleared". Confirm this mapping, or keep today's words.
+- **C. Dashboard extras (decision 9).** "Will escalate" is a chip on a gate report whose validation would turn a student's third minor into a Major (the API already has `GET /submissions/:id/escalation-preview`; one call per listed report, so four calls on the dashboard). "Last checked 10:40 AM" with a refresh button shows when the cards were loaded and reloads them. "Overdue" counts sanctions past their due date that are not yet verified (needs the staff sanctions queue, P3b). They are small; my recommendation is to build all three.
+- **D. Student ID shape.** The deck's samples are `2023-100123` (6 digits); decision 13 says `YYYY-NNNNNNN` (7 digits). I read your answer 4 as the display-codes answer, so the 7-digit rule stays. Say so if it should change.
+
+## 8. Out of scope
+
+Dark mode, a design-system rewrite, shadcn initialisation (a human decision), any change to the escalation, sanction, appointment or clearance rules beyond section 5, and any behavior the HTML carries that `SPEC.md` removed (section 1).

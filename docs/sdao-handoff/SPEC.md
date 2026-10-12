@@ -173,7 +173,7 @@ There is no separate announcements feature. Notifications carry every admin upda
 - Hash with Argon2id (or bcrypt). Rules: ≥ 8 characters, at least one letter and one digit.
 - Staff **reset** → generates a one-time `Temp-####`, stores its hash in `password_hashed`, sets `must_change_password = true`, shown to staff once. On next sign-in the user is forced to set a new password (it can't equal the temp one).
 - "Forgot password" stays in-person: the SDO office (Room 204) issues a temp password.
-- Login accepts only emails ending in `nu-fairview.edu.ph` / `students.nu-fairview.edu.ph`; generic error message on failure; add login rate limiting.
+- Login accepts only emails ending in `nu-fairview.edu.ph` / `students.nu-fairview.edu.ph`; generic error message on failure; add login rate limiting. **The role is the account table the address is found in**, not the domain: the address's own domain is looked up first, then the other table, so a staff account may use a student-domain address (the demo admin does). Accounts are added by hand, so the two tables never hold the same address.
 
 ### 4.9 Handbook admin
 Staff create or edit a violation (name unique, category Minor/Major, section, description, sanction per offense step). A violation is keyed by id, so renaming never breaks cases. Show "used in N cases".
