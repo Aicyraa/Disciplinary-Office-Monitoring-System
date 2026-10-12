@@ -20,7 +20,7 @@ import { StudentsPage } from './pages/Students';
 import { MakeAppointmentPage, StaffAppointmentsPage } from './pages/StaffAppointments';
 import { CasesPage } from './pages/StaffCases';
 import { SanctionsPage } from './pages/Sanctions';
-import { ViolationDetail, ViolationsList } from './pages/Violations';
+import { ViolationsPage } from './pages/Violations';
 
 export type Access = 'loading' | 'login' | 'change-password' | 'allow';
 
@@ -91,9 +91,10 @@ function AppRoutes() {
           <Route path="clearance" element={<ClearanceRoute />} />
           <Route path="clearance/:id" element={<ClearanceRoute />} />
           <Route element={<RoleOnly role="student" />}>
-            <Route path="violations" element={<ViolationsList />} />
-            <Route path="violations/:id" element={<ViolationDetail />} />
+            <Route path="violations" element={<ViolationsPage />} />
+            <Route path="violations/:id" element={<ViolationsPage />} />
             <Route path="sanctions" element={<SanctionsPage />} />
+            <Route path="sanctions/:id" element={<SanctionsPage />} />
             <Route path="clearance/slip" element={<ClearanceSlipPage />} />
           </Route>
           <Route element={<RoleOnly role="staff" />}>

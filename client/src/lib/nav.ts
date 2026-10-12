@@ -109,7 +109,7 @@ const TITLES: Array<[RegExp, string, string]> = [
   [/^\/account$/, 'Account', 'Account details'],
   [/^\/violations\/\d+$/, 'My record', 'Violation'],
   [/^\/violations$/, 'My record', 'My violations'],
-  [/^\/sanctions$/, 'My record', 'My sanctions'],
+  [/^\/sanctions(\/\d+)?$/, 'My record', 'My sanctions'],
 ];
 
 /** `Staff > Dashboard`: the role, then the page (and its group for the staff pages that have one). */

@@ -56,6 +56,7 @@ describe('breadcrumb', () => {
   test('student pages have the role then the page', () => {
     expect(breadcrumb('student', '/')).toEqual(['Student', 'Dashboard']);
     expect(breadcrumb('student', '/violations/3')).toEqual(['Student', 'Violation']);
+    expect(breadcrumb('student', '/sanctions/7')).toEqual(['Student', 'My sanctions']);
     expect(breadcrumb('student', '/handbook')).toEqual(['Student', 'Student handbook']);
   });
 
