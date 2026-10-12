@@ -242,7 +242,11 @@ Neon Postgres, run `db/schema.sql` then `db/seed.sql` in the SQL editor (or via 
 ```
 POST /auth/login | /auth/change-password | /auth/force-password        GET /me
 GET  /handbook   GET /handbook/:id   (student + staff)
-POST|PATCH /handbook ...             PUT /handbook/sanctions/:id/template        (staff)
+POST /handbook   PATCH /handbook/:id          (staff: create and edit a violation; the category locks once cases use it)
+GET  /sanction-templates                      (any signed-in user: every sanction with its template text and file names)
+PUT  /sanction-templates/:sanctionId          (staff: title, description, requirements)
+POST /sanction-templates/:sanctionId/files    (staff, multipart, max 5 files)   DELETE /sanction-templates/files/:fileId
+GET  /sanction-templates/files/:fileId/url    (any signed-in user: 60 s download link)
 
 GET  /cases?status=&class=&q=&sort=&page=     (staff)     GET /me/cases (student)
 GET  /cases/:id                               (staff)     GET /me/cases/:id (student)

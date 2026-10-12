@@ -1,5 +1,6 @@
 import request from 'supertest';
-import { beforeEach, describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { createUnavailableStorage } from '../storage/unavailable.js';
 import { DOCX_MIME, MAX_FILE_BYTES, PDF_MIME } from '../files/validate.js';
 import { createMemoryStorage, type MemoryStorage } from '../storage/memory.js';
 import { buildHarnessApp, signedInAgent, STAFF, STUDENT_A } from '../testing/harness.js';
@@ -148,6 +149,22 @@ describe('files', () => {
     expect((await staff.delete('/sanction-templates/files/1')).status).toBe(200);
     expect(storage.objects.size).toBe(0);
     expect((await student.get('/sanction-templates/files/1/url')).status).toBe(404);
+  });
+
+  test('when template storage is unavailable, upload and download are 503 storage_unavailable and the text still saves', async () => {
+    const store503 = createMemoryTemplateStore();
+    const down = createUnavailableStorage('set STORAGE_BUCKET_TEMPLATES');
+    const service = createTemplateService({ store: store503, storage: down, now: () => NOW });
+    const app = buildHarnessApp({ templates: { service, reader: { list: async () => store503.readAll() } }, now: () => NOW });
+    const staff = await signedInAgent(app, STAFF.email);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const upload = await staff.post('/sanction-templates/1/files').attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME });
+    expect(upload.status).toBe(503);
+    expect(upload.body.error.code).toBe('storage_unavailable');
+    expect(store503.state.files).toHaveLength(0);
+    expect((await staff.put('/sanction-templates/1').send({ title: 'Still works' })).status).toBe(200);
+    vi.restoreAllMocks();
   });
 
   test.each(['abc', '0x1', '1.5', '-1'])('a malformed file id %s is 404', async (id) => {
