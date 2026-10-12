@@ -19,6 +19,7 @@ const KIND_ICON: Record<NotificationKind, string> = {
   clr: 'verified_user',
   account: 'manage_accounts',
   newviol: 'gavel',
+  notice: 'campaign',
 };
 
 /** Presentational list, so it can be rendered and tested without the network. */

@@ -7,6 +7,7 @@ import type {
   AccountRole,
   ApiSuccess,
   AuthUser,
+  NoticeListResponse,
   NotificationListResponse,
   EscalationConversion,
   HandbookEntryView,
@@ -256,6 +257,13 @@ export const api = {
     if (query.page && query.page > 1) params.page = query.page;
     return get<StaffAppointmentListResponse>('/appointments', params);
   },
+  // Notices (staff): broadcast, edit, remove
+  notices: () => get<NoticeListResponse>('/notices'),
+  publishNotice: (input: { title: string; message: string; instructions?: string; expiresOn?: string }) =>
+    post<{ noticeId: number; recipients: number }>('/notices', input),
+  editNotice: (id: number, input: { title: string; message: string; instructions?: string; expiresOn?: string }) =>
+    patch<{ ok: true }>(`/notices/${id}`, input),
+  removeNotice: (id: number) => del<{ ok: true }>(`/notices/${id}`),
   staffAppointment: (id: number) => get<{ appointment: StaffAppointmentView }>(`/appointments/${id}`),
   createAppointment: (input: { studentId: string; startDate: string; purpose: string; notes: string }) =>
     post<{ appointmentId: number }>('/appointments', input),

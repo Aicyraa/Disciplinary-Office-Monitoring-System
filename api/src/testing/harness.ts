@@ -1,3 +1,5 @@
+import type { NoticeService } from '../notices/service.js';
+import type { NoticeStore } from '../notices/types.js';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { createApp } from '../app.js';
@@ -44,6 +46,7 @@ export interface HarnessOptions {
   gate?: { service: GateService; options: GateOptionsReader; limits?: GateLimits };
   templates?: { service: TemplateService; reader: TemplateReader };
   notifications?: { inbox: InboxStore };
+  notices?: { service: NoticeService; store: NoticeStore; onPublished?: () => void };
   onPasswordReset?: (studentId: string) => Promise<void>;
   now?: () => Date;
 }
@@ -86,6 +89,7 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
       gate: options.gate,
       templates: options.templates,
       notifications: options.notifications,
+      notices: options.notices,
       now: options.now,
     },
   });

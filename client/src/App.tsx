@@ -16,6 +16,7 @@ import { InboxPage } from './pages/Inbox';
 import { NoAccessPage, NotFoundPage } from './pages/Misc';
 import { RecordViolationPage } from './pages/RecordViolation';
 import { StaffClearancePage } from './pages/StaffClearance';
+import { NoticesPage } from './pages/Notices';
 import { StudentsPage } from './pages/Students';
 import { MakeAppointmentPage, StaffAppointmentsPage } from './pages/StaffAppointments';
 import { CasesPage } from './pages/StaffCases';
@@ -101,6 +102,7 @@ function AppRoutes() {
             <Route path="record" element={<RecordViolationPage />} />
             <Route path="cases" element={<CasesPage />} />
             <Route path="cases/:id" element={<CasesPage />} />
+            <Route path="notices" element={<NoticesPage />} />
             <Route path="students" element={<StudentsPage />} />
             <Route path="students/:id" element={<StudentsPage />} />
             <Route path="appointments/new" element={<MakeAppointmentPage />} />

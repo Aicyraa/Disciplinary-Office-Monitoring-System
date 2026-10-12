@@ -87,7 +87,7 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
  * The closed set of notification kinds: the `notifications.kind` values, and the `type` of every
  * Power Automate request. A new kind is a spec change, not an ad-hoc string.
  */
-export type NotificationKind = 'report' | 'case' | 'esc' | 'sanction' | 'appt' | 'clr' | 'account' | 'newviol';
+export type NotificationKind = 'report' | 'case' | 'esc' | 'sanction' | 'appt' | 'clr' | 'account' | 'newviol' | 'notice';
 
 export type NotificationLinkType = 'case' | 'sanction' | 'appointment' | 'student' | 'clearance' | 'inbox';
 
@@ -108,6 +108,24 @@ export type NotificationListResponse = {
   notifications: NotificationView[];
   unreadCount: number;
 };
+
+/** A notice the office broadcast to every student (UI-POLISH-SPEC decision 1). Staff manage them. */
+export type NoticeView = {
+  id: number;
+  title: string;
+  message: string;
+  instructions: string | null;
+  /** YYYY-MM-DD, or null when the notice does not expire. */
+  expiresOn: string | null;
+  expired: boolean;
+  createdBy: string;
+  dateCreated: string;
+  dateUpdated: string;
+  /** Students who received it. */
+  recipients: number;
+};
+
+export type NoticeListResponse = { notices: NoticeView[] };
 
 export type AccountRole = 'student' | 'staff';
 

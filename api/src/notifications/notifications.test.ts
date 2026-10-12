@@ -6,7 +6,7 @@ import { linkPath } from './links.js';
 import { buildNotifyPayload, escapeHtml, notifyPayloadBuilders, type NotifyInput } from './render.js';
 import { createDeliveryScheduler } from './scheduler.js';
 
-const KINDS: NotificationKind[] = ['report', 'case', 'esc', 'sanction', 'appt', 'clr', 'account', 'newviol'];
+const KINDS: NotificationKind[] = ['report', 'case', 'esc', 'sanction', 'appt', 'clr', 'account', 'newviol', 'notice'];
 
 describe('linkPath', () => {
   test.each([

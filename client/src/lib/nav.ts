@@ -60,6 +60,7 @@ const STAFF_GROUPS: NavGroup[] = [
     items: [
       { to: '/cases', label: 'Cases', icon: 'gavel', badge: 'cases' },
       { to: '/students', label: 'Students', icon: 'school', badge: 'students' },
+      { to: '/notices', label: 'Notices', icon: 'campaign' },
       { to: '/appointments', label: 'Appointments', icon: 'event', end: true },
       { to: '/clearance', label: 'Clearance', icon: 'verified_user' },
     ],
@@ -102,6 +103,7 @@ const TITLES: Array<[RegExp, string, string]> = [
   [/^\/students\/[^/]+$/, 'Manage', 'Students'],
   [/^\/students$/, 'Manage', 'Students'],
   [/^\/appointments(\/\d+)?$/, 'Manage', 'Appointments'],
+  [/^\/notices$/, 'Manage', 'Notices'],
   [/^\/clearance(\/slip)?$/, 'Manage', 'Clearance'],
   [/^\/handbook\/new$/, 'Create', 'Add violation'],
   [/^\/handbook(\/\d+)?$/, 'Handbook', 'Violations'],

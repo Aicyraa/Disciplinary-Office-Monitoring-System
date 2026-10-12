@@ -45,6 +45,7 @@ describe('breadcrumb', () => {
     expect(breadcrumb('staff', '/students/2025-1030808')).toEqual(['Staff', 'Manage', 'Students']);
     expect(breadcrumb('staff', '/appointments/4')).toEqual(['Staff', 'Manage', 'Appointments']);
     expect(breadcrumb('staff', '/handbook/new')).toEqual(['Staff', 'Create', 'Add violation']);
+    expect(breadcrumb('staff', '/notices')).toEqual(['Staff', 'Manage', 'Notices']);
     expect(breadcrumb('staff', '/handbook/12')).toEqual(['Staff', 'Handbook', 'Violations']);
   });
 

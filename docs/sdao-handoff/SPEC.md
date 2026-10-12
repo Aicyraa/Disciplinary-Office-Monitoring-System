@@ -167,7 +167,7 @@ pending_verification ──return (reason)──▶ returned ──(student re-u
 - Deep link `link_type + link_id` maps to a page: case, sanction, appointment, student, clearance, inbox.
 
 ### 4.7 (removed)
-There is no separate announcements feature. Notifications carry every admin update (sanction assigned or changed, appointment made or moved, case validated or resolved, clearance changes).
+Notifications carry every admin update (sanction assigned or changed, appointment made or moved, case validated or resolved, clearance changes). **Important notices** (built 2026-10-13, UI-POLISH-SPEC decision 1) are the one broadcast: staff publish a titled message with optional instructions and an optional expiry day; every active student gets a `notice` notification (inbox plus email through the usual delivery sweep). Editing rewrites those notifications, removing deletes them, and an expired notice is hidden from inboxes. The `notices` table is in `db/schema.sql`; `db/add-notices.sql` adds it to a database that already has the schema.
 
 ### 4.8 Accounts and passwords
 - Hash with Argon2id (or bcrypt). Rules: ≥ 8 characters, at least one letter and one digit.
@@ -275,6 +275,7 @@ POST /clearances/:id/requirements/:rid/complete (remarks) | /reverse (reason)   
 #   A clearance always keeps at least one requirement (the last cannot be removed).
 GET  /appointments?bucket=&q=&page=   GET /appointments/:id   POST /appointments   PATCH /appointments/:id
 POST /appointments/:id/complete | /cancel        GET /me/appointments (student)
+GET  /notices   POST /notices   PATCH /notices/:id   DELETE /notices/:id    (staff: important notices; students read them in the inbox)
 GET  /me/notifications   POST /me/notifications/:id/read | /read-all
 GET  /notifications      POST /notifications/:id/read | /read-all      (staff: the one shared inbox)
 

@@ -36,19 +36,38 @@ const toInboxRow = (row: NotificationRow): InboxRow => ({
   dateCreated: row.date_created,
 });
 
+const manilaDay = (now: Date): string =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+
 /** Prisma-backed inbox: every query carries the audience, so a student only ever reaches their own rows. */
-export function createPrismaInboxStore(db: Pick<PrismaClient, 'notifications'>): InboxStore {
+export function createPrismaInboxStore(
+  db: Pick<PrismaClient, 'notifications' | 'notices'>,
+  now: () => Date = () => new Date(),
+): InboxStore {
+  /** Notifications of a notice past its expiry day are hidden (the rows stay until the notice is removed). */
+  async function visible(audience: Audience): Promise<Prisma.notificationsWhereInput> {
+    if (audience.kind === 'staff') return audienceWhere(audience);
+    const expired = await db.notices.findMany({
+      where: { expires_on: { lt: new Date(`${manilaDay(now())}T00:00:00Z`) } },
+      select: { notice_id: true },
+    });
+    const base = audienceWhere(audience);
+    return expired.length === 0
+      ? base
+      : { AND: [base, { NOT: { kind: 'notice', link_id: { in: expired.map((row) => row.notice_id) } } }] };
+  }
+
   return {
     async list(audience, { limit, unreadOnly }) {
       const rows = await db.notifications.findMany({
-        where: { ...audienceWhere(audience), ...(unreadOnly ? { is_read: false } : {}) },
+        where: { AND: [await visible(audience), unreadOnly ? { is_read: false } : {}] },
         orderBy: [{ date_created: 'desc' }, { notification_id: 'desc' }],
         take: limit,
       });
       return rows.map(toInboxRow);
     },
     async unreadCount(audience) {
-      return db.notifications.count({ where: { ...audienceWhere(audience), is_read: false } });
+      return db.notifications.count({ where: { AND: [await visible(audience), { is_read: false }] } });
     },
     async markRead(audience, notificationId) {
       const result = await db.notifications.updateMany({

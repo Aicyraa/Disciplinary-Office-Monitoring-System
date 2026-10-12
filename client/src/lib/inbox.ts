@@ -1,6 +1,6 @@
 import type { NotificationKind, NotificationView } from '@shared/types';
 
-export type InboxCategory = 'all' | 'violations' | 'sanctions' | 'appointments' | 'clearance' | 'account';
+export type InboxCategory = 'all' | 'notices' | 'violations' | 'sanctions' | 'appointments' | 'clearance' | 'account';
 
 export const INBOX_PAGE_SIZE = 8;
 
@@ -20,11 +20,14 @@ export function inboxCategory(kind: NotificationKind): Exclude<InboxCategory, 'a
       return 'clearance';
     case 'account':
       return 'account';
+    case 'notice':
+      return 'notices';
   }
 }
 
 export const INBOX_CATEGORY_LABEL: Record<InboxCategory, string> = {
   all: 'All',
+  notices: 'Important notices',
   violations: 'Violations',
   sanctions: 'Sanctions',
   appointments: 'Appointments',
@@ -38,7 +41,7 @@ export function filterInbox(items: NotificationView[], category: InboxCategory, 
 
 /** Counts per chip over the whole list (not the page), for the chip badges. */
 export function categoryCounts(items: NotificationView[]): Record<InboxCategory, number> {
-  const counts: Record<InboxCategory, number> = { all: items.length, violations: 0, sanctions: 0, appointments: 0, clearance: 0, account: 0 };
+  const counts: Record<InboxCategory, number> = { all: items.length, notices: 0, violations: 0, sanctions: 0, appointments: 0, clearance: 0, account: 0 };
   for (const item of items) counts[inboxCategory(item.kind)] += 1;
   return counts;
 }

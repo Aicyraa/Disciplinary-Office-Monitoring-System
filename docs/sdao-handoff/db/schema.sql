@@ -287,7 +287,7 @@ CREATE TABLE notifications (
   recipient_type    text NOT NULL CHECK (recipient_type IN ('student','staff')),
   student_id        varchar(20) REFERENCES student_accounts(student_id),
   kind              text NOT NULL CHECK (kind IN
-                      ('report','case','esc','sanction','appt','clr','account','newviol')),
+                      ('report','case','esc','sanction','appt','clr','account','newviol','notice')),
   title             text NOT NULL,
   message           text NOT NULL,
   link_type         text CHECK (link_type IN ('case','sanction','appointment','student','clearance','inbox')),
@@ -299,5 +299,19 @@ CREATE TABLE notifications (
   date_email_sent   timestamptz,
   CHECK ((recipient_type = 'student') = (student_id IS NOT NULL))
 );
+-- NEW (UI polish, 2026-10-13): important notices the office broadcasts to every student. Publishing writes
+-- one `notice` notification per active student (link_type 'inbox', link_id = notice_id); email goes out through
+-- the usual delivery sweep. Edit rewrites those notifications; remove deletes them with the notice.
+CREATE TABLE notices (
+  notice_id               integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title                   text NOT NULL,
+  message                 text NOT NULL,
+  instructions            text,
+  expires_on              date,                                -- Asia/Manila calendar day; hidden from inboxes after it
+  created_by_employee_id  varchar(20) NOT NULL REFERENCES employee_accounts(employee_id),
+  date_created            timestamptz NOT NULL DEFAULT now(),
+  date_updated            timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE INDEX ix_notif_inbox ON notifications(student_id, is_read, date_created DESC);
 CREATE INDEX ix_notif_email ON notifications(email_status) WHERE email_status = 'pending';
