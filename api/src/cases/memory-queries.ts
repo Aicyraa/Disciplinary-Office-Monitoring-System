@@ -3,7 +3,13 @@ import { assignCaseCodes, displayCode, formatSubmissionCode, parseCaseCode } fro
 import type { MemoryCaseStore } from './memory-store.js';
 import { toStaffSanctionView } from '../sanctions/views.js';
 import { lateByDays } from '../sanctions/rules.js';
-import { ACTIVE_SANCTION_STATUSES, CASE_PAGE_SIZE, SANCTION_QUEUE_PAGE_SIZE, type CaseQueries } from './queries.js';
+import {
+  ACTIVE_SANCTION_STATUSES,
+  CASE_PAGE_SIZE,
+  SANCTION_QUEUE_PAGE_SIZE,
+  emptyStatusCounts,
+  type CaseQueries,
+} from './queries.js';
 import type { CaseRecord } from './types.js';
 
 /** In-memory fake of the staff query side, reading the same state as the memory store. */
@@ -56,9 +62,8 @@ export function createMemoryCaseQueries(
     async list(filter) {
       const needle = filter.q?.trim().toLowerCase() ?? '';
       const parsed = needle === '' ? null : parseCaseCode(needle);
-      const rows = store.state.cases
+      const matching = store.state.cases
         .map(toRow)
-        .filter((row) => (filter.status ? row.status === filter.status : true))
         .filter((row) => (filter.severity ? row.severity === filter.severity : true))
         .filter((row) => {
           if (needle === '') return true;
@@ -71,8 +76,11 @@ export function createMemoryCaseQueries(
           const byDate = a.caseDate.localeCompare(b.caseDate) || a.id - b.id;
           return filter.sort === 'newest' ? -byDate : byDate;
         });
+      const statusCounts = emptyStatusCounts();
+      for (const row of matching) statusCounts[row.status] += 1;
+      const rows = matching.filter((row) => (filter.status ? row.status === filter.status : true));
       const start = (filter.page - 1) * CASE_PAGE_SIZE;
-      return { rows: rows.slice(start, start + CASE_PAGE_SIZE), total: rows.length };
+      return { rows: rows.slice(start, start + CASE_PAGE_SIZE), total: rows.length, statusCounts };
     },
 
     async sanctionQueue({ filter, page, today }) {
@@ -135,6 +143,16 @@ export function createMemoryCaseQueries(
           record.submissionRef === null
             ? []
             : store.state.cases.filter((c) => c.submissionRef === record.submissionRef && c.caseId !== caseId).map((c) => c.caseId),
+        caseCodes: Object.fromEntries(
+          [
+            caseId,
+            ...links.filter((l) => l.majorCaseId === caseId).map((l) => l.minorCaseId),
+            ...(links.find((l) => l.minorCaseId === caseId) ? [links.find((l) => l.minorCaseId === caseId)!.majorCaseId] : []),
+            ...(record.submissionRef === null
+              ? []
+              : store.state.cases.filter((c) => c.submissionRef === record.submissionRef && c.caseId !== caseId).map((c) => c.caseId)),
+          ].map((id) => [String(id), codes().get(id) ?? '']),
+        ),
         sanctions: store.state.caseSanctions
           .filter((s) => s.caseId === caseId)
           .map((s) => toStaffSanctionView(s, today)),

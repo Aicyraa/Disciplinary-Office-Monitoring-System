@@ -478,7 +478,10 @@ export type StaffCaseRow = {
 
 export type StaffCaseListResponse = {
   cases: StaffCaseRow[];
+  /** Cases matching every filter, status included. */
   total: number;
+  /** Matches per status with the status filter left out (class and search still apply), for the status menu. */
+  statusCounts: Record<CaseStatus, number>;
   page: number;
   pageSize: number;
 };
@@ -498,6 +501,8 @@ export type StaffCaseDetail = StaffCaseRow & {
   countedTowardCaseId: number | null;
   /** Other cases from the same gate submission. */
   siblingCaseIds: number[];
+  /** Display codes of this case and the cases named above, keyed by case id. */
+  caseCodes: Record<string, string>;
   sanctions: StaffSanctionView[];
 };
 

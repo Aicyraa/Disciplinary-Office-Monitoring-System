@@ -18,7 +18,6 @@ import { RecordViolationPage } from './pages/RecordViolation';
 import { StaffClearancePage } from './pages/StaffClearance';
 import { StudentsPage } from './pages/Students';
 import { MakeAppointmentPage, StaffAppointmentsPage } from './pages/StaffAppointments';
-import { CaseDetailPage } from './pages/StaffCaseDetail';
 import { CasesPage } from './pages/StaffCases';
 import { SanctionsPage } from './pages/Sanctions';
 import { ViolationDetail, ViolationsList } from './pages/Violations';
@@ -96,7 +95,7 @@ function AppRoutes() {
           <Route element={<RoleOnly role="staff" />}>
             <Route path="record" element={<RecordViolationPage />} />
             <Route path="cases" element={<CasesPage />} />
-            <Route path="cases/:id" element={<CaseDetailPage />} />
+            <Route path="cases/:id" element={<CasesPage />} />
             <Route path="students" element={<StudentsPage />} />
             <Route path="students/:id" element={<StudentsPage />} />
             <Route path="appointments/new" element={<MakeAppointmentPage />} />
