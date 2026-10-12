@@ -49,6 +49,9 @@ export type ApiErrorCode =
   // appointments
   | 'invalid_date'
   | 'appointment_overlap'
+  // handbook admin
+  | 'violation_exists'
+  | 'violation_in_use'
   // clearance
   | 'clearance_exists'
   | 'requirement_exists'
@@ -143,6 +146,34 @@ export type HandbookEntryView = {
   section: string;
   description: string;
   sanctions: HandbookSanctionView[];
+  /** Cases whose current handbook entry is this one. Only staff receive it (SPEC 4.9, "used in N cases"). */
+  usedInCases?: number;
+};
+
+export type SanctionTemplateFileView = {
+  /** files.file_id, the id used to download or remove the file. */
+  id: number;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  /** ISO timestamp (UTC). */
+  dateUploaded: string;
+};
+
+/** One sanction with its template page (SPEC 6.1, 5): written text and downloadable PDF/DOCX files. */
+export type SanctionTemplateView = {
+  sanctionId: number;
+  /** Display code, S001 style. */
+  sanctionCode: string;
+  type: string;
+  /** The sanction's own description from the handbook. */
+  sanctionDescription: string;
+  title: string | null;
+  description: string | null;
+  requirements: string | null;
+  /** ISO timestamp (UTC), or null while staff have not written the template yet. */
+  dateUpdated: string | null;
+  files: SanctionTemplateFileView[];
 };
 
 // ---- Student's own data (`/me/*`, SPEC 5 student pages) ---------------------------------------

@@ -25,7 +25,11 @@ import {
 import { createDeliveryScheduler, type DeliveryScheduler } from './notifications/scheduler.js';
 import { createPrismaClient } from './prisma.js';
 import { createSanctionService } from './sanctions/service.js';
-import { filesBucketFromEnv } from './storage/config.js';
+import { createHandbookAdminService } from './handbook/admin-service.js';
+import { createPrismaHandbookAdminStore } from './handbook/admin-prisma-store.js';
+import { filesBucketFromEnv, templatesBucketFromEnv } from './storage/config.js';
+import { createPrismaTemplateReader, createPrismaTemplateStore } from './templates/prisma-store.js';
+import { createTemplateService } from './templates/service.js';
 import { createS3Storage } from './storage/s3.js';
 import { createUnavailableStorage } from './storage/unavailable.js';
 
@@ -116,6 +120,16 @@ function buildApp(): Built {
       ? createS3Storage(filesBucket)
       : createUnavailableStorage('set STORAGE_BUCKET_FILES and the AWS_* keys');
 
+  // Sanction templates have their own bucket and never fall back to the proof-files bucket. Without it the
+  // template text still works; only file upload and download answer 503.
+  const templatesBucket = templatesBucketFromEnv();
+  const templatesConfigured = Boolean(templatesBucket && process.env.AWS_ENDPOINT_URL_S3 && process.env.AWS_ACCESS_KEY_ID);
+  if (!templatesConfigured) console.warn('STORAGE_BUCKET_TEMPLATES is not set: sanction template files are disabled.');
+  const templateStorage =
+    templatesConfigured && templatesBucket
+      ? createS3Storage(templatesBucket)
+      : createUnavailableStorage('set STORAGE_BUCKET_TEMPLATES and the AWS_* keys');
+
   const app = createApp({
     auth: {
       service,
@@ -143,6 +157,11 @@ function buildApp(): Built {
     },
     data: {
       handbook: createPrismaHandbookRepo(prisma),
+      handbookAdmin: { service: createHandbookAdminService({ store: createPrismaHandbookAdminStore(prisma) }) },
+      templates: {
+        service: createTemplateService({ store: createPrismaTemplateStore(prisma), storage: templateStorage }),
+        reader: createPrismaTemplateReader(prisma),
+      },
       studentViews: createPrismaStudentViewRepo(prisma),
       cases: {
         service: createCaseService({ store: caseStore }),

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import type { Severity, StudentSanctionView } from '@shared/types';
+import type { SanctionTemplateView, Severity, StudentSanctionView } from '@shared/types';
 import { ProofPanel } from '../components/ProofPanel';
+import { TemplateFileLinks, hasTemplateContent } from '../components/TemplateDownloads';
 import { Card, EmptyState, PageHeader, Resource, StatusPill } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDate, SANCTION_STEPS, statusLabel } from '../lib/format';
@@ -24,7 +25,16 @@ function Tracker({ status }: { status: string }) {
   );
 }
 
-function SanctionCard({ sanction, onChanged }: { sanction: StudentSanctionView; onChanged: () => void }) {
+function SanctionCard({
+  sanction,
+  template,
+  onChanged,
+}: {
+  sanction: StudentSanctionView;
+  /** The office's template for this sanction, when there is one. */
+  template: SanctionTemplateView | undefined;
+  onChanged: () => void;
+}) {
   return (
     <li className="rounded-lg border border-line bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -52,6 +62,12 @@ function SanctionCard({ sanction, onChanged }: { sanction: StudentSanctionView; 
           <span className="font-medium text-ink">From the office:</span> {sanction.staffNote}
         </p>
       ) : null}
+      {template && template.files.length > 0 && hasTemplateContent(template) ? (
+        <div className="mt-2 rounded-md bg-page px-3 py-2 text-sm">
+          <span className="font-medium text-ink">Template to download:</span>
+          <TemplateFileLinks template={template} />
+        </div>
+      ) : null}
       <Tracker status={sanction.status} />
       <ProofPanel sanction={sanction} onChanged={onChanged} />
     </li>
@@ -60,6 +76,11 @@ function SanctionCard({ sanction, onChanged }: { sanction: StudentSanctionView; 
 
 export function SanctionsPage() {
   const resource = useApi(() => api.mySanctions(), []);
+  // A failed template request must never hide the student's own sanctions, so errors are simply "no template".
+  const templates = useApi(() => api.sanctionTemplates().catch(() => ({ templates: [] as SanctionTemplateView[] })), []);
+  const templateBySanction = new Map(
+    (templates.status === 'ready' ? templates.data.templates : []).map((template) => [template.sanctionId, template]),
+  );
   const [filter, setFilter] = useState<Filter>('all');
 
   return (
@@ -99,7 +120,12 @@ export function SanctionsPage() {
               ) : (
                 <ul className="space-y-3">
                   {shown.map((sanction) => (
-                    <SanctionCard key={sanction.id} sanction={sanction} onChanged={resource.reload} />
+                    <SanctionCard
+                      key={sanction.id}
+                      sanction={sanction}
+                      template={templateBySanction.get(sanction.sanctionId)}
+                      onChanged={resource.reload}
+                    />
                   ))}
                 </ul>
               )}

@@ -260,7 +260,10 @@ POST /files (multipart; this one request IS the submission)   GET /files/:id/url
 POST /case-sanctions/:id/verify | /return       # no /submit and no /record-compliance (online proof only)
 
 GET  /students  GET /students/:id   POST /students/:id/reset-password
-GET|POST /clearances ...   POST /clearances/:id/requirements/:rid/complete | /reverse
+GET  /clearances?status=&q=&page=   GET /clearances/:id   POST /clearances (studentId, academicYear, semester)
+POST /clearances/:id/requirements (label)   DELETE /clearances/:id/requirements/:rid
+POST /clearances/:id/requirements/:rid/complete (remarks) | /reverse (reason)   GET /me/clearance (student)
+#   A clearance always keeps at least one requirement (the last cannot be removed).
 GET  /appointments?bucket=&q=&page=   POST /appointments   PATCH /appointments/:id
 POST /appointments/:id/complete | /cancel        GET /me/appointments (student)
 GET  /me/notifications   POST /me/notifications/:id/read | /read-all

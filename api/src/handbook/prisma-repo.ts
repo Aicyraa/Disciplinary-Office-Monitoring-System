@@ -41,8 +41,12 @@ function toRecord(row: Row): HandbookEntryRecord {
 }
 
 /** Prisma-backed handbook reads. Takes the client as a parameter so callers can pass a transaction. */
-export function createPrismaHandbookRepo(db: Pick<PrismaClient, 'handbook_entries'>): HandbookRepo {
+export function createPrismaHandbookRepo(db: Pick<PrismaClient, 'handbook_entries' | 'disciplinary_cases'>): HandbookRepo {
   return {
+    async caseCounts() {
+      const groups = await db.disciplinary_cases.groupBy({ by: ['handbook_entry_id'], _count: { _all: true } });
+      return new Map(groups.map((group) => [group.handbook_entry_id, group._count._all]));
+    },
     async listEntries() {
       const rows = await db.handbook_entries.findMany({ include, orderBy: { handbook_entry_id: 'asc' } });
       return rows.map(toRecord);

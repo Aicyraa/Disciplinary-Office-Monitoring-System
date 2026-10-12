@@ -15,7 +15,11 @@ import { createClearanceRouter } from './clearance/routes.js';
 import type { ClearanceService } from './clearance/service.js';
 import { createCaseRouter } from './cases/routes.js';
 import type { CaseService } from './cases/service.js';
+import type { HandbookAdminService } from './handbook/admin-service.js';
 import { createHandbookRouter } from './handbook/routes.js';
+import type { TemplateReader } from './templates/reader.js';
+import { createTemplateRouter } from './templates/routes.js';
+import type { TemplateService } from './templates/service.js';
 import type { HandbookRepo } from './handbook/repo.js';
 import { errorHandler, notFoundHandler, sendError } from './http.js';
 import { createMeRouter } from './me/routes.js';
@@ -48,6 +52,10 @@ export interface AppDeps {
   /** Read-side repositories. Routes mount only when `auth` is also given (they need the session). */
   data?: {
     handbook: HandbookRepo;
+    /** Staff create and edit violations (SPEC 4.9). */
+    handbookAdmin?: { service: HandbookAdminService };
+    /** Sanction templates: text and files (SPEC 6.1). */
+    templates?: { service: TemplateService; reader: TemplateReader };
     studentViews: StudentViewRepo;
     /** Staff case workflow: the rules (service) and the read side (queries). */
     cases?: { service: CaseService; queries: CaseQueries };
@@ -125,7 +133,8 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
     );
 
     if (data) {
-      app.use(createHandbookRouter({ repo: data.handbook }));
+      app.use(createHandbookRouter({ repo: data.handbook, admin: data.handbookAdmin?.service }));
+      if (data.templates) app.use(createTemplateRouter(data.templates));
       app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
       if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));
       if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));

@@ -1,8 +1,9 @@
-import { Router } from 'express';
-import type { HandbookEntryView } from '@shared/types.js';
+import { Router, type Response } from 'express';
+import type { AuthUser, HandbookEntryView } from '@shared/types.js';
 import { displayCode } from '../codes.js';
-import { requireAuth, requirePasswordChanged } from '../auth/guards.js';
+import { requireAuth, requirePasswordChanged, requireStaff } from '../auth/guards.js';
 import { sendError, sendOk } from '../http.js';
+import type { HandbookAdminFailure, HandbookAdminFailureCode, HandbookAdminService } from './admin-service.js';
 import type { HandbookEntryRecord, HandbookRepo } from './repo.js';
 
 export function toHandbookEntryView(record: HandbookEntryRecord): HandbookEntryView {
@@ -33,14 +34,35 @@ export const isVisibleInHandbook = (record: HandbookEntryRecord): boolean => !re
 
 const parseId = (value: string): number | null => (/^\d{1,9}$/.test(value) ? Number(value) : null);
 
-/** Read-only handbook for any signed-in user (student and staff). Editing is build step 8. */
-export function createHandbookRouter({ repo }: { repo: HandbookRepo }): Router {
+const ADMIN_STATUS: Record<HandbookAdminFailureCode, number> = {
+  invalid_input: 400,
+  not_found: 404,
+  violation_exists: 409,
+  violation_in_use: 409,
+};
+
+function sendAdminFailure(response: Response, failure: HandbookAdminFailure): void {
+  sendError(response, ADMIN_STATUS[failure.code], failure.code, failure.message);
+}
+
+/**
+ * The handbook. Any signed-in user reads it; staff also receive "used in N cases" and can create and edit
+ * violations (SPEC 4.9). Editing never deletes anything: a violation is keyed by id, so renaming keeps cases intact.
+ */
+export function createHandbookRouter({ repo, admin }: { repo: HandbookRepo; admin?: HandbookAdminService }): Router {
   const router = Router();
   router.use('/handbook', requireAuth, requirePasswordChanged);
 
-  router.get('/handbook', async (_request, response) => {
+  const isStaff = (request: { user?: unknown }): boolean => (request.user as AuthUser | undefined)?.role === 'staff';
+
+  router.get('/handbook', async (request, response) => {
     const entries = (await repo.listEntries()).filter(isVisibleInHandbook);
-    sendOk(response, { entries: entries.map(toHandbookEntryView) });
+    const views = entries.map(toHandbookEntryView);
+    if (isStaff(request)) {
+      const counts = await repo.caseCounts();
+      for (const view of views) view.usedInCases = counts.get(view.id) ?? 0;
+    }
+    sendOk(response, { entries: views });
   });
 
   router.get('/handbook/:id', async (request, response) => {
@@ -50,8 +72,32 @@ export function createHandbookRouter({ repo }: { repo: HandbookRepo }): Router {
       sendError(response, 404, 'not_found', 'Not found.');
       return;
     }
-    sendOk(response, { entry: toHandbookEntryView(entry) });
+    const view = toHandbookEntryView(entry);
+    if (isStaff(request)) view.usedInCases = (await repo.caseCounts()).get(view.id) ?? 0;
+    sendOk(response, { entry: view });
   });
+
+  if (admin) {
+    router.post('/handbook', ...requireStaff, async (request, response) => {
+      const { violationType, severity, section, description, sanctions } = request.body ?? {};
+      const result = await admin.create({ violationType, severity, section, description, sanctions });
+      if (!result.ok) return sendAdminFailure(response, result);
+      sendOk(response, { handbookEntryId: result.handbookEntryId }, 201);
+    });
+
+    router.patch('/handbook/:id', ...requireStaff, async (request, response) => {
+      const id = parseId(String(request.params.id));
+      if (id === null) {
+        sendError(response, 404, 'not_found', 'Not found.');
+        return;
+      }
+      // Only these five fields are read. The system flag and the ids can never be set from a request.
+      const { violationType, severity, section, description, sanctions } = request.body ?? {};
+      const result = await admin.update({ handbookEntryId: id, violationType, severity, section, description, sanctions });
+      if (!result.ok) return sendAdminFailure(response, result);
+      sendOk(response, { ok: true });
+    });
+  }
 
   return router;
 }

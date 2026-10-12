@@ -10,7 +10,10 @@ import type { ClearanceQueries } from '../clearance/queries.js';
 import type { ClearanceService } from '../clearance/service.js';
 import type { CaseService } from '../cases/service.js';
 import type { SanctionService } from '../sanctions/service.js';
+import type { HandbookAdminService } from '../handbook/admin-service.js';
 import type { HandbookRepo } from '../handbook/repo.js';
+import type { TemplateReader } from '../templates/reader.js';
+import type { TemplateService } from '../templates/service.js';
 import { createMemoryHandbookRepo } from '../handbook/memory-repo.js';
 import type { StudentViewRepo } from '../me/repo.js';
 import { createMemoryStudentViewRepo } from '../me/memory-repo.js';
@@ -34,6 +37,8 @@ export interface HarnessOptions {
   sanctions?: { service: SanctionService };
   appointments?: { service: AppointmentService; queries: AppointmentQueries };
   clearance?: { service: ClearanceService; queries: ClearanceQueries };
+  handbookAdmin?: { service: HandbookAdminService };
+  templates?: { service: TemplateService; reader: TemplateReader };
   notifications?: { inbox: InboxStore };
   onPasswordReset?: (studentId: string) => Promise<void>;
   now?: () => Date;
@@ -73,6 +78,8 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
       sanctions: options.sanctions,
       appointments: options.appointments,
       clearance: options.clearance,
+      handbookAdmin: options.handbookAdmin,
+      templates: options.templates,
       notifications: options.notifications,
       now: options.now,
     },

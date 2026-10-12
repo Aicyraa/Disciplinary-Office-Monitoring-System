@@ -11,6 +11,7 @@ import type {
   EscalationConversion,
   HandbookEntryView,
   SanctionAssignmentOptions,
+  SanctionTemplateView,
   StaffAppointmentListResponse,
   StaffClearanceListResponse,
   StaffCaseDetail,
@@ -233,6 +234,43 @@ export const api = {
   completeAppointment: (appointmentId: number) => post<{ ok: true }>(`/appointments/${appointmentId}/complete`),
   cancelAppointment: (appointmentId: number, reason: string) =>
     post<{ ok: true }>(`/appointments/${appointmentId}/cancel`, { reason }),
+
+  // Handbook admin and sanction templates (SPEC 4.9, 6.1)
+  createViolation: (input: {
+    violationType: string;
+    severity: string;
+    section: string;
+    description: string;
+    sanctions: Array<{ offenseNumber: number; sanctionId: number }>;
+  }) => post<{ handbookEntryId: number }>('/handbook', input),
+  updateViolation: (
+    handbookEntryId: number,
+    input: {
+      violationType?: string;
+      severity?: string;
+      section?: string;
+      description?: string;
+      sanctions?: Array<{ offenseNumber: number; sanctionId: number }>;
+    },
+  ) => patch<{ ok: true }>(`/handbook/${handbookEntryId}`, input),
+  sanctionTemplates: () => get<{ templates: SanctionTemplateView[] }>('/sanction-templates'),
+  saveTemplateText: (sanctionId: number, input: { title: string; description: string; requirements: string }) =>
+    request<{ ok: true }>(() => http.put(`/sanction-templates/${sanctionId}`, input)),
+  uploadTemplateFiles: (sanctionId: number, files: File[], onProgress?: (percent: number) => void) => {
+    const form = new FormData();
+    for (const file of files) form.append('files', file);
+    return request<{ fileIds: number[] }>(() =>
+      http.post(`/sanction-templates/${sanctionId}/files`, form, {
+        onUploadProgress: (event) => {
+          const percent = progressPercent(event.loaded, event.total);
+          if (percent !== null) onProgress?.(percent);
+        },
+      }),
+    );
+  },
+  deleteTemplateFile: (fileId: number) => del<{ ok: true }>(`/sanction-templates/files/${fileId}`),
+  templateFileUrl: (fileId: number) =>
+    get<{ url: string; expiresInSeconds: number }>(`/sanction-templates/files/${fileId}/url`),
 
   // Staff clearance (SPEC 4.4, 7)
   staffClearances: (query: { status?: 'pending' | 'cleared'; q?: string; page?: number }) => {

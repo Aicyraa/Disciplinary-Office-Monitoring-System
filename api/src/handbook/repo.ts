@@ -21,4 +21,6 @@ export interface HandbookEntryRecord {
 export interface HandbookRepo {
   listEntries(): Promise<HandbookEntryRecord[]>;
   getEntry(handbookEntryId: number): Promise<HandbookEntryRecord | null>;
+  /** How many cases use each handbook entry as their current entry (entries with none are absent). */
+  caseCounts(): Promise<Map<number, number>>;
 }
