@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
-import { DashboardCard, DateTile, Kpi, ProgressBar, RowItem } from './DashboardCards';
+import { ACTION_PILL, DashboardCard, DateTile, Kpi, ProgressBar, RowItem } from './DashboardCards';
 
 const render = (node: React.ReactNode) => renderToStaticMarkup(<MemoryRouter>{node}</MemoryRouter>);
 
@@ -22,6 +22,19 @@ describe('DashboardCard', () => {
 
   test('no pill when there is nowhere to go', () => {
     expect(render(<DashboardCard icon="gavel" title="Plain">x</DashboardCard>)).not.toContain('<a ');
+  });
+});
+
+describe('tap targets', () => {
+  test('the card pill and the shared action pill are at least 44 px (min-h-11)', () => {
+    expect(ACTION_PILL).toContain('min-h-11');
+    const html = render(
+      <DashboardCard icon="gavel" title="Cases" to="/cases">
+        x
+      </DashboardCard>,
+    );
+    expect(html).toContain('min-h-11');
+    expect(html).not.toContain('min-h-9');
   });
 });
 

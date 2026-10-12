@@ -2,6 +2,9 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from './ui';
 
+/** Pills and row actions are at least 44 px tall (the phone tap-target floor, UI-POLISH-SPEC section 1). */
+export const ACTION_PILL = 'inline-flex min-h-11 items-center rounded-full border border-line-strong px-4 text-xs font-semibold text-ink hover:bg-page';
+
 /** A dashboard card: tinted icon, title and subtitle, a gold "View all" pill, then the content (reference slides 12, 30). */
 export function DashboardCard({
   icon,
@@ -47,7 +50,7 @@ export function DashboardCard({
         {to ? (
           <Link
             to={to}
-            className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full bg-gold px-3 text-xs font-semibold text-ink hover:brightness-95"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-gold px-4 text-xs font-semibold text-ink hover:brightness-95"
           >
             {action}
             <Icon name="chevron_right" className="text-base" />

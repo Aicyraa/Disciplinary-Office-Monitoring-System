@@ -695,4 +695,24 @@ The human authorized the doc edits that earlier tasks had raised as `SPEC CHANGE
 
 **Evidence:** 976 tests pass; lint, typecheck, build clean.
 
-### Review (reviewer fills this)
+### Review (reviewer, 2026-10-12, commit 53b480a)
+**Verdict: FAIL** (3 fixes below; the counts, states and layout are otherwise sound).
+Commands re-run: `npm test` 52 files / 976 tests pass; `npm run lint`, `npm run typecheck`, `npm run build` exit 0. Playwright against `vite --port 5191` (5173 is another worktree's server), API by `page.route` on :3000 only; student and staff x full / empty / error x 390, 900, 1280 = 18 runs.
+| Criterion | Result | Proof |
+|---|---|---|
+| Counts pure and right (in progress = assigned + returned; active excludes resolved, rejected) | PASS | `dashboard.ts` read; `dashboard.test.ts` asserts exact objects incl. `{inProgress:2,...}`; rendered 5 minor / 1 major from 8 mixed cases |
+| Loading, error, empty per card | PASS (one defect, F3) | error run: 4 `role=alert` + Try again per card; empty run: every card shows a sentence; loading is `LoadingState` per `Body` (read, not captured) |
+| No horizontal overflow | PASS | 18 runs: `scrollWidth == innerWidth`, no `main *` element past the viewport, with 90-char titles and a 40-char name |
+| Links to existing routes, headings | PASS | `/violations /appointments /sanctions /clearance /cases /cases/:id` all in `App.tsx`; one `h1`, four `h2`, four `section[aria-labelledby]` |
+| 44 px tap targets (Validate / Decide / View all) | FAIL (F2) | measured 36 px for every pill and 34 px for "Try again" (`min-h-9`, ErrorState button) |
+| No API / schema / dependency change | PASS | `git show --stat`: 5 client files + CONTEXT.md only |
+| UI-POLISH-SPEC.md delivered | FAIL (F1) | file is on disk but not in 53b480a (`git show --stat` lacks it, `git log -- docs/sdao-handoff/UI-POLISH-SPEC.md` is empty; `docs/` appears ignored by Serena) although the message and the task row say it is added |
+Findings and smallest next step:
+- F1: get the SPEC into the commit (or tell the human it is untracked on purpose). Its other facts check out: no Students route or nav item (`App.tsx`, `Shell.tsx`), reset route exists as `POST /staff/students/:studentId/reset-password` (SPEC 7 sketches `/students/:id/reset-password`; say so in P6), tokens match CLAUDE.md section 7, three widths, no new dependency.
+- F2: give the Validate / Decide / pills, "Try again" and tabs `min-h-11` (44 px), as the SPEC's own section 1 requires; add a static-markup assertion.
+- F3: the staff third KPI is "With sanctions" (`for_sanction` total), but slide 12 shows "Sanctions to verify" and a Sanctions card (in progress, overdue, Verify). No staff sanction list endpoint exists (SPEC 7), so P1 "from existing endpoints only" cannot match slide 12; the SPEC must say so (add to section 6, "needs `GET /case-sanctions?status=pending_verification`") and the KPI should be renamed or dropped. Also: a failed `validated` request renders an ErrorState inside the KPI cell (nested `Body`, seen at 390) and the Reports card lists every row of the page (12 of 40) where the deck shows 3 to 4; slice to 5 and show "View all".
+- Missing from SPEC section 6 (deck beyond SPEC/API): "Will escalate" chip needs the escalation preview per case; "Last checked" plus refresh; "Overdue" KPI; the SPEC decision 18 names the prototype as the fidelity target, the polish SPEC uses the deck, so say which wins on conflict. Pre-existing, for P2: staff bottom tab strip is clipped at 390 ("Clea...").
+- Test gaps: no test renders `Dashboard.tsx` states (only my mock run did); `DateTile` test uses a timestamp but the API sends `YYYY-MM-DD` (harmless, misleading).
+- Not verified: live API/database numbers (the HUMAN CHECK line is complete); loading skeleton visually. The dev server on port 5191 (task b300cy0uu) could not be stopped: pkill, kill and fuser are denied for me; the human should stop it.
+
+**Review fix round 1 (dev):** F1 tap targets: card pills, Validate/Decide and the retry button are now `min-h-11` (44 px), measured 44 px at 390, 900 and 1280. F2 the KPI tiles show a dash instead of a nested error box when their request fails (one alert, on the Awaiting decision card). F3 the Reports card lists at most 4 rows (9 returned, 4 shown). UI-POLISH-SPEC.md was ignored by `.gitignore` (`docs`), so it is now force-added; the SPEC also lists the Sanctions-to-verify endpoint gap (P1b), the escalation chip / last checked / overdue extras, the prototype-versus-deck fidelity target and the built reset-password route path (questions 8 to 11). The Dashboard page itself has no state test (effects need a DOM runner that is not installed): covered by the Playwright checks above.

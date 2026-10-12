@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { DashboardCard, DateTile, Kpi, ProgressBar, RowItem } from '../components/DashboardCards';
+import { ACTION_PILL, DashboardCard, DateTile, Kpi, ProgressBar, RowItem } from '../components/DashboardCards';
 import { EmptyState, ErrorState, LoadingState, PageHeader, StatusPill } from '../components/ui';
 import { api } from '../lib/api';
 import { activeCases, caseCounts, clearanceProgress, nextAppointment, sanctionCounts } from '../lib/dashboard';
@@ -179,8 +179,8 @@ export function StaffHome() {
               <>
                 <div className="grid grid-cols-3 gap-2">
                   <Kpi value={total} label="Reports to validate" tone={total > 0 ? 'danger' : undefined} />
-                  <Body resource={validated}>{({ total: awaiting }) => <Kpi value={awaiting} label="Awaiting decision" />}</Body>
-                  <Body resource={sanctioned}>{({ total: withSanction }) => <Kpi value={withSanction} label="With sanctions" />}</Body>
+                  <Kpi value={validated.status === 'ready' ? validated.data.total : '–'} label="Awaiting decision" />
+                  <Kpi value={sanctioned.status === 'ready' ? sanctioned.data.total : '–'} label="With sanctions" />
                 </div>
                 {cases.length === 0 ? (
                   <div className="mt-4">
@@ -188,7 +188,7 @@ export function StaffHome() {
                   </div>
                 ) : (
                   <ul className="mt-4">
-                    {cases.map((row) => (
+                    {cases.slice(0, 4).map((row) => (
                       <RowItem
                         key={row.id}
                         title={row.student?.name ?? row.claimed?.name ?? 'Unknown student'}
@@ -196,7 +196,7 @@ export function StaffHome() {
                         right={
                           <Link
                             to={`/cases/${row.id}`}
-                            className="inline-flex min-h-9 items-center rounded-full border border-line-strong px-3 text-xs font-semibold text-ink hover:bg-page"
+                            className={ACTION_PILL}
                             aria-label={`Validate ${row.code}`}
                           >
                             Validate
@@ -228,7 +228,7 @@ export function StaffHome() {
                         right={
                           <Link
                             to={`/cases/${row.id}`}
-                            className="inline-flex min-h-9 items-center rounded-full border border-line-strong px-3 text-xs font-semibold text-ink hover:bg-page"
+                            className={ACTION_PILL}
                             aria-label={`Decide ${row.code}`}
                           >
                             Decide
