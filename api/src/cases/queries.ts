@@ -1,6 +1,26 @@
-import type { CaseStatus, Severity, StaffCaseDetail, StaffCaseRow } from '@shared/types.js';
+import type {
+  CaseStatus,
+  Severity,
+  StaffCaseDetail,
+  StaffCaseRow,
+  StaffSanctionQueueResponse,
+} from '@shared/types.js';
 
 export const CASE_PAGE_SIZE = 6;
+export const SANCTION_QUEUE_PAGE_SIZE = 20;
+
+/** Sanctions the student still owes or staff still have to verify. */
+export const ACTIVE_SANCTION_STATUSES = ['assigned', 'pending_verification', 'returned'] as const;
+
+export type SanctionQueueFilter = 'pending_verification' | 'overdue' | 'active';
+
+export interface SanctionQueueQuery {
+  filter: SanctionQueueFilter;
+  /** 1-based. */
+  page: number;
+  /** The Asia/Manila calendar day (YYYY-MM-DD): what "overdue" is measured against. */
+  today: string;
+}
 
 export interface CaseListFilter {
   status?: CaseStatus;
@@ -17,5 +37,7 @@ export interface CaseQueries {
   list(filter: CaseListFilter): Promise<{ rows: StaffCaseRow[]; total: number }>;
   /** `today` is the Asia/Manila calendar day, for the derived "late by N days" of each sanction. */
   detail(caseId: number, today: string): Promise<StaffCaseDetail | null>;
+  /** The staff sanction queue: oldest due date first, with whole-system counts. */
+  sanctionQueue(query: SanctionQueueQuery): Promise<StaffSanctionQueueResponse>;
 }
 

@@ -414,6 +414,33 @@ export type StudentClearanceResponse = {
 
 export type CaseSource = 'gate' | 'staff';
 
+/** One sanction in the staff queue (SPEC 5: sanctions waiting for verification, overdue ones). */
+export type StaffSanctionQueueRow = {
+  id: number;
+  caseId: number;
+  caseCode: string;
+  sanctionCode: string;
+  type: string;
+  status: CaseSanctionStatus;
+  student: { id: string; name: string } | null;
+  /** YYYY-MM-DD */
+  dueDate: string;
+  dateSubmitted: string | null;
+  /** Derived, never stored: whole days past the due date (0 when on time). */
+  lateByDays: number;
+  /** Past its due date and not yet verified. */
+  overdue: boolean;
+};
+
+export type StaffSanctionQueueResponse = {
+  sanctions: StaffSanctionQueueRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Whole-system counts, whatever the filter: for dashboard tiles and navigation badges. */
+  counts: { pendingVerification: number; overdue: number; active: number };
+};
+
 export type StaffCaseRow = {
   id: number;
   /** Display code, C001 style. */

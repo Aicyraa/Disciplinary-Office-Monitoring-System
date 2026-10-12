@@ -263,6 +263,7 @@ GET  /me/sanctions
 POST /files (multipart; this one request IS the submission)   GET /files/:id/url   DELETE /files/:id
 #   `:id` is the `case_sanction_files` id. A replace sends `replaceFileId` with exactly one file.
 POST /case-sanctions/:id/verify | /return       # no /submit and no /record-compliance (online proof only)
+GET  /case-sanctions?filter=active|pending_verification|overdue&page=   (staff queue, 20 per page, oldest due first; `counts` feed dashboard tiles and nav badges)
 
 GET  /students?q=&page=   GET /students/:id                  (staff: the student records; 20 per page)
 POST /staff/students/:studentId/reset-password                (staff: one-time temp password)

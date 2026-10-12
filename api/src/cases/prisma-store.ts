@@ -1,9 +1,16 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import type { CaseSanctionStatus, CaseStatus, Severity, StaffCaseDetail, StaffCaseRow } from '@shared/types.js';
-import { parseCaseCode } from '../codes.js';
+import { displayCode, parseCaseCode } from '../codes.js';
 import { findCaseIdByCode, loadCaseCodes, loadSubmissionCodes } from './code-sql.js';
+import { lateByDays } from '../sanctions/rules.js';
 import { toStaffSanctionView } from '../sanctions/views.js';
-import { CASE_PAGE_SIZE, type CaseListFilter, type CaseQueries } from './queries.js';
+import {
+  ACTIVE_SANCTION_STATUSES,
+  CASE_PAGE_SIZE,
+  SANCTION_QUEUE_PAGE_SIZE,
+  type CaseListFilter,
+  type CaseQueries,
+} from './queries.js';
 import type { CaseRecord, CaseSanctionRecord, CaseStore, CaseTx, HandbookEntryLite } from './types.js';
 
 const CURRENT = 'handbook_entries_disciplinary_cases_handbook_entry_idTohandbook_entries';
@@ -441,7 +448,7 @@ function listWhere(filter: CaseListFilter, codeCaseId: number | null): Prisma.di
 
 /** Prisma-backed staff queries. Staff see every case (one department), so there is no student scope here. */
 export function createPrismaCaseQueries(
-  db: Pick<PrismaClient, 'disciplinary_cases' | '$queryRaw'>,
+  db: Pick<PrismaClient, 'disciplinary_cases' | 'case_sanctions' | '$queryRaw'>,
 ): CaseQueries {
   return {
     async list(filter) {
@@ -470,6 +477,57 @@ export function createPrismaCaseQueries(
           ),
         ),
         total,
+      };
+    },
+
+    async sanctionQueue({ filter, page, today }) {
+      const activeWhere = { status: { in: [...ACTIVE_SANCTION_STATUSES] } };
+      const overdueWhere = { ...activeWhere, due_date: { lt: new Date(`${today}T00:00:00Z`) } };
+      const where =
+        filter === 'pending_verification' ? { status: 'pending_verification' } : filter === 'overdue' ? overdueWhere : activeWhere;
+      const [rows, total, pendingVerification, overdue, active] = await Promise.all([
+        db.case_sanctions.findMany({
+          where,
+          include: {
+            sanctions: true,
+            disciplinary_cases: { select: { student_id: true, student_accounts: { select: { first_name: true, last_name: true } } } },
+          },
+          orderBy: [{ due_date: 'asc' }, { case_sanction_id: 'asc' }],
+          skip: (page - 1) * SANCTION_QUEUE_PAGE_SIZE,
+          take: SANCTION_QUEUE_PAGE_SIZE,
+        }),
+        db.case_sanctions.count({ where }),
+        db.case_sanctions.count({ where: { status: 'pending_verification' } }),
+        db.case_sanctions.count({ where: overdueWhere }),
+        db.case_sanctions.count({ where: activeWhere }),
+      ]);
+      const codes = await loadCaseCodes(db, [...new Set(rows.map((row) => row.disciplinary_case_id))]);
+      return {
+        sanctions: rows.map((row) => {
+          const dueDate = row.due_date.toISOString().slice(0, 10);
+          const status = row.status as CaseSanctionStatus;
+          const owner = row.disciplinary_cases.student_accounts;
+          return {
+            id: row.case_sanction_id,
+            caseId: row.disciplinary_case_id,
+            caseCode: codes.get(row.disciplinary_case_id) ?? '',
+            sanctionCode: displayCode('S', row.sanction_id),
+            type: row.sanctions.sanction_type,
+            status,
+            student:
+              row.disciplinary_cases.student_id && owner
+                ? { id: row.disciplinary_cases.student_id, name: `${owner.first_name} ${owner.last_name}` }
+                : null,
+            dueDate,
+            dateSubmitted: row.date_submitted ? row.date_submitted.toISOString() : null,
+            lateByDays: lateByDays({ dueDate, status, today }),
+            overdue: status !== 'completed' && dueDate < today,
+          };
+        }),
+        total,
+        page,
+        pageSize: SANCTION_QUEUE_PAGE_SIZE,
+        counts: { pendingVerification, overdue, active },
       };
     },
 

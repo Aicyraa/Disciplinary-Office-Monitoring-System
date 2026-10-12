@@ -44,7 +44,7 @@ function sendFailure(response: Response, failure: CaseFailure): void {
  */
 export function createCaseRouter({ service, queries, now = () => new Date() }: CaseRouterOptions): Router {
   const router = Router();
-  router.use(['/cases', '/submissions'], ...requireStaff);
+  router.use(['/cases', '/submissions', '/case-sanctions'], ...requireStaff);
 
   router.get('/cases', async (request, response) => {
     const { status, class: severity, q, sort, page } = request.query;
@@ -84,6 +84,26 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
       return;
     }
     sendOk(response, { case: detail });
+  });
+
+  router.get('/case-sanctions', async (request, response) => {
+    const rawFilter = request.query.filter;
+    const rawPage = request.query.page;
+    const filter = rawFilter === undefined ? 'active' : rawFilter;
+    if (filter !== 'active' && filter !== 'pending_verification' && filter !== 'overdue') {
+      sendError(response, 400, 'invalid_input', 'filter must be active, pending_verification or overdue.');
+      return;
+    }
+    if (rawPage !== undefined && (typeof rawPage !== 'string' || !/^[1-9]\d{0,5}$/.test(rawPage))) {
+      sendError(response, 400, 'invalid_input', 'page must be a positive number.');
+      return;
+    }
+    const body = await queries.sanctionQueue({
+      filter,
+      page: rawPage === undefined ? 1 : Number(rawPage),
+      today: manilaToday(now()),
+    });
+    sendOk(response, body);
   });
 
   router.post('/cases', async (request, response) => {

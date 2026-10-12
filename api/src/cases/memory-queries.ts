@@ -1,8 +1,9 @@
-import type { StaffCaseDetail, StaffCaseRow } from '@shared/types.js';
-import { assignCaseCodes, formatSubmissionCode, parseCaseCode } from '../codes.js';
+import type { StaffCaseDetail, StaffCaseRow, StaffSanctionQueueRow } from '@shared/types.js';
+import { assignCaseCodes, displayCode, formatSubmissionCode, parseCaseCode } from '../codes.js';
 import type { MemoryCaseStore } from './memory-store.js';
 import { toStaffSanctionView } from '../sanctions/views.js';
-import { CASE_PAGE_SIZE, type CaseQueries } from './queries.js';
+import { lateByDays } from '../sanctions/rules.js';
+import { ACTIVE_SANCTION_STATUSES, CASE_PAGE_SIZE, SANCTION_QUEUE_PAGE_SIZE, type CaseQueries } from './queries.js';
 import type { CaseRecord } from './types.js';
 
 /** In-memory fake of the staff query side, reading the same state as the memory store. */
@@ -72,6 +73,42 @@ export function createMemoryCaseQueries(
         });
       const start = (filter.page - 1) * CASE_PAGE_SIZE;
       return { rows: rows.slice(start, start + CASE_PAGE_SIZE), total: rows.length };
+    },
+
+    async sanctionQueue({ filter, page, today }) {
+      const caseCodes = codes();
+      const toQueueRow = (s: (typeof store.state.caseSanctions)[number]): StaffSanctionQueueRow => ({
+        id: s.caseSanctionId,
+        caseId: s.caseId,
+        caseCode: caseCodes.get(s.caseId) ?? '',
+        sanctionCode: displayCode('S', s.sanctionId),
+        type: s.sanctionType,
+        status: s.status,
+        student: s.studentId === null ? null : { id: s.studentId, name: names.get(s.studentId) ?? s.studentId },
+        dueDate: s.dueDate,
+        dateSubmitted: s.dateSubmitted ? s.dateSubmitted.toISOString() : null,
+        lateByDays: lateByDays({ dueDate: s.dueDate, status: s.status, today }),
+        overdue: s.status !== 'completed' && s.dueDate < today,
+      });
+      const active = store.state.caseSanctions
+        .filter((s) => (ACTIVE_SANCTION_STATUSES as readonly string[]).includes(s.status))
+        .map(toQueueRow);
+      const pick = active.filter((row) =>
+        filter === 'pending_verification' ? row.status === 'pending_verification' : filter === 'overdue' ? row.overdue : true,
+      );
+      pick.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.id - b.id);
+      const start = (page - 1) * SANCTION_QUEUE_PAGE_SIZE;
+      return {
+        sanctions: pick.slice(start, start + SANCTION_QUEUE_PAGE_SIZE),
+        total: pick.length,
+        page,
+        pageSize: SANCTION_QUEUE_PAGE_SIZE,
+        counts: {
+          pendingVerification: active.filter((row) => row.status === 'pending_verification').length,
+          overdue: active.filter((row) => row.overdue).length,
+          active: active.length,
+        },
+      };
     },
 
     async detail(caseId, today) {

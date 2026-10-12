@@ -294,3 +294,68 @@ describe('GET /cases/:id', () => {
     expect((await agent.get('/cases/404')).status).toBe(404);
   });
 });
+
+describe('GET /case-sanctions (staff queue)', () => {
+  const sanction = (id: number, over: Record<string, unknown>) => ({
+    caseSanctionId: id,
+    caseId: 1,
+    studentId: S1,
+    caseStatus: 'for_sanction' as const,
+    sanctionId: 2,
+    sanctionType: 'Community service',
+    status: 'assigned' as const,
+    dueDate: '2026-10-20',
+    dateAssigned: new Date('2026-10-01T02:00:00Z'),
+    dateSubmitted: null,
+    dateCompleted: null,
+    staffNote: null,
+    complianceNote: null,
+    files: [],
+    ...over,
+  });
+
+  function seed() {
+    seedCase({ caseId: 1, status: 'for_sanction' });
+    store.state.caseSanctions.push(
+      sanction(1, { dueDate: '2026-10-05' }),
+      sanction(2, { status: 'pending_verification', dueDate: '2026-10-09', dateSubmitted: new Date('2026-10-08T02:00:00Z') }),
+      sanction(3, { dueDate: '2026-10-30' }),
+      sanction(4, { status: 'completed', dueDate: '2026-10-01', dateCompleted: new Date('2026-10-02T02:00:00Z') }),
+    );
+  }
+
+  test('lists active sanctions oldest due first, with counts; completed ones are left out', async () => {
+    seed();
+    const response = await (await staff()).get('/case-sanctions');
+    expect(response.status).toBe(200);
+    expect(response.body.data.sanctions.map((s: { id: number }) => s.id)).toEqual([1, 2, 3]);
+    expect(response.body.data.counts).toEqual({ pendingVerification: 1, overdue: 2, active: 3 });
+    expect(response.body.data.sanctions[0]).toMatchObject({
+      caseCode: 'SDO-2026-001',
+      sanctionCode: 'S-002',
+      student: { id: S1, name: 'Ana Cruz' },
+      lateByDays: 7,
+      overdue: true,
+    });
+  });
+
+  test('filters: pending_verification and overdue (today is 2026-10-12 in Manila)', async () => {
+    seed();
+    const agent = await staff();
+    const pending = await agent.get('/case-sanctions').query({ filter: 'pending_verification' });
+    expect(pending.body.data.sanctions.map((s: { id: number }) => s.id)).toEqual([2]);
+    const overdue = await agent.get('/case-sanctions').query({ filter: 'overdue' });
+    expect(overdue.body.data.sanctions.map((s: { id: number }) => s.id)).toEqual([1, 2]);
+    expect(overdue.body.data.total).toBe(2);
+  });
+
+  test('a bad filter or page is 400; students and signed-out visitors are refused', async () => {
+    const app = build();
+    const agent = await signedInAgent(app, STAFF.email);
+    expect((await agent.get('/case-sanctions').query({ filter: 'all' })).status).toBe(400);
+    expect((await agent.get('/case-sanctions').query({ page: '0' })).status).toBe(400);
+    expect((await request(app).get('/case-sanctions')).status).toBe(401);
+    const student = await signedInAgent(app, STUDENT_A.email);
+    expect((await student.get('/case-sanctions')).status).toBe(403);
+  });
+});
