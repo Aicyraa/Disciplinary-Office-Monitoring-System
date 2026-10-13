@@ -94,7 +94,10 @@ describe('files', () => {
     expect(response.status).toBe(201);
     expect(response.body.data.fileIds).toHaveLength(1);
     expect([...storage.objects.keys()].every((key) => key.startsWith('templates/3/'))).toBe(true);
-    const again = await staff.post('/sanction-templates/3/files').attach('files', docxBytes, { filename: 'b.docx', contentType: DOCX_MIME });
+    const refused = await staff.post('/sanction-templates/3/files').attach('files', docxBytes, { filename: 'b.docx', contentType: DOCX_MIME });
+    expect(refused.status).toBe(400);
+    expect(refused.body.error.message).toBe('b.docx is not a PDF file.');
+    const again = await staff.post('/sanction-templates/3/files').attach('files', pdfBytes, { filename: 'b.pdf', contentType: PDF_MIME });
     expect(again.status).toBe(201);
     expect(storage.objects.size).toBe(1);
     const list = await staff.get('/sanction-templates');

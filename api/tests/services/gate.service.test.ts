@@ -30,7 +30,7 @@ const report = (overrides: Partial<ParsedReport> = {}): ParsedReport => ({
 describe('submit', () => {
   test('one gate case per violation, sharing one reference, with the typed values kept', async () => {
     const result = await service.submit(report());
-    expect(result).toEqual({ ok: true, reference: '00000000-0000-4000-8000-000000000001', code: 'GI-1001', duplicate: false });
+    expect(result).toEqual({ ok: true, reference: '00000000-0000-4000-8000-000000000001', code: 'GI-1001', duplicate: false, submittedAt: '2026-10-12T02:00:00.000Z' });
     expect(store.state.cases).toHaveLength(2);
     expect(store.state.cases[0]).toMatchObject({
       studentId: '2025-1030808',
@@ -91,7 +91,7 @@ describe('duplicates (same typed ID + violation + Manila day)', () => {
   test('the same report again returns the first reference and writes nothing', async () => {
     const first = await service.submit(report());
     const again = await service.submit(report());
-    expect(again).toEqual({ ok: true, reference: first.ok ? first.reference : '', code: 'GI-1001', duplicate: true });
+    expect(again).toEqual({ ok: true, reference: first.ok ? first.reference : '', code: 'GI-1001', duplicate: true, submittedAt: first.ok ? first.submittedAt : '' });
     expect(store.state.cases).toHaveLength(2);
     expect(store.state.notifications).toHaveLength(2);
   });
@@ -99,7 +99,7 @@ describe('duplicates (same typed ID + violation + Manila day)', () => {
   test('a mix of a repeated and a new violation files only the new one, under a new reference', async () => {
     await service.submit(report({ violationIds: [1] }));
     const second = await service.submit(report({ violationIds: [1, 2] }));
-    expect(second).toEqual({ ok: true, reference: '00000000-0000-4000-8000-000000000002', code: 'GI-1002', duplicate: false });
+    expect(second).toEqual({ ok: true, reference: '00000000-0000-4000-8000-000000000002', code: 'GI-1002', duplicate: false, submittedAt: '2026-10-12T02:00:00.000Z' });
     expect(store.state.cases.map((c) => c.handbookEntryId)).toEqual([1, 2]);
   });
 
@@ -139,7 +139,7 @@ describe('duplicates (same typed ID + violation + Manila day)', () => {
       newReference: () => '00000000-0000-4000-8000-0000000000bb',
     });
     const result = await racing.submit(report({ violationIds: [1] }));
-    expect(result).toEqual({ ok: true, reference: first.ok ? first.reference : '', code: 'GI-1001', duplicate: true });
+    expect(result).toEqual({ ok: true, reference: first.ok ? first.reference : '', code: 'GI-1001', duplicate: true, submittedAt: first.ok ? first.submittedAt : '' });
     expect(store.state.cases).toHaveLength(1);
     expect(store.state.notifications).toHaveLength(2); // nothing new was notified
   });

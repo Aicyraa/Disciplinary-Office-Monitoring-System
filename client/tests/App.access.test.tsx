@@ -1,14 +1,12 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
-import type { AuthUser, HandbookEntryView } from '@shared/types';
+import type { AuthUser } from '@shared/types';
 import { resolveAccess } from '@/App';
 import { AuthProvider } from '@/context/AuthContext';
 import { StatusPill } from '@/components/ui';
 import { navGroups } from '@/utils/nav';
-import { filterEntries } from '@/pages/shared/Handbook';
 import Login from '@/pages/public/Login';
-import { passwordRuleError } from '@/pages/account/ChangePassword';
 
 const user: AuthUser = {
   role: 'student',
@@ -65,7 +63,7 @@ describe('navGroups destinations', () => {
       '/appointments',
       '/clearance',
       '/handbook',
-      '/handbook?tab=templates',
+      '/sanction-templates',
     ]);
   });
 });
@@ -82,7 +80,11 @@ describe('Login', () => {
     expect(html).toContain('NU email');
     expect(html).toContain('type="password"');
     expect(html).toContain('Sign in');
-    expect(html).toContain('Room 204');
+    expect(html).toContain('Forgot password?');
+    expect(html).toContain('href="/report"');
+    expect(html).toContain('NU FAIRVIEW');
+    // The help text shows only after "Forgot password?" (deck W04); no extra office-hours line.
+    expect(html).not.toContain('Room 204');
   });
 });
 
@@ -92,45 +94,5 @@ describe('StatusPill', () => {
     expect(html).toContain('Not verified');
     expect(html).toContain('#ECEEF1');
     expect(html).toContain('#4A5260');
-  });
-});
-
-describe('passwordRuleError', () => {
-  test.each([
-    ['short1', 'Use at least 8 characters.'],
-    ['abcdefgh', 'Include at least one digit.'],
-    ['12345678', 'Include at least one letter.'],
-  ])('%s', (password, message) => {
-    expect(passwordRuleError(password)).toBe(message);
-  });
-
-  test('accepts a valid password', () => {
-    expect(passwordRuleError('abcdef12')).toBeNull();
-  });
-});
-
-describe('filterEntries', () => {
-  const entry = (id: number, violation: string, severity: 'Minor' | 'Major', section: string): HandbookEntryView => ({
-    id,
-    code: `H00${id}`,
-    violationId: id,
-    violationCode: `V00${id}`,
-    violation,
-    severity,
-    section,
-    description: `${violation} description`,
-    sanctions: [],
-  });
-  const entries = [entry(1, 'Improper uniform', 'Minor', 'VI.D.1'), entry(2, 'Cheating', 'Major', 'VI.E.3')];
-
-  test('matches violation, section and code case-insensitively', () => {
-    expect(filterEntries(entries, 'UNIFORM', 'all').map((e) => e.id)).toEqual([1]);
-    expect(filterEntries(entries, 'vi.e.3', 'all').map((e) => e.id)).toEqual([2]);
-    expect(filterEntries(entries, 'h001', 'all').map((e) => e.id)).toEqual([1]);
-  });
-
-  test('filters by severity and combines with the query', () => {
-    expect(filterEntries(entries, '', 'Major').map((e) => e.id)).toEqual([2]);
-    expect(filterEntries(entries, 'uniform', 'Major')).toEqual([]);
   });
 });

@@ -74,11 +74,11 @@ describe('uploadFiles', () => {
   test('uploading again replaces the file: one row, the old object is removed', async () => {
     await service.uploadFiles({ employeeId: STAFF, sanctionId: 2, files: [pdf()] });
     const [firstKey] = [...storage.objects.keys()];
-    const second = await service.uploadFiles({ employeeId: STAFF, sanctionId: 2, files: [docx()] });
+    const second = await service.uploadFiles({ employeeId: STAFF, sanctionId: 2, files: [pdf('form.pdf')] });
     expect(second).toMatchObject({ ok: true });
     expect(storage.objects.has(firstKey)).toBe(false);
     expect(storage.objects.size).toBe(1);
-    expect(store.readAll().find((t) => t.sanctionId === 2)?.files.map((f) => f.originalName)).toEqual(['form.docx']);
+    expect(store.readAll().find((t) => t.sanctionId === 2)?.files.map((f) => f.originalName)).toEqual(['form.pdf']);
   });
 
   test.each([
@@ -90,6 +90,15 @@ describe('uploadFiles', () => {
     expect(await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [file] })).toMatchObject({ ok: false, code });
     expect(storage.objects.size).toBe(0);
     expect(store.state.files).toHaveLength(0);
+  });
+
+  test('PDF only (D7): a DOCX template is refused with "is not a PDF file." and nothing is stored', async () => {
+    expect(await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [docx()] })).toMatchObject({
+      ok: false,
+      code: 'unsupported_type',
+      message: 'form.docx is not a PDF file.',
+    });
+    expect(storage.objects.size).toBe(0);
   });
 
   test('a second file in one request is refused and nothing is stored', async () => {
@@ -130,7 +139,7 @@ describe('replace failure', () => {
       storage,
       now: () => NOW,
     });
-    await expect(flaky.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [docx()] })).rejects.toThrow('db down');
+    await expect(flaky.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [pdf()] })).rejects.toThrow('db down');
     expect([...storage.objects.keys()]).toEqual([oldKey]);
     expect(store.readAll().find((t) => t.sanctionId === 1)?.files.map((f) => f.originalName)).toEqual(['old.pdf']);
   });

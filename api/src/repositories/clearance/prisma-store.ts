@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '../../../generated/prisma/client.js';
-import { CLEARANCE_PAGE_SIZE, type ClearanceListFilter, type ClearanceQueries, type ClearanceRow } from './queries.js';
+import { CLEARANCE_PAGE_SIZE, ROSTER_PAGE_SIZE, type ClearanceListFilter, type ClearanceQueries, type ClearanceRow } from './queries.js';
 import type {
   ClearanceEventType,
   ClearanceRecord,
@@ -224,7 +224,7 @@ function listWhere(filter: ClearanceListFilter): Prisma.clearancesWhereInput {
 
 /** Prisma-backed staff reads. Staff are one department and see every clearance. */
 export function createPrismaClearanceQueries(
-  db: Pick<PrismaClient, 'clearances' | 'disciplinary_cases'>,
+  db: Pick<PrismaClient, 'clearances' | 'disciplinary_cases' | 'student_accounts'>,
 ): ClearanceQueries {
   async function openCaseCounts(studentIds: string[]): Promise<Map<string, number>> {
     if (studentIds.length === 0) return new Map();
@@ -257,6 +257,72 @@ export function createPrismaClearanceQueries(
       if (!row) return null;
       const counts = await openCaseCounts([row.student_id]);
       return toRow(row as unknown as FullRow, counts.get(row.student_id) ?? 0);
+    },
+    async roster({ academicYear, semester, q, page }) {
+      const active: Prisma.student_accountsWhereInput = { is_active: true };
+      const needle = q?.trim();
+      const where: Prisma.student_accountsWhereInput = needle
+        ? {
+            AND: [
+              active,
+              {
+                OR: [
+                  { student_id: { contains: needle, mode: 'insensitive' } },
+                  { first_name: { contains: needle, mode: 'insensitive' } },
+                  { last_name: { contains: needle, mode: 'insensitive' } },
+                ],
+              },
+            ],
+          }
+        : active;
+      const [rows, total, activeCount, clearedCount] = await Promise.all([
+        db.student_accounts.findMany({
+          where,
+          // Selected columns only: an account row carries password_hashed.
+          select: {
+            student_id: true,
+            first_name: true,
+            last_name: true,
+            year_level: true,
+            programs: { select: { program_name: true } },
+            clearances: {
+              where: { academic_year: academicYear, semester },
+              select: { clearance_id: true, status: true, clearance_requirements: { select: { status: true } } },
+            },
+          },
+          orderBy: [{ first_name: 'asc' }, { last_name: 'asc' }],
+          skip: (page - 1) * ROSTER_PAGE_SIZE,
+          take: ROSTER_PAGE_SIZE,
+        }),
+        db.student_accounts.count({ where }),
+        db.student_accounts.count({ where: active }),
+        db.clearances.count({ where: { academic_year: academicYear, semester, status: 'cleared', student_accounts: { is_active: true } } }),
+      ]);
+      return {
+        rows: rows.map((row) => {
+          const clearance = row.clearances[0];
+          return {
+            studentId: row.student_id,
+            name: `${row.first_name} ${row.last_name}`,
+            program: row.programs.program_name,
+            yearLevel: row.year_level,
+            clearance: clearance
+              ? {
+                  id: clearance.clearance_id,
+                  status: clearance.status === 'cleared' ? ('cleared' as const) : ('pending' as const),
+                  done: clearance.clearance_requirements.filter((item) => item.status === 'completed').length,
+                  total: clearance.clearance_requirements.length,
+                }
+              : null,
+          };
+        }),
+        total,
+        notCleared: activeCount - clearedCount,
+      };
+    },
+    async termsWithClearances() {
+      const groups = await db.clearances.groupBy({ by: ['academic_year', 'semester'] });
+      return groups.map((group) => ({ academicYear: group.academic_year, semester: group.semester }));
     },
   };
 }

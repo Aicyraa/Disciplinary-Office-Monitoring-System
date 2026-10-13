@@ -244,6 +244,8 @@ export type StudentSanctionView = {
   dateCompleted: string | null;
   staffNote: string | null;
   complianceNote: string | null;
+  /** The officer who assigned it, by name (UI-POLISH-SPEC D15). */
+  assignedBy: string;
   history: SanctionHistoryEntry[];
   files: ProofFileView[];
   /** Derived from the due date in Asia/Manila time; never stored. */
@@ -263,6 +265,8 @@ export type StudentCaseView = {
   violation: string;
   severity: Severity;
   section: string;
+  /** The handbook entry, for "View this offense in the Handbook". */
+  handbookEntryId: number;
   /** This minor was counted into a 3-minor Major case. */
   isEscalated: boolean;
   /** Set on a converted Major case: the minor violation it started as. */
@@ -272,6 +276,13 @@ export type StudentCaseView = {
 };
 
 export type StudentCaseDetailView = StudentCaseView & {
+  /** "Gate report GI-1045" or "Recorded by SDO staff" (UI-POLISH-SPEC 5.15). */
+  source: 'gate' | 'staff';
+  submissionCode: string | null;
+  /** On a counted minor: the Major case it counted toward. */
+  countedTowardCode: string | null;
+  /** On a converted Major: the minors it was created from. */
+  linkedCaseCodes: string[];
   timeline: CaseTimelineEntry[];
   sanctions: StudentSanctionView[];
 };
@@ -286,6 +297,8 @@ export type StudentAppointmentView = {
   notes: string | null;
   status: AppointmentStatus;
   cancelReason: string | null;
+  /** ISO timestamp of the last change. */
+  dateUpdated: string;
   /** Upcoming: live status and the window has not ended (Asia/Manila date). Everything else is history. */
   bucket: 'upcoming' | 'history';
 };
@@ -305,7 +318,8 @@ export type StaffAppointmentView = {
   id: number;
   /** Display code, `A-104`. */
   code: string;
-  student: { id: string; name: string };
+  /** Program and year for the "BSIT · 3rd Year" line; null when unknown. */
+  student: { id: string; name: string; program: string | null; yearLevel: number | null };
   startDate: string;
   endDate: string;
   purpose: string;
@@ -324,6 +338,10 @@ export type StaffAppointmentListResponse = {
   total: number;
   page: number;
   pageSize: number;
+  /** Matches per group: "UPCOMING 3" and "PAST AND CLOSED 2". */
+  counts: { upcoming: number; closed: number };
+  /** Every appointment per status (the status menu counts the whole office). */
+  statusCounts: Record<AppointmentStatus, number>;
 };
 
 /** One row of a clearance's change log (SPEC 4.4). */
@@ -367,6 +385,31 @@ export type StaffClearanceListResponse = {
   total: number;
   page: number;
   pageSize: number;
+};
+
+/** A school term: `academicYear` is the start year (2026 = 2026-2027), `semester` 1 to 3 ("1st Term"). */
+export type TermRef = { academicYear: number; semester: number };
+
+/** `GET /clearances/terms` (UI-POLISH-SPEC D3): the current term and every term that has clearances. */
+export type ClearanceTermsResponse = { current: TermRef; terms: TermRef[] };
+
+/** One student of a term on the staff Clearance list; `clearance` is null while it is not set up ("Not set"). */
+export type ClearanceRosterRow = {
+  studentId: string;
+  name: string;
+  program: string;
+  yearLevel: number;
+  clearance: { id: number; status: 'pending' | 'cleared'; done: number; total: number } | null;
+};
+
+/** `GET /clearances/terms/:year/:semester/students`. `notCleared` counts every active student, before the search. */
+export type ClearanceRosterResponse = {
+  term: TermRef;
+  students: ClearanceRosterRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  notCleared: number;
 };
 
 export type ClearanceTermView = {
@@ -492,6 +535,9 @@ export type StaffCaseRow = {
   isEscalated: boolean;
   /** Set on a converted Major case: the violation it was reported as. */
   convertedFrom: string | null;
+  /** The case's latest sanction, for the queue row's third line ("S-019 · Pending verification"). */
+  sanction: { code: string; status: CaseSanctionStatus } | null;
+  dateResolved: string | null;
 };
 
 export type StaffCaseListResponse = {

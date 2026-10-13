@@ -221,6 +221,83 @@ describe('GET /appointments', () => {
   });
 });
 
+describe('GET /appointments?bucket=all: one list with filters (UI-POLISH-SPEC D6, 5.8)', () => {
+  const seed = (appointmentId: number, studentId: string, startDate: string, endDate: string, status: 'scheduled' | 'rescheduled' | 'completed' | 'cancelled') =>
+    store.state.appointments.push({
+      appointmentId,
+      studentId,
+      employeeId: STAFF.id,
+      startDate,
+      endDate,
+      purpose: `Reason ${appointmentId}`,
+      notes: null,
+      status,
+      cancelReason: status === 'cancelled' ? 'Out of office' : null,
+      dateCreated: NOW,
+    });
+
+  async function seeded() {
+    const app = build();
+    seed(1, STUDENT_A.id, '2026-10-13', '2026-10-19', 'scheduled');
+    seed(2, STUDENT_B.id, '2026-10-10', '2026-10-16', 'rescheduled');
+    seed(3, STUDENT_A.id, '2026-09-01', '2026-09-07', 'completed');
+    seed(4, STUDENT_B.id, '2026-10-20', '2026-10-26', 'cancelled');
+    seed(5, STUDENT_A.id, '2026-11-02', '2026-11-07', 'scheduled');
+    seed(6, STUDENT_B.id, '2026-09-10', '2026-09-16', 'scheduled');
+    return signedInAgent(app, STAFF.email);
+  }
+  const ids = (response: { body: { data: { appointments: Array<{ id: number }> } } }) => response.body.data.appointments.map((a) => a.id);
+
+  test('upcoming first (soonest first), then past and closed (newest first); 5 per page with group and status counts', async () => {
+    const staff = await seeded();
+    const first = await staff.get('/appointments').query({ bucket: 'all' });
+    expect(ids(first)).toEqual([2, 1, 5, 4, 6]);
+    expect(first.body.data).toMatchObject({
+      total: 6,
+      page: 1,
+      pageSize: 5,
+      counts: { upcoming: 3, closed: 3 },
+      statusCounts: { scheduled: 3, rescheduled: 1, completed: 1, cancelled: 1 },
+    });
+    expect(ids(await staff.get('/appointments').query({ bucket: 'all', page: 2 }))).toEqual([3]);
+  });
+
+  test('status, dates (today, next 7 days, past) and one day', async () => {
+    const staff = await seeded();
+    expect(ids(await staff.get('/appointments').query({ bucket: 'all', status: 'scheduled' }))).toEqual([1, 5, 6]);
+    expect(ids(await staff.get('/appointments').query({ bucket: 'all', range: 'today' }))).toEqual([2]);
+    expect(ids(await staff.get('/appointments').query({ bucket: 'all', range: 'week' }))).toEqual([2, 1]);
+    expect(ids(await staff.get('/appointments').query({ bucket: 'all', range: 'past' }))).toEqual([6, 3]);
+    expect(ids(await staff.get('/appointments').query({ bucket: 'all', on: '2026-10-15' }))).toEqual([2, 1]);
+  });
+
+  test('search matches the appointment code; focus answers the page that holds it', async () => {
+    const staff = await seeded();
+    expect(ids(await staff.get('/appointments').query({ bucket: 'all', q: 'A-005' }))).toEqual([5]);
+    const held = await staff.get('/appointments').query({ bucket: 'all', focus: 3 });
+    expect(held.body.data.page).toBe(2);
+    expect(ids(held)).toEqual([3]);
+  });
+
+  test('the view carries the student program and year for "BSIT · 3rd Year"', async () => {
+    store = createMemoryAppointmentStore({ students: [STUDENT_A.id] });
+    const service = createAppointmentService({ store, now: () => NOW });
+    const queries = createMemoryAppointmentQueries(store, {
+      students: { [STUDENT_A.id]: 'Ana Cruz' },
+      profiles: { [STUDENT_A.id]: { program: 'BSIT', yearLevel: 3 } },
+    });
+    const staff = await signedInAgent(buildHarnessApp({ appointments: { service, queries }, now: () => NOW }), STAFF.email);
+    await staff.post('/appointments').send(body());
+    const response = await staff.get('/appointments/1');
+    expect(response.body.data.appointment.student).toEqual({ id: STUDENT_A.id, name: 'Ana Cruz', program: 'BSIT', yearLevel: 3 });
+  });
+
+  test.each([{ status: 'bogus' }, { range: 'soon' }, { on: '2026-13-01' }, { focus: '0' }])('rejects %j', async (query) => {
+    const staff = await seeded();
+    expect((await staff.get('/appointments').query({ bucket: 'all', ...query })).status).toBe(400);
+  });
+});
+
 describe('what the student sees', () => {
   test('is unchanged by staff-only fields: the /me view carries no staff names', async () => {
     const app = build();

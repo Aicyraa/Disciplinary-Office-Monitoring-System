@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { NotificationView } from '@shared/types';
 import { api, http } from '@/api/client';
-import { NotificationList } from '@/pages/shared/Inbox';
+import { InboxRow } from '@/pages/shared/Inbox';
 import { badgeText, unreadMessage } from '@/context/UnreadContext';
 
 describe('badgeText and unreadMessage', () => {
@@ -35,36 +35,32 @@ const view = (overrides: Partial<NotificationView> = {}): NotificationView => ({
   ...overrides,
 });
 
-describe('NotificationList', () => {
-  const render = (items: NotificationView[]) =>
-    renderToStaticMarkup(<NotificationList notifications={items} onOpen={() => {}} onMarkRead={() => {}} />);
+describe('InboxRow (deck src 1418)', () => {
+  const render = (item: NotificationView) => renderToStaticMarkup(<InboxRow item={item} onOpen={() => {}} />);
 
-  test('an unread notification is marked New and can be opened and marked read', () => {
-    const html = render([view()]);
-    expect(html).toContain('Sanction verified');
-    expect(html).toContain('New');
-    expect(html).toContain('Open');
-    expect(html).toContain('Mark as read');
+  test('an unread row: blue dot, bold title, category pill, one-line message, Manila time; the whole row is one button', () => {
+    const html = render(view());
+    expect(html).toMatch(/^<button type="button"/);
+    expect(html).toContain('aria-label="Unread. Sanction verified"');
+    expect(html).toContain('bg-primary');
+    expect(html).toContain('font-bold');
+    expect(html).toContain('>Sanctions<');
   });
 
-  test('a read notification has no New badge and no Mark as read', () => {
-    const html = render([view({ isRead: true })]);
-    expect(html).not.toContain('>New<');
-    expect(html).not.toContain('Mark as read');
-  });
-
-  test('a notification without a page has no Open button', () => {
-    expect(render([view({ href: null })])).not.toContain('>Open<');
+  test('a read row has no dot and a regular title', () => {
+    const html = render(view({ isRead: true }));
+    expect(html).toContain('aria-label="Sanction verified"');
+    expect(html).toContain('font-medium');
   });
 
   test('message text is rendered as text, never as markup', () => {
-    const html = render([view({ message: '<img src=x onerror=alert(1)>' })]);
+    const html = render(view({ message: '<img src=x onerror=alert(1)>' }));
     expect(html).not.toContain('<img');
     expect(html).toContain('&lt;img');
   });
 
-  test('the date is shown in Manila time', () => {
-    expect(render([view({ dateCreated: '2026-10-11T20:00:00.000Z' })])).toContain('Oct 12, 2026');
+  test('the time is shown in Manila', () => {
+    expect(render(view({ dateCreated: '2026-10-11T20:00:00.000Z' }))).toContain('Mon, Oct 12 · 4:00 AM');
   });
 });
 

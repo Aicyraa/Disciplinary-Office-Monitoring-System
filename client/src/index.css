@@ -16,6 +16,63 @@
   --color-danger: #b42318;
   --color-success: #1e6b3e;
 
+  /* UI-POLISH-SPEC 4.1: the extra shades the design deck uses. */
+  --color-primary-hover: #2a3376;
+  --color-primary-press: #20285e;
+  --color-primary-busy: #4a5498;
+  --color-primary-tint: #f0f2fa;
+  --color-surface-2: #f7f9fa;
+  --color-line-soft: #eef1f4;
+  --color-row-hover: #eef1f9;
+  --color-row-selected: #e8ebf7;
+  --color-info-soft: #e8ebf7;
+  --color-info-ink: #2b347a;
+  --color-danger-soft: #fceeee;
+  --color-danger-line: #f1c9c9;
+  --color-danger-ink: #8e1f17;
+  --color-danger-strong: #c0392b;
+  --color-bad-soft: #f7e6e6;
+  --color-bad-ink: #9b2c2c;
+  --color-warn-soft: #fef6d8;
+  --color-warn-ink: #7a5a00;
+  --color-amber-soft: #fce9c6;
+  --color-amber-ink: #7a4600;
+  --color-pending-soft: #fdf3d3;
+  --color-success-strong: #2e8b57;
+  --color-success-soft: #e2f3e8;
+  --color-success-line: #cde9d7;
+  /* Verify sanction before every file was opened (src 2712). */
+  --color-success-disabled: #9cc3ad;
+  --color-neutral-soft: #eceef1;
+  --color-neutral-ink: #4a5260;
+  --color-gold-line: #ddbb4a;
+  --color-gold-hover: #e8c75a;
+  --color-muted-2: #7b8592;
+  --color-disabled: #9aa6b2;
+  --color-disabled-bg: #eef1f4;
+  --color-disabled-ink: #6b7480;
+  --color-skeleton: #e6eaee;
+  --color-scrim: rgba(16, 22, 52, 0.5);
+  /* Unread rows and selected class tiles (src 1320, 2956). */
+  --color-tint-soft: #f5f7fb;
+  /* Error icon on the dark toast (src 3527). */
+  --color-toast-error: #ff8a80;
+  /* Behind a file in the preview modal (src 1961). */
+  --color-preview: #e9ecf1;
+  /* Upload drop zone (UI-POLISH-SPEC 4.2b): resting, hover and drag-over. */
+  --color-upload-bg: #f7f8fc;
+  --color-upload-hover: #eef0fa;
+  --color-upload-line: #aeb6e3;
+  /* Start-date calendar (src 3240): available day border, unavailable day border. */
+  --color-calendar-open: #8fd0a8;
+  --color-calendar-closed: #e3e8ec;
+  /* Accent bar of the Minor class tile (src 2956). */
+  --color-minor-accent: #6b78c8;
+  /* Sidebar subtitle under NU FAIRVIEW (src 300). */
+  --color-gold-pale: #f1dd9a;
+  /* Selected option of a segmented control. */
+  --shadow-tab: 0 1px 2px rgba(28, 36, 69, 0.12);
+
   /* Responsive modes: bottom tab bar under 720, icon rail 720-1100, full sidebar above. */
   --breakpoint-rail: 720px;
   --breakpoint-full: 1100px;
@@ -55,9 +112,38 @@ body {
 
 /* In the base layer so utilities such as focus-visible:outline-white can override it (unlayered CSS would win). */
 @layer base {
+  /* UI-POLISH-SPEC 4.2b: Tailwind v4 resets buttons to the arrow cursor; every clickable thing shows a hand. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  label[for],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
   :focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
+  }
+
+  /* UI-POLISH-SPEC 4.2b: Tailwind v4 resets buttons to the default cursor; everything clickable shows a pointer. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  label[for],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
   }
 }
 

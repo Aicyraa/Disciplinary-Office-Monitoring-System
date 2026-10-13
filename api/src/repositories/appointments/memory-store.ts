@@ -1,4 +1,11 @@
-import { APPOINTMENT_PAGE_SIZE, type AppointmentQueries, type AppointmentRow } from './queries.js';
+import {
+  appointmentIdFromCode,
+  emptyAppointmentCounts,
+  matchesAppointmentFilter,
+  pageAppointments,
+  type AppointmentQueries,
+  type AppointmentRow,
+} from './queries.js';
 import { windowsOverlap } from '../../domain/appointments/window.js';
 import type {
   AppointmentHistoryInput,
@@ -34,11 +41,17 @@ const live = (record: AppointmentRecord) => record.status === 'scheduled' || rec
 /** Staff-side reads over the same fake data. Names come from the maps given here. */
 export function createMemoryAppointmentQueries(
   store: MemoryAppointmentStore,
-  names: { students?: Record<string, string>; staff?: Record<string, string> } = {},
+  names: {
+    students?: Record<string, string>;
+    staff?: Record<string, string>;
+    profiles?: Record<string, { program: string; yearLevel: number }>;
+  } = {},
 ): AppointmentQueries {
   const toRow = (record: AppointmentRecord): AppointmentRow => ({
     ...record,
     studentName: names.students?.[record.studentId] ?? record.studentId,
+    studentProgram: names.profiles?.[record.studentId]?.program ?? null,
+    studentYearLevel: names.profiles?.[record.studentId]?.yearLevel ?? null,
     assignedByName: names.staff?.[record.employeeId] ?? record.employeeId,
     history: store.state.history
       .filter((entry) => entry.appointmentId === record.appointmentId)
@@ -50,24 +63,25 @@ export function createMemoryAppointmentQueries(
       })),
   });
   return {
-    async list({ bucket, q, page, today }) {
-      const needle = q?.trim().toLowerCase();
+    async list(filter) {
+      const needle = filter.q?.trim().toLowerCase();
+      const codeId = filter.q ? appointmentIdFromCode(filter.q) : null;
+      const statusCounts = emptyAppointmentCounts();
+      for (const a of store.state.appointments) statusCounts[a.status] += 1;
       const matching = store.state.appointments
-        .filter((a) => (live(a) && a.endDate >= today ? 'upcoming' : 'history') === bucket)
         .map(toRow)
+        .filter((row) => matchesAppointmentFilter({ id: row.appointmentId, status: row.status, startDate: row.startDate, endDate: row.endDate }, filter))
         .filter(
           (row) =>
             !needle ||
+            row.appointmentId === codeId ||
             row.studentId.toLowerCase().includes(needle) ||
             row.studentName.toLowerCase().includes(needle) ||
             row.purpose.toLowerCase().includes(needle),
         )
-        .sort((a, b) =>
-          bucket === 'upcoming'
-            ? a.startDate.localeCompare(b.startDate) || a.appointmentId - b.appointmentId
-            : b.startDate.localeCompare(a.startDate) || b.appointmentId - a.appointmentId,
-        );
-      return { rows: matching.slice((page - 1) * APPOINTMENT_PAGE_SIZE, page * APPOINTMENT_PAGE_SIZE), total: matching.length };
+        .map((row) => ({ id: row.appointmentId, status: row.status, startDate: row.startDate, endDate: row.endDate, row }));
+      const { page, pageKeys, total, counts } = pageAppointments(matching, filter);
+      return { rows: pageKeys.map((k) => k.row), total, page, counts, statusCounts };
     },
     async get(appointmentId) {
       const found = store.state.appointments.find((a) => a.appointmentId === appointmentId);

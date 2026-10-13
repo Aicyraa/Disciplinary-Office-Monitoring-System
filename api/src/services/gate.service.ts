@@ -3,7 +3,8 @@ import { manilaToday } from '../views/me.views.js';
 import type { GateStore, GateTx } from '../types/gate.types.js';
 import type { ParsedReport } from '../domain/gate/validate.js';
 
-export type GateResult = { ok: true; reference: string; code: string; duplicate: boolean } | { ok: false };
+/** `submittedAt` is when the report was filed (for a repeat: the first one), ISO UTC. */
+export type GateResult = { ok: true; reference: string; code: string; duplicate: boolean; submittedAt: string } | { ok: false };
 
 export interface GateService {
   /**
@@ -34,10 +35,18 @@ export function createGateService({
   newReference?: () => string;
 }): GateService {
   /** The reference of a report already filed today for this ID and any of these violations, if there is one. */
-  async function existing(tx: GateTx, report: ParsedReport, day: string): Promise<{ reference: string; code: string } | null> {
+  async function existing(
+    tx: GateTx,
+    report: ParsedReport,
+    day: string,
+  ): Promise<{ reference: string; code: string; submittedAt: string } | null> {
     const found = await tx.findTodaysDuplicates(report.studentId, report.violationIds, day);
     if (found.length === 0) return null;
-    return { reference: found[0].submissionRef, code: await tx.submissionCode(found[0].submissionRef) };
+    return {
+      reference: found[0].submissionRef,
+      code: await tx.submissionCode(found[0].submissionRef),
+      submittedAt: found[0].submittedAt.toISOString(),
+    };
   }
 
   return {
@@ -59,7 +68,13 @@ export function createGateService({
           const fresh = entries.filter((entry) => !already.has(entry.handbookEntryId));
           if (fresh.length === 0) {
             const existing = duplicates[0].submissionRef;
-            return { ok: true, reference: existing, code: await tx.submissionCode(existing), duplicate: true };
+            return {
+              ok: true,
+              reference: existing,
+              code: await tx.submissionCode(existing),
+              duplicate: true,
+              submittedAt: duplicates[0].submittedAt.toISOString(),
+            };
           }
 
           const student = await tx.findStudent(report.studentId);
@@ -102,13 +117,13 @@ export function createGateService({
             caseId: caseIds[0],
             idempotencyKey: `report:${reference}:staff`,
           });
-          return { ok: true, reference, code: short, duplicate: false };
+          return { ok: true, reference, code: short, duplicate: false, submittedAt: at.toISOString() };
         });
       } catch (error) {
         if (!isUniqueViolation(error)) throw error;
         // Lost a race with an identical request: answer with the report that won.
         const winner = await store.transaction((tx) => existing(tx, report, day));
-        if (winner !== null) return { ok: true, reference: winner.reference, code: winner.code, duplicate: true };
+        if (winner !== null) return { ok: true, ...winner, duplicate: true };
         throw error;
       }
     },

@@ -14,11 +14,24 @@ export interface CaseRecord {
   isEscalated: boolean;
   resolvedWithoutSanction: boolean;
   dateResolved: Date | null;
+  /** The handbook entry the case is about, for the student's "View this offense" link. */
+  handbookEntryId: number;
   handbookSection: string;
   violationType: string;
   severity: Severity;
   /** The minor violation a converted 3-minor Major case started as. */
   originalViolationType: string | null;
+}
+
+/** What only the case detail needs (UI-POLISH-SPEC 5.15): where it came from and its escalation links, as codes. */
+export interface CaseDetailExtras {
+  source: 'gate' | 'staff';
+  /** `GI-1045` for a gate report; null for a staff record. */
+  submissionCode: string | null;
+  /** On a counted minor: the code of the Major case it counted toward. */
+  countedTowardCode: string | null;
+  /** On a converted Major: the codes of the minors it was created from. */
+  linkedCaseCodes: string[];
 }
 
 export interface CaseHistoryRecord {
@@ -44,6 +57,8 @@ export interface CaseSanctionRecord {
   dateCompleted: Date | null;
   staffNote: string | null;
   complianceNote: string | null;
+  /** Name of the staff member who assigned it (D15); never the employee id. */
+  assignedBy: string;
   history: Array<{ eventType: string; remarks: string | null; byStaff: boolean; date: Date }>;
   /** Proof files; `dateViewed` is only used to decide whether the student can still change them. */
   files: Array<{
@@ -64,6 +79,8 @@ export interface AppointmentRecord {
   notes: string | null;
   status: AppointmentStatus;
   cancelReason: string | null;
+  /** Last change, for "A-104 · Updated Oct 7, 2026" (UI-POLISH-SPEC 5.18). */
+  dateUpdated: Date;
 }
 
 export interface ClearanceTermRecord {
@@ -104,7 +121,7 @@ export interface StudentSummaryRecord extends StudentProfileRecord {
  */
 export interface StudentViewRepo {
   listCases(studentId: string): Promise<CaseRecord[]>;
-  getCase(studentId: string, caseId: number): Promise<(CaseRecord & { history: CaseHistoryRecord[] }) | null>;
+  getCase(studentId: string, caseId: number): Promise<(CaseRecord & CaseDetailExtras & { history: CaseHistoryRecord[] }) | null>;
   listSanctions(studentId: string, options?: { caseId?: number }): Promise<CaseSanctionRecord[]>;
   listAppointments(studentId: string): Promise<AppointmentRecord[]>;
   listClearanceTerms(studentId: string): Promise<ClearanceTermRecord[]>;

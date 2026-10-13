@@ -4,7 +4,7 @@ import type { GateEntry, GateNotificationInput, GateOptionsReader, GateStore, Ga
 export interface MemoryGateState {
   students: string[];
   programs: string[];
-  entries: Array<GateEntry & { section: string }>;
+  entries: Array<GateEntry & { section: string; severity?: 'Minor' | 'Major' }>;
   cases: Array<NewGateCase & { caseId: number }>;
   history: Array<{ caseId: number; date: Date }>;
   notifications: GateNotificationInput[];
@@ -40,7 +40,7 @@ export function createMemoryGateStore(seed: Partial<MemoryGateState> = {}): Memo
       return {
         violations: store.state.entries
           .filter((entry) => !entry.isSystem)
-          .map((entry) => ({ id: entry.handbookEntryId, name: entry.violationType, section: entry.section })),
+          .map((entry) => ({ id: entry.handbookEntryId, name: entry.violationType, section: entry.section, category: entry.severity ?? 'Minor' })),
         programs: [...store.state.programs],
       };
     },
@@ -73,7 +73,7 @@ function createTx(state: MemoryGateState): GateTx {
         .filter(
           (c) => c.claimedStudentId === claimedStudentId && ids.includes(c.handbookEntryId) && manilaDay(c.caseDate) === day,
         )
-        .map((c) => ({ handbookEntryId: c.handbookEntryId, submissionRef: c.submissionRef }));
+        .map((c) => ({ handbookEntryId: c.handbookEntryId, submissionRef: c.submissionRef, submittedAt: c.caseDate }));
     },
     async insertGateCase(input) {
       const clash = state.cases.some(

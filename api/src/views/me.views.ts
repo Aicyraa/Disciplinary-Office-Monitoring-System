@@ -13,6 +13,7 @@ import { displayCode } from '../domain/codes.js';
 import { lateByDays } from '../domain/sanctions/rules.js';
 import type {
   AppointmentRecord,
+  CaseDetailExtras,
   CaseHistoryRecord,
   CaseRecord,
   CaseSanctionRecord,
@@ -35,6 +36,7 @@ export function toCaseView(record: CaseRecord): StudentCaseView {
     violation: record.violationType,
     severity: record.severity,
     section: record.handbookSection,
+    handbookEntryId: record.handbookEntryId,
     isEscalated: record.isEscalated,
     convertedFrom: record.originalViolationType,
     resolvedWithoutSanction: record.resolvedWithoutSanction,
@@ -65,6 +67,7 @@ export function toSanctionView(record: CaseSanctionRecord, today: string): Stude
     dateCompleted: isoOrNull(record.dateCompleted),
     staffNote: record.staffNote,
     complianceNote: record.complianceNote,
+    assignedBy: record.assignedBy,
     // Employee ids are never exposed to students; only "staff" or "student".
     history: record.history.map((event) => ({
       eventType: event.eventType,
@@ -93,12 +96,16 @@ export function toSanctionView(record: CaseSanctionRecord, today: string): Stude
 }
 
 export function toCaseDetailView(
-  record: CaseRecord & { history: CaseHistoryRecord[] },
+  record: CaseRecord & CaseDetailExtras & { history: CaseHistoryRecord[] },
   sanctions: CaseSanctionRecord[],
   today: string,
 ): StudentCaseDetailView {
   return {
     ...toCaseView(record),
+    source: record.source,
+    submissionCode: record.submissionCode,
+    countedTowardCode: record.countedTowardCode,
+    linkedCaseCodes: record.linkedCaseCodes,
     timeline: record.history.map(toTimelineEntry),
     sanctions: sanctions.map((sanction) => toSanctionView(sanction, today)),
   };
@@ -157,6 +164,7 @@ export function toAppointmentView(record: AppointmentRecord, today: string): Stu
     notes: record.notes,
     status: record.status,
     cancelReason: record.cancelReason,
+    dateUpdated: record.dateUpdated.toISOString(),
     bucket: appointmentBucket(record, today),
   };
 }

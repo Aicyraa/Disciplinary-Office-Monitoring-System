@@ -10,7 +10,7 @@ All paths are under `docs/sdao-handoff/`.
 - `FEATURE-RULES.md` — the per-feature rules (3.1 to 3.12), moved out of this file. Read the one for your feature before coding.
 - `POWER-AUTOMATE.md` — the two Power Automate flows, the `{ "type", "payload" }` envelope, helper-function rules and the trust model (signed trigger URL, no shared secret, no callback).
 - `db/schema.sql` — final PostgreSQL schema (23 tables). `db/seed.sql` — handbook, sanctions, programs, requirements. `db/seed-dev-accounts.sql` — two development-only accounts (one student, one staff) with bcrypt hashes; never run on the production branch.
-- `design-reference/SDO_Portal_UI.pptx` — **screen reference** (199 slides: Part 1 web, Part 2 mobile; one page, tab or state per slide, labelled `WEB · STAFF · 17` and so on). Look here for what a page, a tab or a state looks like on web and on a phone. `docs/` is no longer in `.gitignore`, so once the deck is committed every worktree has it; until then read it from the human's main checkout path. Render it with `soffice.py --headless --convert-to pdf` and `pdftoppm`.
+- `design-reference/SDO_Portal_UI.pptx` — **screen reference** (199 slides: Part 1 web, Part 2 mobile; one page, tab or state per slide, labelled `WEB · STAFF · 17` and so on). Look here for what a page, a tab or a state looks like on web and on a phone. `docs/` is no longer in `.gitignore`, so once the deck is committed every worktree has it; until then read it from the human's main checkout path. Render it with `soffice --headless --convert-to pdf` and `pdftoppm`; the screenshots themselves are `ppt/media/image-<slide>-1.png` inside the `.pptx` (web 924×540, mobile 390×844).
 - `design-reference/sdo-portal.source.html` — **logic and copy reference** (Claude Design `<x-dc>` source). Not React: re-implement in this stack. Use it for status ladders, validation and empty-state wording, notification text and sample data; never copy its in-memory state, fixed date or plain-text passwords. It still contains behavior `SPEC.md` removed (in-person compliance, student statement, hours); those stay removed.
 - `UI-POLISH-SPEC.md` — build step 10: the page-by-page comparison of the deck with what is built, the logic changes the package implies and the slices. Read it before any UI task; a logic change in it is built only after the human accepts it.
 - `assets/seal.png`, `assets/hero.png` — brand images.
@@ -89,6 +89,13 @@ Work one feature at a time; finish and verify it before the next.
 - Client stack: React 19, Tailwind CSS v4 (`@tailwindcss/vite`), `@base-ui/react`, `class-variance-authority`, `clsx`/`tailwind-merge`, `lucide-react`, `react-hook-form`, `react-router-dom`. No `components.json` yet: initializing shadcn is a human decision.
 - Accessibility floor: visible focus, keyboard operability, labelled controls, sufficient contrast, usable at phone width.
 
+### Design system rules (how the look stays consistent)
+- **Tokens live in one place**, the `@theme` block of `client/src/index.css`. Every color, radius, shadow and breakpoint a component uses is a token (`bg-primary`, `text-muted`, `border-line`). No raw hex in `.tsx` files (`bg-[#FBE4E1]` is a bug: add a token such as `--color-danger-soft` instead). Status pill colors are one table in `utils/format.ts`.
+- **One component per pattern.** Buttons, fields, chips, segmented tabs, stat tiles, status pills, stage trackers, cards, dialogs, toasts, inline alerts and the loading / empty / error / no-access states each have exactly one implementation in `components/ui/` or `components/feedback/`. A page composes them; it never restyles its own copy. If a page needs a variant, add it to the component (a `cva` variant), not a page-local class string.
+- **Variants with `cva`, classes merged with `cn()`** (`clsx` + `tailwind-merge`, in `client/src/utils/cn.ts`; both packages are installed, the helper is added by the first UI slice that needs it), so a caller's `className` overrides cleanly.
+- **Match the deck, then the source.** Layout, spacing, states and component anatomy come from the deck slide; wording (titles, buttons, toasts, modal copy, empty states, validation messages) comes verbatim from `sdo-portal.source.html` unless `SPEC.md` removed that behavior.
+- **Feedback grammar** (same everywhere): a toast after every successful action, naming the record (`SDO-2026-016 validated.`); a modal for every destructive or notifying action, with a required reason where the rule needs one; inline field messages for validation, plus one alert above the form; buttons lock with a spinner while working.
+
 ### UI skills (`.claude/skills`, copied from `.agents/skills`, which `skills-lock.json` pins)
 - Load a skill only when the task matches. Never apply several competing visual-style skills to one screen.
 - Default for client UI: `tailwind-design-system`, `shadcn` (only once `components.json` exists), `vercel-composition-patterns`, `typescript-advanced-types` (client TS 5.9, API TS 7: keep syntax valid for the package you edit), `vercel-react-best-practices` (React items only; ignore Next.js guidance).
@@ -103,7 +110,7 @@ Work one feature at a time; finish and verify it before the next.
 - API: Express 5, TypeScript 7.0.2. Client: React 19, Vite 8, TypeScript 5.9. Root lint uses TypeScript 5.9.3 with typescript-eslint 8.71.1. Do not load the API compiler into root ESLint or assume TS7-only syntax in client/shared code.
 - `api/src/app.ts` exports the app without listening; `api/src/server.ts` starts it. `GET /health` returns `{ "status": "ok" }` without a database.
 - `shared/types.ts` holds types shared by API and client; import with `import type` only, no runtime cross-package imports.
-- Code layout (layers, naming, where a new file goes): `docs/sdao-handoff/CLEANUP-SPEC.md`. API: `routes/` (one router per feature, `index.ts` mounts them), `services/`, `repositories/<feature>/`, `domain/`, `middleware/`, `config/`, `lib/`. Client: `pages/{public,account,shared,staff,student}`, `components/{ui,layout,feedback,...}`, `hooks/`, `context/`, `utils/`, `api/`, with the `@/` alias for `client/src`.
+- Code layout, layering, naming and where a new file goes: section 10 (the rule) and `docs/sdao-handoff/CLEANUP-SPEC.md` (how the layout came about).
 - `neon.ts` is the existing Neon configuration (registers `hello.ts`); it does not define runtime or deployment commands.
 
 ### Commands
@@ -115,7 +122,8 @@ Work one feature at a time; finish and verify it before the next.
 
 ### Configuration
 - The repo-root `.env` is the single env source for both packages; do not create `api/.env` or `client/.env`. `.env.example` (fake values only) documents the keys. Externally supplied variables win; a missing `.env` is not an error.
-- Keys in use: `CLIENT_PORT`, `SERVER_PORT`, `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (direct). To add (fake values in `.env.example`): `PA_NOTIFY_URL` (Flow 2 trigger URL), `APP_BASE_URL` (for links in emails), the S3 variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`) and the two bucket names `STORAGE_BUCKET_FILES` (student proof files) and `STORAGE_BUCKET_TEMPLATES` (sanction templates, step 8). The buckets must already exist in Neon; the API never creates them. Staff alert emails go to every active employee account (no `SDO_STAFF_MAILBOX`). There is no `PA_SHARED_SECRET`: Power Automate only provides a signed trigger URL, which is itself the secret. Trigger URLs never get a `VITE_` prefix.- `.env`, `.claude/settings.local.json` and `.claude/worktrees/` are ignored local config. Never copy credentials into documentation or commits.
+- Keys in use: `CLIENT_PORT`, `SERVER_PORT`, `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (direct). To add (fake values in `.env.example`): `PA_NOTIFY_URL` (Flow 2 trigger URL), `APP_BASE_URL` (for links in emails), the S3 variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`) and the two bucket names `STORAGE_BUCKET_FILES` (student proof files) and `STORAGE_BUCKET_TEMPLATES` (sanction templates, step 8). The buckets must already exist in Neon; the API never creates them. Staff alert emails go to every active employee account (no `SDO_STAFF_MAILBOX`). There is no `PA_SHARED_SECRET`: Power Automate only provides a signed trigger URL, which is itself the secret. Trigger URLs never get a `VITE_` prefix.
+- `.env`, `.claude/settings.local.json` and `.claude/worktrees/` are ignored local config. Never copy credentials into documentation or commits.
 - CORS: configure the `cors` package on the Express API to allow only the client origin. (CORS is not a database setting.)
 
 ### Prisma and Neon
@@ -143,6 +151,40 @@ Work one feature at a time; finish and verify it before the next.
 - **Power Automate helper rule.** Every outbound Power Automate call goes through one helper (`sendToPowerAutomate(type, payload)`) and the body is exactly `{ "type": "<notification kind, e.g. sanction>", "payload": { ... } }`, nothing else at the top level. `type` is the closed union of `notifications.kind` values from `shared/types.ts`; `payload` comes from a pure per-type builder. Full rules in `POWER-AUTOMATE.md` section 4.
 - README is a temporary description, not setup instructions.
 - Every agent ends its final chat message with "Concepts to check" (1 to 3 items, plain language, no formula-only explanations). It is chat output, not a file.
+
+## 10. Code structure and conventions
+Standard used: a layered Express API (routes → services → repositories, with pure domain rules) and a React SPA organised by audience and by role (bulletproof-react style). New code follows this section; code that breaks it is fixed when a task touches it.
+
+### Dependency direction (never import "upwards")
+- **API:** `routes` → `services` → `repositories` / `integrations`. `domain` (pure rules) and `lib` may be imported by any layer and import nothing that does I/O. Routes never import Prisma; services never see `req`/`res`; repositories hold no business rules. `views` map stored records to response shapes. Environment variables are read only in `config/`.
+- **Client:** `pages` → `components` / `hooks` → `api` / `utils`. `components/ui` and `components/feedback` import nothing from `pages` or from domain components. `utils` are pure (no React, no axios). Only `api/` talks to the network.
+- **Shared:** `shared/types.ts` is the API contract. Both packages import it with `import type`; the client never redeclares a response type.
+
+### Where a new thing goes
+| Need | API | Client |
+|---|---|---|
+| A business rule | `domain/<feature>/<rule>.ts`, pure, plus a test | never in the client; show what the API returns |
+| A workflow or transaction | `services/<feature>.service.ts`, taking repository interfaces | — |
+| A query | `repositories/<feature>/`: interface, `prisma-*` implementation, `memory-*` fake | — |
+| An endpoint | `routes/<feature>.routes.ts`, validate input at the boundary, register in `routes/index.ts` (`DataDeps`) | a typed function in `api/` (split `api/client.ts` per feature as it grows: `api/cases.ts`, ...) |
+| A response shape | `shared/types.ts`; mapping in `views/<feature>.views.ts` | consumed as is |
+| A page | — | `pages/<audience>/<Name>.tsx`, route in `App.tsx`, nav entry in `utils/nav.ts` |
+| Reusable UI | — | `components/ui/<Name>.tsx` (primitive) or `components/feedback/` (toast, modal, alerts, states) |
+| A feature component used by 2+ pages | — | `components/<feature>/<Name>.tsx` |
+| Data loading for a page | — | `hooks/use<Thing>.ts` built on `useApi` |
+| Filtering, grouping, labels, status ladders, form validation | — | `utils/<topic>.ts`, pure, plus a test |
+| Cross-page state | — | `context/` only (auth, unread count, toasts); everything else is local state |
+
+### Shape rules
+- **Pages are thin:** load data through a hook, compose components, hand pure work to `utils`. A page over about 300 lines, or a component with two jobs, is split (master list and detail pane are separate files: `pages/staff/cases/CaseList.tsx`, `CaseWorkspace.tsx`, with the route file composing them).
+- **One component per file** (tiny private helpers may stay), `PascalCase.tsx`; hooks `useX.ts`; utils `camelCase.ts`; API files `<feature>.<layer>.ts`.
+- **Errors:** the API answers only through `sendOk` / `sendError` / `HttpError` (`lib/http.ts`); the client turns failures into `ApiError` (`api/client.ts`) and shows them with the shared error state or a toast. No custom error shapes.
+- **Types:** no `any`; discriminated unions for statuses; `import type` for type-only imports; `@/` alias in the client, relative imports ending in `.js` in the API, `@shared/types` in both.
+- **No barrel files** except `routes/index.ts` and `components/ui/index.tsx`.
+- **Tests** mirror `src/` under each package's `tests/`. Domain and utils get unit tests; every API rule gets a route test through the harness with in-memory fakes; shared UI components get interaction tests (keyboard, focus, toast timing).
+
+### Adding a feature, in order
+1. Types in `shared/types.ts`. 2. Domain rule and its test. 3. Repository interface, memory fake, Prisma implementation. 4. Service and its test. 5. Route, route test, registration. 6. Client `api/` function. 7. Utils and their tests. 8. Components and page, nav entry. 9. `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`.
 
 ## Parallel dev team
 

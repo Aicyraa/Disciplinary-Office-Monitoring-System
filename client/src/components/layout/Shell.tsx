@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import type { AuthUser } from '@shared/types';
 import seal from '@/assets/seal.png';
-import { breadcrumb, initials, navGroups, phoneTabs, type NavGroup, type NavItem } from '@/utils/nav';
+import { AccountDetailsModal, ChangePasswordModal } from '@/components/account/AccountModals';
+import { NudgeCard } from '@/components/feedback/PageState';
+import { Icon } from '@/components/ui/Icon';
+import { useAuth } from '@/context/AuthContext';
 import { UnreadProvider, badgeText, useUnread } from '@/context/UnreadContext';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useNavBadges } from '@/hooks/useNavBadges';
-import { Icon } from '@/components/ui';
+import { cn } from '@/utils/cn';
+import { breadcrumb, initials, navGroups, phoneTabs, type NavItem } from '@/utils/nav';
+import { BellPopover } from './BellPopover';
+import { Sidebar, useIsActive } from './Sidebar';
 
-// The sidebar is dark, so its focus ring is white (the default primary ring would be invisible on it).
-const linkBase =
-  'relative flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-white';
+type AccountDialog = 'details' | 'password' | null;
 
 function useBadgeCount() {
   const { unreadCount } = useUnread();
@@ -25,98 +30,12 @@ function useBadgeCount() {
   };
 }
 
-function CountBadge({ count, className = '' }: { count: number; className?: string }) {
-  const text = badgeText(count);
-  if (text === null) return null;
-  return (
-    <span
-      className={`min-w-5 rounded-full bg-gold px-1.5 text-center text-[11px] leading-5 font-bold text-ink ${className}`}
-      aria-label={`${count} waiting`}
-    >
-      {text}
-    </span>
-  );
-}
+const roundIcon =
+  'grid size-10 shrink-0 place-items-center rounded-full text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none';
 
-function SideLink({ item, count }: { item: NavItem; count: number }) {
-  const location = useLocation();
-  // `/handbook?tab=templates` and `/handbook` share a path; the query string decides which one is current.
-  const [path, query] = item.to.split('?');
-  const wantsTemplates = query === 'tab=templates';
-  const onTemplates = new URLSearchParams(location.search).get('tab') === 'templates';
-  const forced =
-    path === '/handbook' ? (wantsTemplates ? onTemplates : !onTemplates && location.pathname !== '/handbook/new') : undefined;
-  return (
-    <NavLink
-      to={item.to}
-      end={item.end}
-      title={item.label}
-      className={({ isActive }) => {
-        const active = forced === undefined ? isActive : isActive && forced;
-        return `${linkBase} ${active ? 'bg-primary-active text-white' : 'text-white/85 hover:bg-white/10'}`;
-      }}
-    >
-      <Icon name={item.icon} />
-      <span className="hidden flex-1 full:inline">{item.label}</span>
-      <CountBadge count={count} className="hidden full:inline-block" />
-      {badgeText(count) === null ? null : (
-        <span aria-hidden="true" className="absolute top-1 right-1 size-2 rounded-full bg-gold full:hidden" />
-      )}
-    </NavLink>
-  );
-}
-
-function Sidebar({ groups, countFor, role }: { groups: NavGroup[]; countFor: (item: NavItem) => number; role: 'staff' | 'student' }) {
-  return (
-    <aside className="hidden bg-primary text-white print:hidden rail:sticky rail:top-0 rail:flex rail:h-screen rail:w-16 rail:flex-col rail:overflow-y-auto rail:p-2 full:w-60 full:p-3">
-      <div className="mb-3 flex items-center gap-3 border-b border-white/15 px-1 py-3">
-        <img src={seal} alt="" className="size-9 shrink-0 rounded-full bg-white object-contain" />
-        <span className="hidden text-sm leading-tight font-bold full:inline">
-          NU FAIRVIEW
-          <span className="block text-[11px] font-normal text-white/75">
-            Student Discipline Office · {role === 'staff' ? 'Staff' : 'Student'}
-          </span>
-        </span>
-      </div>
-      <nav aria-label="Main" className="flex flex-1 flex-col gap-3">
-        {groups.map((group) => (
-          <div key={group.label}>
-            <p className="mb-1 hidden px-3 text-[11px] font-semibold tracking-wide text-white/60 uppercase full:block">{group.label}</p>
-            <div className="flex flex-col gap-1">
-              {group.items.map((item) => (
-                <SideLink key={item.to} item={item} count={countFor(item)} />
-              ))}
-            </div>
-          </div>
-        ))}
-      </nav>
-    </aside>
-  );
-}
-
-/** The bell in the top bar: a link to the inbox with the unread count. */
-function Bell() {
-  const { unreadCount } = useUnread();
-  const text = badgeText(unreadCount);
-  return (
-    <Link
-      to="/inbox"
-      aria-label={text === null ? 'Inbox, no unread notifications' : `Inbox, ${unreadCount} unread`}
-      className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-ink hover:bg-page"
-    >
-      <Icon name="notifications" />
-      {text === null ? null : (
-        <span className="absolute top-1 right-1 min-w-5 rounded-full bg-danger px-1 text-center text-[11px] leading-5 font-semibold text-white">
-          {text}
-        </span>
-      )}
-    </Link>
-  );
-}
-
-/** Initials avatar with the account menu: Account details, Change password, Sign out. */
-function AccountMenu() {
-  const { state, signOut } = useAuth();
+/** Initials avatar with the account menu (deck W16, src 361): Account details, Change password, Sign out. */
+function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclude<AccountDialog, null>) => void }) {
+  const { signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -138,9 +57,8 @@ function AccountMenu() {
     };
   }, [open]);
 
-  if (state.status !== 'authenticated') return null;
-  const { user } = state;
-  const itemClass = 'flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left text-sm text-ink hover:bg-page';
+  const item =
+    'flex min-h-[42px] w-full items-center gap-2.5 rounded-full px-2.5 text-left text-sm focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)] focus-visible:outline-none';
 
   return (
     <div ref={rootRef} className="relative">
@@ -150,184 +68,155 @@ function AccountMenu() {
         aria-expanded={open}
         aria-label="Account menu"
         onClick={() => setOpen((value) => !value)}
-        className="flex min-h-11 items-center gap-2 rounded-md px-1.5 hover:bg-page"
+        className="flex min-h-[42px] items-center gap-2 rounded-full px-1.5 text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none"
       >
-        <span className="inline-flex size-8 items-center justify-center rounded-full bg-gold text-xs font-bold text-ink">
+        <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-gold text-xs font-bold text-ink">
           {initials(user.firstName, user.lastName)}
         </span>
-        <span className="hidden text-sm font-medium text-ink rail:inline">{user.firstName}</span>
-        <Icon name="expand_more" className="text-base text-muted" />
+        <span className="hidden text-sm font-semibold whitespace-nowrap rail:inline">{user.firstName}</span>
+        <Icon name="expand_more" className="!text-xl" />
       </button>
       {open ? (
-        <div role="menu" className="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-line bg-white py-1 shadow-lg">
-          <div className="border-b border-line px-4 py-3">
-            <p className="text-sm font-semibold text-ink">
+        <div role="menu" aria-label="Account" className="absolute top-12 right-0 z-[60] w-[248px] overflow-hidden rounded-xl border border-line bg-white text-body shadow-[0_16px_40px_rgba(16,22,52,0.18)]">
+          <div className="border-b border-line-soft px-6 py-4">
+            <p className="font-bold text-ink">
               {user.firstName} {user.lastName}
             </p>
             <p className="text-xs text-muted">{user.role === 'staff' ? 'SDO Officer' : user.id}</p>
           </div>
-          <Link role="menuitem" to="/account" className={itemClass}>
-            <Icon name="badge" className="text-base text-muted" />
-            Account details
-          </Link>
-          <Link role="menuitem" to="/account/password" className={itemClass}>
-            <Icon name="key" className="text-base text-muted" />
-            Change password
-          </Link>
-          <button role="menuitem" type="button" onClick={() => void signOut()} className={`${itemClass} text-danger`}>
-            <Icon name="logout" className="text-base" />
-            Sign out
-          </button>
+          <div className="flex flex-col p-1.5">
+            <button
+              type="button"
+              role="menuitem"
+              className={cn(item, 'hover:bg-primary-tint')}
+              onClick={() => {
+                setOpen(false);
+                onOpen('details');
+              }}
+            >
+              <Icon name="badge" className="!text-xl text-muted" />
+              Account details
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={cn(item, 'hover:bg-primary-tint')}
+              onClick={() => {
+                setOpen(false);
+                onOpen('password');
+              }}
+            >
+              <Icon name="key" className="!text-xl text-muted" />
+              Change password
+            </button>
+            <button type="button" role="menuitem" className={cn(item, 'text-danger hover:bg-danger-soft')} onClick={() => void signOut()}>
+              <Icon name="logout" className="!text-xl" />
+              Sign out
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
   );
 }
 
-/** "You have N unread" after sign-in. A status message, so screen readers announce it without taking focus. */
-function UnreadToast() {
-  const { toast, dismissToast } = useUnread();
-  if (toast === null) return null;
-  return (
-    <div
-      role="status"
-      className="fixed right-3 bottom-20 left-3 z-20 flex max-w-sm items-center gap-3 rounded-lg border border-line-strong bg-white px-4 py-3 text-sm shadow-lg rail:bottom-6 rail:left-auto"
-    >
-      <Icon name="notifications" className="text-primary" />
-      <span className="text-ink">{toast}</span>
-      <Link to="/inbox" onClick={dismissToast} className="inline-flex min-h-11 items-center px-1 font-medium text-primary underline">
-        View
-      </Link>
-      <button type="button" onClick={dismissToast} aria-label="Dismiss" className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted hover:text-ink">
-        <Icon name="close" />
-      </button>
-    </div>
-  );
-}
-
 function Breadcrumb({ role }: { role: 'staff' | 'student' }) {
   const location = useLocation();
-  const crumbs = breadcrumb(role, location.pathname, location.search);
+  const [portal, page] = breadcrumb(role, location.pathname);
   return (
-    <nav aria-label="Breadcrumb" className="min-w-0 text-sm text-muted">
-      <ol className="flex flex-wrap items-center gap-1">
-        {crumbs.map((crumb, index) => (
-          <li key={`${crumb}-${index}`} className="flex items-center gap-1">
-            {index > 0 ? <Icon name="chevron_right" className="text-base" /> : null}
-            <span className={index === crumbs.length - 1 ? 'font-semibold text-ink' : ''} aria-current={index === crumbs.length - 1 ? 'page' : undefined}>
-              {crumb}
-            </span>
-          </li>
-        ))}
-      </ol>
+    <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm text-muted">
+      <span className="whitespace-nowrap">{portal}</span>
+      <Icon name="chevron_right" className="!text-lg text-disabled" />
+      <span aria-current="page" className="truncate font-semibold text-ink">
+        {page}
+      </span>
     </nav>
   );
 }
 
+/** The phone bottom bar (deck src 1916): four tabs and More; the icon sits in a pill and fills when active. */
 function PhoneBar({
   role,
   countFor,
   moreCount,
+  moreActive,
   onMore,
 }: {
   role: 'staff' | 'student';
   countFor: (item: NavItem) => number;
   moreCount: number;
+  moreActive: boolean;
   onMore: () => void;
 }) {
-  const tabs = phoneTabs(role);
-  const tabClass = 'relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-medium';
+  const isActive = useIsActive();
+  const tab = 'flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 px-0.5 pt-1 pb-1.5 focus-visible:rounded-xl focus-visible:shadow-[inset_0_0_0_2px_rgba(53,64,142,0.35)] focus-visible:outline-none';
+  const content = (icon: string, label: string, active: boolean, count: number) => {
+    const text = badgeText(count);
+    return (
+      <>
+        <span className="relative grid h-[30px] w-14 place-items-center rounded-full">
+          <Icon name={icon} filled={active} className="!text-2xl" />
+          {text !== null ? (
+            <span className="absolute -top-[3px] right-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-danger-strong px-[5px] text-[11px] font-bold text-white">
+              {text}
+            </span>
+          ) : null}
+        </span>
+        <span className={cn('max-w-full truncate text-xs leading-tight', active ? 'font-bold' : 'font-medium')}>{label}</span>
+      </>
+    );
+  };
   return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-white print:hidden rail:hidden">
-      {tabs.map((item) => {
-        const count = countFor(item);
-        return (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end ?? item.to === '/'}
-            className={({ isActive }) => `${tabClass} ${isActive ? 'text-primary' : 'text-muted'}`}
-          >
-            <Icon name={item.icon} />
-            <span className="whitespace-nowrap">{item.label}</span>
-            {badgeText(count) === null ? null : (
-              <span className="absolute top-1 left-1/2 ml-2 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] leading-4 font-bold text-white">
-                {badgeText(count)}
-              </span>
-            )}
-          </NavLink>
-        );
-      })}
-      <button type="button" onClick={onMore} className={`${tabClass} text-muted`} aria-haspopup="dialog">
-        <Icon name="menu" />
-        <span>More</span>
-        {badgeText(moreCount) === null ? null : (
-          <span className="absolute top-1 left-1/2 ml-2 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] leading-4 font-bold text-white">
-            {badgeText(moreCount)}
-          </span>
-        )}
+    <nav
+      aria-label="Primary"
+      className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-line bg-white px-1 pt-1.5 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(16,22,52,0.06)] print:hidden rail:hidden"
+    >
+      {phoneTabs(role).map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.end ?? item.to === '/'}
+          aria-label={countFor(item) > 0 ? `${item.label}, ${countFor(item)} waiting` : item.label}
+          className={({ isActive: routerActive }) => cn(tab, !moreActive && isActive(item, routerActive) ? 'text-primary' : 'text-muted-2')}
+        >
+          {({ isActive: routerActive }) => content(item.icon, item.label, !moreActive && isActive(item, routerActive), countFor(item))}
+        </NavLink>
+      ))}
+      <button type="button" onClick={onMore} aria-label="More pages" aria-haspopup="dialog" className={cn(tab, moreActive ? 'text-primary' : 'text-muted-2')}>
+        {content('menu', 'More', moreActive, moreCount)}
       </button>
     </nav>
   );
 }
 
-/** The phone "More" drawer: every group of the sidebar, with the create actions, and the account links. */
-function MoreDrawer({ groups, countFor, onClose }: { groups: NavGroup[]; countFor: (item: NavItem) => number; onClose: () => void }) {
+/** The phone "More" drawer: the blue sidebar slides in from the left over a scrim (deck M17). */
+function MoreDrawer({ role, countFor, onClose }: { role: 'staff' | 'student'; countFor: (item: NavItem) => number; onClose: () => void }) {
   const panelRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    panelRef.current?.querySelector<HTMLElement>('a, button')?.focus();
+    panelRef.current?.querySelector<HTMLElement>('button, a')?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
-
   return (
-    <div className="fixed inset-0 z-40 bg-ink/50 rail:hidden" onClick={onClose}>
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="More"
-        onClick={(event) => event.stopPropagation()}
-        className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-xl bg-white p-4 pb-6"
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-base font-bold text-ink">More</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted">
-            <Icon name="close" />
-          </button>
-        </div>
-        {groups.map((group) => (
-          <div key={group.label} className="mb-3">
-            <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted uppercase">{group.label}</p>
-            <ul>
-              {group.items.map((item) => (
-                <li key={item.to}>
-                  <Link to={item.to} onClick={onClose} className="flex min-h-11 items-center gap-3 rounded-md px-2 text-sm font-medium text-ink hover:bg-page">
-                    <Icon name={item.icon} className="text-primary" />
-                    <span className="flex-1">{item.label}</span>
-                    <CountBadge count={countFor(item)} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-        <div className="mb-1 border-t border-line pt-3">
-          <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted uppercase">Account</p>
-          <Link to="/account" onClick={onClose} className="flex min-h-11 items-center gap-3 rounded-md px-2 text-sm font-medium text-ink hover:bg-page">
-            <Icon name="badge" className="text-primary" />
-            Account details
-          </Link>
-          <Link to="/account/password" onClick={onClose} className="flex min-h-11 items-center gap-3 rounded-md px-2 text-sm font-medium text-ink hover:bg-page">
-            <Icon name="key" className="text-primary" />
-            Change password
-          </Link>
-        </div>
+    <div className="fixed inset-0 z-[55] rail:hidden" role="dialog" aria-modal="true" aria-label="More pages">
+      <div aria-hidden="true" className="absolute inset-0 bg-[rgba(16,22,52,0.45)]" onClick={onClose} />
+      <div ref={panelRef} className="absolute inset-y-0 left-0 shadow-[0_10px_40px_rgba(16,22,52,0.35)]">
+        <Sidebar groups={navGroups(role)} countFor={countFor} role={role} labels drawer onNavigate={onClose} onClose={onClose} />
       </div>
+    </div>
+  );
+}
+
+/** Students see the unread nudge after sign-in (src 2074): top right under the header, 7 s. */
+function UnreadNudge({ role }: { role: 'staff' | 'student' }) {
+  const { toast, dismissToast } = useUnread();
+  if (toast === null || role !== 'student') return null;
+  return (
+    <div className="fixed top-[68px] right-4 left-4 z-[70] flex justify-end rail:top-[76px] rail:right-5 rail:left-auto print:hidden">
+      <NudgeCard text={toast} onDismiss={dismissToast} />
     </div>
   );
 }
@@ -337,52 +226,82 @@ export function Shell() {
   if (state.status !== 'authenticated') return null;
   return (
     <UnreadProvider role={state.user.role}>
-      <ShellFrame />
+      <ShellFrame user={state.user} />
     </UnreadProvider>
   );
 }
 
-function ShellFrame() {
-  const { state } = useAuth();
+function ShellFrame({ user }: { user: AuthUser }) {
   const { unreadCount } = useUnread();
   const countFor = useBadgeCount();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const wide = useMediaQuery('(min-width: 1100px)');
+  // null = follow the width (rail from 720 to 1100 px, full sidebar above); the header button overrides it.
+  const [collapsedChoice, setCollapsedChoice] = useState<boolean | null>(null);
+  const collapsed = collapsedChoice ?? !wide;
   const [moreOpen, setMoreOpen] = useState(false);
-  if (state.status !== 'authenticated') return null;
-  const { user } = state;
-  const groups = navGroups(user.role);
+  const [dialog, setDialog] = useState<AccountDialog>(null);
+  const role = user.role;
+  const groups = navGroups(role);
+  const onTab = phoneTabs(role).some((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)));
+
+  useEffect(() => setMoreOpen(false), [location.pathname]);
+
+  // `/account` and `/account/password` open the dialogs over the dashboard (UI-POLISH-SPEC 5.10).
+  useEffect(() => {
+    const wanted = (location.state as { account?: AccountDialog } | null)?.account;
+    if (wanted) {
+      setDialog(wanted);
+      navigate(location.pathname + location.search, { replace: true, state: null });
+    }
+  }, [location, navigate]);
 
   return (
     <div className="min-h-screen rail:flex">
-      <Sidebar groups={groups} countFor={countFor} role={user.role} />
+      <div className="hidden rail:block">
+        <Sidebar groups={groups} countFor={countFor} role={role} labels={!collapsed} />
+      </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-1.5 print:hidden">
-          <div className="flex min-w-0 items-center gap-2 rail:hidden">
-            <img src={seal} alt="" className="size-8 rounded-full" />
-            <span className="text-sm leading-tight font-bold text-ink">
-              NU FAIRVIEW
-              <span className="block text-[11px] font-normal text-muted">Student Discipline Office</span>
-            </span>
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-40 flex h-[calc(56px+env(safe-area-inset-top))] items-center gap-3 border-b border-line bg-white px-4 pt-[env(safe-area-inset-top)] text-ink print:hidden rail:h-16 rail:px-8 rail:pt-0">
+          <button
+            type="button"
+            onClick={() => setCollapsedChoice(!collapsed)}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+            className={cn(roundIcon, 'hidden rail:grid')}
+          >
+            <Icon name={collapsed ? 'left_panel_open' : 'left_panel_close'} className="!text-2xl" />
+          </button>
+          <div className="flex min-w-0 items-center gap-2.5 rail:hidden">
+            <img src={seal} alt="" className="w-7" />
+            <div className="min-w-0">
+              <div className="text-sm leading-tight font-bold">NU FAIRVIEW</div>
+              <div className="text-[11px] leading-tight text-muted">Student Discipline Office</div>
+            </div>
           </div>
           <div className="hidden min-w-0 rail:block">
-            <Breadcrumb role={user.role} />
+            <Breadcrumb role={role} />
           </div>
-          <div className="ml-auto flex items-center gap-1">
-            <span className="hidden rail:inline-flex">
-              <Bell />
-            </span>
-            <AccountMenu />
+          <div className="ml-auto flex items-center gap-2">
+            <BellPopover role={role} />
+            <AccountMenu user={user} onOpen={setDialog} />
           </div>
-        </div>
-        <UnreadToast />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-24 rail:pb-6">
+        </header>
+
+        <UnreadNudge role={role} />
+
+        <main className="w-full flex-1 p-4 pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
           <Outlet />
         </main>
       </div>
 
-      <PhoneBar role={user.role} countFor={countFor} moreCount={unreadCount} onMore={() => setMoreOpen(true)} />
-      {moreOpen ? <MoreDrawer groups={groups} countFor={countFor} onClose={() => setMoreOpen(false)} /> : null}
+      <PhoneBar role={role} countFor={countFor} moreCount={role === 'student' ? unreadCount : 0} moreActive={moreOpen || !onTab} onMore={() => setMoreOpen((value) => !value)} />
+      {moreOpen ? <MoreDrawer role={role} countFor={countFor} onClose={() => setMoreOpen(false)} /> : null}
+
+      <AccountDetailsModal open={dialog === 'details'} user={user} onClose={() => setDialog(null)} onChangePassword={() => setDialog('password')} />
+      <ChangePasswordModal open={dialog === 'password'} onClose={() => setDialog(null)} />
     </div>
   );
 }
-

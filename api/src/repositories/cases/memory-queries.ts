@@ -7,7 +7,9 @@ import {
   ACTIVE_SANCTION_STATUSES,
   CASE_PAGE_SIZE,
   SANCTION_QUEUE_PAGE_SIZE,
+  compareCases,
   emptyStatusCounts,
+  pageFor,
   type CaseQueries,
 } from './queries.js';
 import type { CaseRecord } from '../../types/cases.types.js';
@@ -55,8 +57,14 @@ export function createMemoryCaseQueries(
       submissionCode: submissionCodeOf(record.submissionRef),
       isEscalated: record.isEscalated,
       convertedFrom: original?.violationType ?? null,
+      sanction: latestSanction(record.caseId),
+      dateResolved: record.dateResolved?.toISOString() ?? null,
     };
   };
+  function latestSanction(caseId: number): StaffCaseRow['sanction'] {
+    const latest = store.state.caseSanctions.filter((s) => s.caseId === caseId).sort((a, b) => b.caseSanctionId - a.caseSanctionId)[0];
+    return latest ? { code: displayCode('S', latest.sanctionId), status: latest.status } : null;
+  }
 
   return {
     async list(filter) {
@@ -72,15 +80,18 @@ export function createMemoryCaseQueries(
             text?.toLowerCase().includes(needle),
           );
         })
-        .sort((a, b) => {
-          const byDate = a.caseDate.localeCompare(b.caseDate) || a.id - b.id;
-          return filter.sort === 'newest' ? -byDate : byDate;
-        });
       const statusCounts = emptyStatusCounts();
       for (const row of matching) statusCounts[row.status] += 1;
-      const rows = matching.filter((row) => (filter.status ? row.status === filter.status : true));
-      const start = (filter.page - 1) * CASE_PAGE_SIZE;
-      return { rows: rows.slice(start, start + CASE_PAGE_SIZE), total: rows.length, statusCounts };
+      const order = compareCases(filter);
+      const rows = matching
+        .filter((row) => (filter.status ? row.status === filter.status : true))
+        .sort((a, b) => order({ id: a.id, status: a.status, time: Date.parse(a.caseDate) }, { id: b.id, status: b.status, time: Date.parse(b.caseDate) }));
+      const page = pageFor(
+        rows.map((row) => row.id),
+        filter,
+      );
+      const start = (page - 1) * CASE_PAGE_SIZE;
+      return { rows: rows.slice(start, start + CASE_PAGE_SIZE), total: rows.length, page, statusCounts };
     },
 
     async sanctionQueue({ filter, page, today }) {

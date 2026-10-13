@@ -1,36 +1,62 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import seal from '@/assets/seal.png';
-import { StageTracker } from '@/components/ui/StageTracker';
-import { buttonClass, fieldClass, Icon, LoadingState } from '@/components/ui';
 import { api, toApiError } from '@/api/client';
+import { Alert } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
+import { Icon } from '@/components/ui/Icon';
+import { Pill } from '@/components/ui/Pill';
+import { Select } from '@/components/ui/Select';
+import { StageTracker } from '@/components/ui/StageTracker';
+import { Spinner } from '@/components/feedback/PageState';
+import { cn } from '@/utils/cn';
+import { notificationWhen } from '@/utils/inbox';
 import {
-  YEAR_LEVEL_OPTIONS,
-  stepProblem,
+  YEAR_PILLS,
+  categoryCounts,
+  detailsErrors,
+  filterGateViolations,
+  violationsError,
   waitBeforeSubmit,
+  type DetailsErrors,
+  type GateCategory,
   type GateFormValues,
+  type GateViolation,
 } from '@/utils/gateForm';
 
-type Options = { violations: Array<{ id: number; name: string; section: string }>; programs: string[] };
+type Options = { violations: GateViolation[]; programs: string[] };
+type Done = { code: string; duplicate: boolean; submittedAt: string };
 
 const EMPTY: GateFormValues = { studentId: '', name: '', program: '', year: '', violationIds: [] };
 const STEPS = ['Details', 'Violations', 'Review'] as const;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const NOT_SENT = 'Your report wasn’t sent. Check your connection and tap Submit again. Nothing was saved.';
+
+const card = 'flex flex-col rounded-xl border border-line bg-white';
+
+function CategoryPill({ category }: { category: 'Minor' | 'Major' }) {
+  return <Pill tone={category === 'Major' ? 'bad' : 'info'}>{category}</Pill>;
+}
 
 /**
- * The public violation form (SPEC 4.10): no sign-in, three steps, then a confirmation with the reference.
- * It never talks to Power Automate; the API files the report and sends the emails after it commits. The
- * form-timing token is fetched when the page opens and sent back with the report.
+ * The public violation form (deck W07 to W14, src 119 to 258): no sign-in, three steps, then the reference to
+ * show the guard. It never talks to Power Automate; the API files the report and sends the emails after it
+ * commits. The form-timing token is fetched when the page opens and sent back with the report.
  */
 export default function GateReportPage() {
+  const navigate = useNavigate();
   const [options, setOptions] = useState<Options | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [values, setValues] = useState<GateFormValues>(EMPTY);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [errors, setErrors] = useState<DetailsErrors>({});
+  const [pickError, setPickError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{ network: boolean; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ reference: string; code: string; duplicate: boolean } | null>(null);
+  const [done, setDone] = useState<Done | null>(null);
   const [search, setSearch] = useState('');
+  const [category, setCategory] = useState<GateCategory>('All');
   const token = useRef<{ value: string; openedAt: number } | null>(null);
 
   async function openForm() {
@@ -48,22 +74,26 @@ export default function GateReportPage() {
     void openForm();
   }, []);
 
-  const set = <K extends keyof GateFormValues>(key: K, value: GateFormValues[K]) =>
-    setValues((current) => ({ ...current, [key]: value }));
+  const go = (next: 1 | 2 | 3) => {
+    setStep(next);
+    setFailure(null);
+    window.scrollTo(0, 0);
+  };
 
-  function next(event: FormEvent) {
-    event.preventDefault();
-    const message = stepProblem(step, values);
-    setProblem(message);
-    if (message === null && step < 3) setStep((current) => (current + 1) as 2 | 3);
+  function set<K extends keyof GateFormValues>(key: K, value: GateFormValues[K]) {
+    setValues((current) => ({ ...current, [key]: value }));
+    if (key in errors) setErrors((current) => ({ ...current, [key]: undefined }));
   }
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const message = stepProblem(3, values);
-    setProblem(message);
-    if (message !== null || !token.current) return;
+  function toggle(id: number) {
+    set('violationIds', values.violationIds.includes(id) ? values.violationIds.filter((v) => v !== id) : [...values.violationIds, id]);
+    setPickError(null);
+  }
+
+  async function submit() {
+    if (!token.current) return;
     setBusy(true);
+    setFailure(null);
     try {
       // The API refuses a form younger than 3 seconds. A person rarely gets there, but autofill can.
       await sleep(waitBeforeSubmit(Date.now() - token.current.openedAt));
@@ -75,14 +105,20 @@ export default function GateReportPage() {
         year: values.year,
         violationIds: values.violationIds,
       });
-      setDone(result);
+      setDone({ code: result.code, duplicate: result.duplicate, submittedAt: result.submittedAt });
+      window.scrollTo(0, 0);
     } catch (error) {
       const apiError = toApiError(error);
-      setProblem(
-        apiError.status === 429
-          ? 'Too many reports from this device. Please wait a few minutes and try again.'
-          : 'We could not accept this report. Please check the form and try again.',
-      );
+      // No status: the request never reached the server (the deck's "not sent" state, W13).
+      const network = !apiError.status;
+      setFailure({
+        network,
+        message: network
+          ? NOT_SENT
+          : apiError.status === 429
+            ? 'Too many reports from this device. Please wait a few minutes and try again.'
+            : 'We could not accept this report. Please check the form and try again.',
+      });
       // A token is good for one sitting; get a fresh one so the next try is not refused for being stale.
       try {
         token.current = { value: (await api.gateToken()).token, openedAt: Date.now() };
@@ -94,243 +130,312 @@ export default function GateReportPage() {
     }
   }
 
-  function reset() {
+  function startAgain() {
     setValues(EMPTY);
-    setStep(1);
-    setProblem(null);
+    setErrors({});
+    setPickError(null);
+    setFailure(null);
     setDone(null);
     setSearch('');
+    setCategory('All');
+    setStep(1);
+    window.scrollTo(0, 0);
     void openForm();
   }
 
+  const backLabel = done || step === 1 ? 'Back to sign in' : 'Back to the previous step';
+
   const shell = (children: React.ReactNode) => (
-    <div className="min-h-screen bg-page">
-      <header className="flex items-center gap-3 border-b border-line bg-white px-4 py-2">
-        <Link to="/login" aria-label="Back to sign in" className="inline-flex min-h-11 min-w-11 items-center justify-center text-ink">
-          <Icon name="arrow_back" />
-        </Link>
-        <img src={seal} alt="" className="size-8 rounded-full" />
-        <div className="leading-tight">
-          <h1 className="text-sm font-bold text-ink">Violation Form</h1>
-          <p className="text-[11px] text-muted">Student Discipline Office</p>
+    <div className="flex min-h-screen flex-col bg-page">
+      <header className="sticky top-0 z-40 flex h-16 items-center border-b border-line bg-white px-4 text-ink">
+        <div className="mx-auto flex w-full max-w-[560px] items-center gap-3">
+          <button
+            type="button"
+            aria-label={backLabel}
+            title={backLabel}
+            onClick={() => (done || step === 1 ? navigate('/login') : go((step - 1) as 1 | 2))}
+            className="grid size-10 shrink-0 place-items-center rounded-full hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
+          >
+            <Icon name="arrow_back" className="!text-2xl" />
+          </button>
+          <img src={seal} alt="" className="w-[34px] shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-base leading-tight font-bold">Violation Form</h1>
+            <p className="text-xs text-muted">Student Discipline Office</p>
+          </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-lg px-4 py-6">{children}</main>
+      <main className="mx-auto flex w-full max-w-[560px] flex-1 flex-col gap-3.5 p-4">{children}</main>
     </div>
   );
 
   if (done) {
     return shell(
-      <div role="status" className="mt-6">
-        <div className="flex items-center gap-2 text-success">
-          <Icon name="check_circle" className="text-3xl" />
-          <h2 className="text-lg font-semibold">{done.duplicate ? 'This report was already received' : 'Report received'}</h2>
+      <div role="status" className={cn(card, 'items-center gap-3 px-[18px] py-6 text-center')}>
+        <span aria-hidden="true" className="grid size-14 place-items-center rounded-full bg-success-soft text-success">
+          <Icon name="check" className="!text-[32px]" />
+        </span>
+        {done.duplicate ? (
+          <>
+            <h2 className="text-[22px] font-bold text-ink">We already have this report</h2>
+            <p className="text-[13px] text-muted">You don’t need to submit it again.</p>
+          </>
+        ) : (
+          <h2 className="text-[22px] font-bold text-ink">Report received</h2>
+        )}
+        <div className="w-full rounded-[10px] border border-dashed border-disabled bg-page p-3.5">
+          <p className="text-[13px] font-semibold text-muted">Reference</p>
+          <p className="text-[28px] font-extrabold tracking-[0.04em] text-ink">{done.code}</p>
+          <p className="text-[13px] text-muted">{notificationWhen(done.submittedAt)}</p>
         </div>
-        <p className="mt-3 text-sm text-ink">Your reference number is</p>
-        <p className="mt-1 text-3xl font-bold tracking-wider text-ink">{done.code}</p>
-        <p className="mt-3 text-sm text-muted">
-          The SDO office will review it. Keep this number if you need to ask about the report.
+        <Pill tone="pending">Awaiting staff review</Pill>
+        <p className="text-sm text-pretty text-body">
+          Show this screen to the guard. The SDO checks your identity and the report before anything is added to your record.
+          You’ll get a notice in your student portal and school email.
         </p>
-        <button type="button" onClick={reset} className={`${buttonClass} mt-6`}>
-          File another report
-        </button>
+        <Button variant="secondary" size="xxl" fullWidth onClick={startAgain}>
+          Start a new report
+        </Button>
       </div>,
     );
   }
 
   if (loadError) {
     return shell(
-      <div role="alert" className="mt-6">
-        <p className="text-sm font-medium text-danger">{loadError}</p>
-        <button type="button" onClick={() => void openForm()} className={`${buttonClass} mt-3`}>
+      <Alert tone="error">
+        {loadError}{' '}
+        <button type="button" className="font-semibold underline" onClick={() => void openForm()}>
           Try again
         </button>
-      </div>,
+      </Alert>,
     );
   }
 
-  if (!options) return shell(<LoadingState label="Opening the form…" />);
+  if (!options)
+    return shell(
+      <p role="status" className="flex items-center justify-center gap-2 py-10 text-[13px] text-muted">
+        <Spinner />
+        Opening the form…
+      </p>,
+    );
 
-  const needle = search.trim().toLowerCase();
-  const shown = options.violations.filter(
-    (violation) => needle === '' || violation.name.toLowerCase().includes(needle) || violation.section.toLowerCase().includes(needle),
-  );
+  const shown = filterGateViolations(options.violations, search, category);
+  const counts = categoryCounts(options.violations, search);
+  const chosen = options.violations.filter((violation) => values.violationIds.includes(violation.id));
+  const yearLabel = YEAR_PILLS.find((pill) => pill.value === values.year)?.label;
 
   return shell(
     <>
-      <div className="mb-4">
-        <StageTracker steps={STEPS} current={step - 1} label="Steps" />
-      </div>
+      <StageTracker steps={STEPS} current={step - 1} label="Progress" size="md" />
 
-      <form onSubmit={step === 3 ? submit : next} noValidate className="space-y-4 rounded-lg border border-line bg-white p-5">
-        {step === 1 ? (
-          <>
-            <h2 className="text-base font-bold text-ink">Student details</h2>
-            <div>
-              <label htmlFor="gate-id" className="mb-1 block text-sm font-medium text-ink">
-                Student ID
-              </label>
-              <input
-                id="gate-id"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="2025-1234567"
-                className={fieldClass}
-                value={values.studentId}
-                onChange={(event) => set('studentId', event.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="gate-name" className="mb-1 block text-sm font-medium text-ink">
-                Full name
-              </label>
-              <input
-                id="gate-name"
-                autoComplete="off"
-                className={fieldClass}
-                maxLength={100}
-                value={values.name}
-                onChange={(event) => set('name', event.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="gate-program" className="mb-1 block text-sm font-medium text-ink">
-                Program
-              </label>
-              <select
-                id="gate-program"
-                className={fieldClass}
-                value={values.program}
-                onChange={(event) => set('program', event.target.value)}
-              >
-                <option value="">Choose the program…</option>
-                {options.programs.map((program) => (
-                  <option key={program} value={program}>
-                    {program}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="gate-year" className="mb-1 block text-sm font-medium text-ink">
-                Year level
-              </label>
-              <select id="gate-year" className={fieldClass} value={values.year} onChange={(event) => set('year', event.target.value)}>
-                <option value="">Choose the year level…</option>
-                {YEAR_LEVEL_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </>
-        ) : null}
-
-        {step === 2 ? (
-          <fieldset>
-            <legend className="mb-1 text-base font-bold text-ink">What did the student do?</legend>
-            <p className="mb-2 text-xs text-muted">Choose one or more.</p>
-            <label htmlFor="gate-search" className="sr-only">
-              Search violations
-            </label>
-            <input
-              id="gate-search"
-              type="search"
-              placeholder="Search violations"
-              className={fieldClass}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <ul className="mt-2 max-h-72 space-y-1 overflow-y-auto rounded-md border border-line p-2">
-              {shown.length === 0 ? <li className="text-sm text-muted">No violation matches.</li> : null}
-              {shown.map((violation) => {
-                const inputId = `gate-violation-${violation.id}`;
+      {step === 1 ? (
+        <div className={cn(card, 'gap-[22px] px-[22px] py-7')}>
+          <h2 className="text-xl font-bold text-ink">Your details</h2>
+          <Field
+            label="Student ID"
+            size="lg"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="e.g. 2025-1234567"
+            value={values.studentId}
+            error={errors.studentId}
+            onChange={(event) => set('studentId', event.target.value)}
+          />
+          <Field
+            label="Full name"
+            size="lg"
+            autoComplete="name"
+            maxLength={100}
+            placeholder="First and last name"
+            value={values.name}
+            error={errors.name}
+            onChange={(event) => set('name', event.target.value)}
+          />
+          <Select label="Program" size="lg" value={values.program} error={errors.program} onChange={(event) => set('program', event.target.value)}>
+            <option value="">Choose your program</option>
+            {options.programs.map((program) => (
+              <option key={program} value={program}>
+                {program}
+              </option>
+            ))}
+          </Select>
+          <div role="radiogroup" aria-labelledby="gate-year-label">
+            <p id="gate-year-label" className="mb-2 text-sm font-semibold text-ink">
+              Year level
+            </p>
+            <div className="grid grid-cols-5 gap-2">
+              {YEAR_PILLS.map((pill) => {
+                const on = values.year === pill.value;
                 return (
-                  <li key={violation.id}>
-                    <label htmlFor={inputId} className="flex items-start gap-2 text-sm">
-                      <input
-                        id={inputId}
-                        type="checkbox"
-                        className="mt-1"
-                        checked={values.violationIds.includes(violation.id)}
-                        onChange={() =>
-                          set(
-                            'violationIds',
-                            values.violationIds.includes(violation.id)
-                              ? values.violationIds.filter((id) => id !== violation.id)
-                              : [...values.violationIds, violation.id],
-                          )
-                        }
-                      />
-                      <span>
-                        {violation.name} <span className="text-muted">({violation.section})</span>
-                      </span>
-                    </label>
-                  </li>
+                  <button
+                    key={pill.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => set('year', pill.value)}
+                    className={cn(
+                      'min-h-12 rounded-full border px-1 text-sm font-semibold focus-visible:ring-[3px] focus-visible:ring-primary/30 focus-visible:outline-none',
+                      on ? 'border-primary bg-primary text-white' : 'border-line-strong bg-white text-body hover:border-primary',
+                    )}
+                  >
+                    {pill.label}
+                  </button>
                 );
               })}
-            </ul>
-            <p className="mt-2 text-xs text-muted">{values.violationIds.length} chosen</p>
-          </fieldset>
-        ) : null}
+            </div>
+            {errors.year ? (
+              <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-danger-strong">
+                <Icon name="error" className="!text-lg" />
+                {errors.year}
+              </p>
+            ) : null}
+          </div>
+          <Button
+            size="xxl"
+            className="mt-1.5"
+            onClick={() => {
+              const found = detailsErrors(values);
+              setErrors(found);
+              if (Object.keys(found).length === 0) go(2);
+            }}
+          >
+            Next: violations
+          </Button>
+        </div>
+      ) : null}
 
-        {step === 3 ? (
+      {step === 2 ? (
+        <div className={cn(card, 'gap-3 px-4 py-6')}>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-xl font-bold text-ink">What were you stopped for?</h2>
+            <span aria-live="polite" className="text-[13px] font-semibold whitespace-nowrap text-primary">
+              {values.violationIds.length ? `${values.violationIds.length} selected` : 'None selected'}
+            </span>
+          </div>
+          <p className="-mt-1.5 text-[13px] text-muted">Check every violation the guard named. They’re sent together as one report.</p>
+          <label className="relative block">
+            <span className="sr-only">Search violations</span>
+            <Icon name="search" className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-2" />
+            <input
+              type="search"
+              placeholder="Search violations"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="block min-h-12 w-full rounded-lg border border-line-strong bg-white pr-3.5 pl-10 text-base text-ink outline-none placeholder:text-muted-2 focus:border-primary focus:ring-[3px] focus:ring-primary/18"
+            />
+          </label>
+          <div role="tablist" aria-label="Classification" className="flex gap-2">
+            {(['All', 'Minor', 'Major'] as const).map((key) => {
+              const on = category === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setCategory(key)}
+                  className={cn(
+                    'inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-semibold focus-visible:ring-[3px] focus-visible:ring-primary/30 focus-visible:outline-none',
+                    on ? 'border-primary bg-primary text-white' : 'border-line-strong bg-white text-body hover:border-primary',
+                  )}
+                >
+                  {key}
+                  <span className={cn('grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px]', on ? 'bg-white/22' : 'bg-line-soft')}>
+                    {counts[key]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {pickError ? <Alert tone="error">{pickError}</Alert> : null}
+          <div role="group" aria-label="Violations" className="flex max-h-[360px] flex-col gap-1.5 overflow-y-auto p-0.5">
+            {shown.map((violation) => {
+              const on = values.violationIds.includes(violation.id);
+              return (
+                <button
+                  key={violation.id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  onClick={() => toggle(violation.id)}
+                  className={cn(
+                    'flex min-h-14 w-full items-center gap-3 rounded-[10px] border px-3 py-2 text-left focus-visible:ring-[3px] focus-visible:ring-primary/30 focus-visible:outline-none',
+                    on ? 'border-primary bg-info-soft' : 'border-line bg-white hover:bg-row-hover',
+                  )}
+                >
+                  <Icon name={on ? 'check_box' : 'check_box_outline_blank'} className={cn('!text-2xl', on ? 'text-primary' : 'text-muted-2')} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold text-ink">{violation.name}</span>
+                    <span className="block text-xs text-muted">Sec. {violation.section}</span>
+                  </span>
+                  <CategoryPill category={violation.category} />
+                </button>
+              );
+            })}
+            {shown.length === 0 ? <p className="p-4 text-center text-[13px] text-muted">No violation matches that search.</p> : null}
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
+            <Button variant="secondary" size="xxl" onClick={() => go(1)}>
+              Back
+            </Button>
+            <Button
+              size="xxl"
+              onClick={() => {
+                const problem = violationsError(values.violationIds);
+                setPickError(problem);
+                if (problem === null) go(3);
+              }}
+            >
+              Next: review
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {step === 3 ? (
+        <div className={cn(card, 'gap-3.5 px-4 py-6')}>
+          <h2 className="text-xl font-bold text-ink">Check and submit</h2>
+          <dl className="flex flex-col rounded-[10px] border border-line-soft">
+            {(
+              [
+                ['Student ID', values.studentId.trim()],
+                ['Full name', values.name.trim()],
+                ['Program', values.program],
+                ['Year level', yearLabel ? `${yearLabel} year` : ''],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label} className="flex gap-3 border-b border-line-soft px-3 py-2.5 text-sm last:border-b-0">
+                <dt className="w-24 shrink-0 text-muted">{label}</dt>
+                <dd className="min-w-0 flex-1 font-semibold text-ink">{value}</dd>
+              </div>
+            ))}
+          </dl>
           <div>
-            <h2 className="text-base font-bold text-ink">Check and submit</h2>
-            <dl className="mt-3 rounded-lg border border-line">
-              {(
-                [
-                  ['Student ID', values.studentId.trim()],
-                  ['Full name', values.name.trim()],
-                  ['Program', values.program],
-                  ['Year level', YEAR_LEVEL_OPTIONS.find((option) => option.value === values.year)?.label ?? ''],
-                ] as const
-              ).map(([label, value]) => (
-                <div key={label} className="grid grid-cols-[6.5rem_1fr] gap-2 border-b border-line px-3 py-2 last:border-0">
-                  <dt className="text-sm text-muted">{label}</dt>
-                  <dd className="text-sm font-medium text-ink">{value}</dd>
-                </div>
+            <p className="mb-2 text-[13px] font-semibold text-muted">Violations</p>
+            <ul className="flex flex-col gap-1.5">
+              {chosen.map((violation) => (
+                <li key={violation.id} className="flex items-center gap-2.5 rounded-lg bg-surface-2 px-3 py-2.5">
+                  <span className="flex-1 font-semibold text-ink">{violation.name}</span>
+                  <CategoryPill category={violation.category} />
+                </li>
               ))}
-            </dl>
-            <h3 className="mt-4 text-xs font-semibold tracking-wide text-muted uppercase">Violations</h3>
-            <ul className="mt-2 space-y-1">
-              {options.violations
-                .filter((violation) => values.violationIds.includes(violation.id))
-                .map((violation) => (
-                  <li key={violation.id} className="rounded-md bg-page px-3 py-2 text-sm text-ink">
-                    {violation.name} <span className="text-muted">({violation.section})</span>
-                  </li>
-                ))}
             </ul>
           </div>
-        ) : null}
-
-        {problem ? (
-          <p role="alert" className="text-sm font-medium text-danger">
-            {problem}
-          </p>
-        ) : null}
-
-        <div className="flex gap-2">
-          {step > 1 ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setProblem(null);
-                setStep((current) => (current - 1) as 1 | 2);
-              }}
-              className="inline-flex min-h-11 items-center rounded-full border border-primary px-5 text-sm font-semibold text-primary hover:bg-page"
-            >
-              Back
-            </button>
+          {failure ? (
+            <Alert tone="error" icon={failure.network ? 'wifi_off' : 'error'}>
+              {failure.message}
+            </Alert>
           ) : null}
-          <button type="submit" disabled={busy} className={`${buttonClass} min-h-11 flex-1 rounded-full`}>
-            {step < 3 ? 'Next' : busy ? 'Submitting…' : 'Submit report'}
-          </button>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
+            <Button variant="secondary" size="xxl" disabled={busy} onClick={() => go(2)}>
+              Back
+            </Button>
+            <Button size="xxl" busy={busy} busyLabel="Submitting…" onClick={() => void submit()}>
+              Submit report
+            </Button>
+          </div>
         </div>
-      </form>
+      ) : null}
     </>,
   );
 }

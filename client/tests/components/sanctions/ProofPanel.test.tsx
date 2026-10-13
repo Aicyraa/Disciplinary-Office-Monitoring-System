@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
 import type { StudentSanctionView } from '@shared/types';
-import { viewedSummary } from '@/pages/staff/Sanctions';
 import { ProofPanel } from '@/components/sanctions/ProofPanel';
+import { lastFileRemovalMessage } from '@/utils/files';
 
 const base: StudentSanctionView = {
   id: 7,
@@ -20,6 +21,7 @@ const base: StudentSanctionView = {
   dateCompleted: null,
   staffNote: null,
   complianceNote: null,
+  assignedBy: 'Officer One',
   history: [],
   files: [],
   lateByDays: 0,
@@ -36,16 +38,20 @@ const file = (id: number) => ({
 });
 
 const render = (sanction: StudentSanctionView) =>
-  renderToStaticMarkup(<ProofPanel sanction={sanction} onChanged={() => {}} />);
+  renderToStaticMarkup(
+    <MemoryRouter>
+      <ProofPanel sanction={sanction} onChanged={() => {}} />
+    </MemoryRouter>,
+  );
 
 describe('ProofPanel', () => {
   test('an assigned sanction offers a multi-file upload with a labelled input and the limits', () => {
     const html = render(base);
-    expect(html).toContain('Upload your proof');
+    expect(html).toContain('Upload proof of completion');
+    expect(html).toContain('Sanction S001 · Violation Slip');
     expect(html).toContain('multiple');
-    expect(html).toContain('accept=".pdf,.docx"');
+    expect(html).toContain('accept=".pdf,application/pdf"');
     expect(html).toContain('5 files max');
-    expect(html).toContain('No file uploaded yet.');
     expect(html).not.toContain('Replace');
   });
 
@@ -53,7 +59,7 @@ describe('ProofPanel', () => {
     const html = render(base);
     expect(html).toContain('Choose files to upload');
     expect(html).toContain('Click to choose or drag files here');
-    expect(html).toContain('PDF or DOCX, up to 10 MB each, 5 files max');
+    expect(html).toContain('PDF only, up to 10 MB each, 5 files max');
     expect(html).toMatch(/<div role="button" tabindex="0"[^>]*hover:border-primary/);
     expect(html).toContain('border-dashed');
   });
@@ -86,36 +92,35 @@ describe('ProofPanel', () => {
     expect(html).not.toContain('Submit proof');
   });
 
-  test('the last file cannot be removed while pending (button disabled with the reason)', () => {
+  test('pending with files: each file row has View, Replace and a labelled remove (the last-file rule explains on click)', () => {
     const html = render({ ...base, status: 'pending_verification', canUpload: false, canChangeFiles: true, files: [file(1)] });
-    expect(html).toContain('You cannot remove the last file');
-    expect(html).toMatch(/<button[^>]*disabled[^>]*>Remove<\/button>/);
+    expect(html).toContain('>View<');
+    expect(html).toContain('>Replace<');
+    expect(html).toContain('aria-label="Remove proof-1.pdf"');
+    expect(lastFileRemovalMessage('pending_verification', 1)).toBe(
+      'Keep at least one file for the SDO to review. Use Replace to swap it for another file.',
+    );
+    expect(lastFileRemovalMessage('pending_verification', 2)).toBeNull();
+    expect(lastFileRemovalMessage('returned', 1)).toBeNull();
   });
 
   test('pending and reviewed: read-only with an explanation', () => {
     const html = render({ ...base, status: 'pending_verification', canUpload: false, canChangeFiles: false, files: [file(1)] });
     expect(html).not.toContain('Replace');
     expect(html).not.toContain('Remove');
-    expect(html).toContain('can no longer be changed');
+    expect(html).toContain('You can upload again only if the SDO returns it.');
   });
 
-  test('returned: offers a corrected upload', () => {
-    const html = render({ ...base, status: 'returned', canUpload: true, canChangeFiles: true, files: [file(1)] });
-    expect(html).toContain('Upload a corrected file');
+  test('returned: the reason in a red alert, then a new upload', () => {
+    const html = render({ ...base, status: 'returned', staffNote: 'Missing signature.', canUpload: true, canChangeFiles: true, files: [file(1)] });
+    expect(html).toContain('Returned by the SDO: Missing signature.');
+    expect(html).toContain('Upload proof of completion');
   });
 
-  test('a completed sanction with no files renders nothing', () => {
-    expect(render({ ...base, status: 'completed', canUpload: false })).toBe('');
-  });
-});
-
-describe('viewedSummary', () => {
-  test('counts opened files and flags when all were opened', () => {
-    expect(viewedSummary([{ viewed: true }, { viewed: false }])).toEqual({ viewed: 1, total: 2, allViewed: false });
-    expect(viewedSummary([{ viewed: true }, { viewed: true }])).toEqual({ viewed: 2, total: 2, allViewed: true });
-  });
-
-  test('no files is never "all viewed": there is nothing to verify without an uploaded file', () => {
-    expect(viewedSummary([])).toEqual({ viewed: 0, total: 0, allViewed: false });
+  test('verified: the sent proof with uploads closed', () => {
+    const html = render({ ...base, status: 'completed', canUpload: false, files: [file(1)] });
+    expect(html).toContain('Verified by the SDO.');
+    expect(html).toContain('This sanction is verified. Uploads are closed.');
+    expect(html).not.toContain('Choose files to upload');
   });
 });

@@ -1,4 +1,4 @@
-import { validateUpload, type UploadErrorCode } from '../domain/files/validate.js';
+import { validateUpload, type UploadErrorCode, notPdfMessage } from '../domain/files/validate.js';
 import { PRESIGN_TTL_SECONDS, templateKey, type ObjectStorage } from '../integrations/storage/types.js';
 import type { TemplateStore } from '../types/templates.types.js';
 
@@ -38,7 +38,7 @@ function text(value: unknown, max: number): string | null | undefined {
 function uploadMessage(code: UploadErrorCode, name: string): string {
   switch (code) {
     case 'unsupported_type':
-      return `${name}: only PDF or DOCX files are accepted.`;
+      return notPdfMessage(name);
     case 'empty':
       return `${name} is empty.`;
     case 'too_large':
@@ -46,7 +46,7 @@ function uploadMessage(code: UploadErrorCode, name: string): string {
     case 'too_many_files':
       return 'A template holds one file. Upload a single file; it replaces the current one.';
     case 'content_mismatch':
-      return `${name} does not look like a real PDF or DOCX file.`;
+      return notPdfMessage(name);
   }
 }
 
@@ -117,7 +117,7 @@ export function createTemplateService({
         return (await tx.getSanction(sanctionId)) !== null;
       });
       if (!existing) return fail('not_found', 'Sanction not found.');
-      const extensions: Array<'pdf' | 'docx'> = [];
+      const extensions: Array<'pdf'> = [];
       for (const file of files) {
         const result = validateUpload({ mimeType: file.mimeType, bytes: file.bytes, existingCount: 0 });
         if (!result.ok) return fail(result.code, uploadMessage(result.code, file.name));

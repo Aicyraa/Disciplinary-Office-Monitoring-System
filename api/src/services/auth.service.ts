@@ -5,7 +5,7 @@ import type { AccountRecord, AccountRepo } from '../repositories/auth/repo.js';
 
 export type ChangePasswordResult =
   | { ok: true; user: AuthUser }
-  | { ok: false; code: 'weak_password' | 'wrong_password' | 'same_password' | 'not_found'; message: string };
+  | { ok: false; code: 'weak_password' | 'wrong_password' | 'same_password' | 'not_found' | 'invalid_input'; message: string };
 
 export type ResetPasswordResult = { ok: true; tempPassword: string } | { ok: false; code: 'not_found' };
 
@@ -13,7 +13,7 @@ export interface AuthService {
   /** Returns the user, or null for any failure (unknown email, wrong password, bad domain, inactive). */
   login(email: string, password: string): Promise<AuthUser | null>;
   getUser(role: AccountRole, id: string): Promise<AuthUser | null>;
-  changePassword(role: AccountRole, id: string, currentPassword: string, newPassword: string): Promise<ChangePasswordResult>;
+  changePassword(role: AccountRole, id: string, currentPassword: string | null, newPassword: string): Promise<ChangePasswordResult>;
   /** Staff reset of a student account: new one-time Temp-####, forced change at next sign-in. */
   resetStudentPassword(studentId: string): Promise<ResetPasswordResult>;
 }
@@ -71,14 +71,24 @@ export function createAuthService({ repo, rounds = 12, generateTemp = generateTe
     async changePassword(role, id, currentPassword, newPassword) {
       const record = await repo.findById(role, id);
       if (!record || !record.isActive) return { ok: false, code: 'not_found', message: 'Account not found.' };
-      if (!(await bcrypt.compare(currentPassword, record.passwordHashed))) {
+      // UI-POLISH-SPEC D1: an account that must change its password (it just signed in with the temporary
+      // one in this session) may skip the current password. Every other change needs it.
+      if (currentPassword === null) {
+        if (!record.mustChangePassword) {
+          return { ok: false, code: 'invalid_input', message: 'currentPassword and newPassword are required.' };
+        }
+      } else if (!(await bcrypt.compare(currentPassword, record.passwordHashed))) {
         return { ok: false, code: 'wrong_password', message: 'Current password is incorrect.' };
       }
       const ruleError = checkPasswordRules(newPassword);
       if (ruleError) return { ok: false, code: 'weak_password', message: ruleError };
-      // Covers "cannot equal the temp password": the current password is the temp one after a reset.
-      if (newPassword === currentPassword) {
-        return { ok: false, code: 'same_password', message: 'New password must be different from the current one.' };
+      // Covers "cannot equal the temp password": the stored password is the temp one after a reset.
+      if (currentPassword === null ? await bcrypt.compare(newPassword, record.passwordHashed) : newPassword === currentPassword) {
+        return {
+          ok: false,
+          code: 'same_password',
+          message: record.mustChangePassword ? 'Don’t reuse the temporary password.' : 'New password must be different from the current one.',
+        };
       }
       await repo.updatePassword(role, id, await bcrypt.hash(newPassword, rounds), false);
       return { ok: true, user: toUser(role, { ...record, mustChangePassword: false }) };

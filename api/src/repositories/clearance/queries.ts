@@ -1,3 +1,4 @@
+import type { ClearanceRosterRow } from '@shared/types.js';
 import type { ClearanceEventType, ClearanceRecord } from '../../types/clearance.types.js';
 
 export const CLEARANCE_PAGE_SIZE = 10;
@@ -23,7 +24,20 @@ export interface ClearanceRow extends ClearanceRecord {
   }>;
 }
 
+export const ROSTER_PAGE_SIZE = 20;
+
+export interface RosterFilter {
+  academicYear: number;
+  semester: number;
+  q?: string;
+  page: number;
+}
+
 export interface ClearanceQueries {
   list(filter: ClearanceListFilter): Promise<{ rows: ClearanceRow[]; total: number }>;
   get(clearanceId: number): Promise<ClearanceRow | null>;
+  /** Every active student with their clearance for one term, or none (UI-POLISH-SPEC D3). Sorted by name. */
+  roster(filter: RosterFilter): Promise<{ rows: ClearanceRosterRow[]; total: number; notCleared: number }>;
+  /** The distinct terms that have at least one clearance. */
+  termsWithClearances(): Promise<Array<{ academicYear: number; semester: number }>>;
 }

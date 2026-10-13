@@ -51,14 +51,14 @@ Core loop: report → staff validate → (3 minors roll into a Major) → staff 
 |---|---|---|
 | **Notifications (inbox + email)** | Every admin update reaches the student as one in-app notification and one email: what was assigned (sanction, appointment), what changed (status, due date, moved appointment, returned proof), and violation or case updates. Categories: Violations, Sanctions, Appointments, Clearance, Account. Each has a deep link. An idempotency key stops duplicates. Unread badge and a 7-second "you have N unread" toast after student login | `notifications` |
 | **Timelines (remarks + logs)** | Every case, sanction, appointment and clearance has a timeline of who did what and when. Staff remarks on a case are timeline entries of type `remark`, and the student sees the latest | `case_status_history` (extended), `case_sanction_history`, `appointment_history`, `clearance_history` |
-| **Sanction templates** | Each sanction has a template page (title, description, written requirements) with downloadable PDF/DOCX file(s). Students download them from the Handbook and from their sanction. Staff manage them under Handbook › Sanction templates | `sanction_templates`, `sanction_template_files` |
-| **Proof upload + verification** | Student uploads PDF/DOCX proof (≤ 10 MB, max 5 files); may replace or remove files while the sanction is pending. Staff must **open every file** before **Verify** unlocks; or **Return** with a reason | `case_sanction_files`, `files`, `case_sanctions.status` |
+| **Sanction templates** | Each sanction has a template page (title, description, written requirements) with one downloadable PDF file (PDF only, decision of 2026-10-13). Students download them from the Handbook and from their sanction. Staff manage them under Handbook › Sanction templates | `sanction_templates`, `sanction_template_files` |
+| **Proof upload + verification** | Student uploads PDF proof only (≤ 10 MB, max 5 files; any other file is refused with an error); may replace or remove files while the sanction is pending. Staff must **open every file** before **Verify** unlocks; or **Return** with a reason | `case_sanction_files`, `files`, `case_sanctions.status` |
 | **Gate reports** | Public 3-step web form → API inserts one `disciplinary_cases` row per selected violation directly (no separate table), duplicate guard, then Flow 1 notifies; staff then validate | `disciplinary_cases` (`source='gate'`, `claimed_*`, `submission_ref`) |
 | **Escalation tracking** | Minor offenses roll into a Major case, with a preview shown to staff before they validate | `case_escalations`, `disciplinary_cases.is_escalated` |
 | **Forced password change** | Staff reset creates a temp password; the student must set a new one at the next sign-in | `must_change_password` on both account tables |
 | **Clearance change log** | Mark done, reverse (reason required), add or remove a requirement, all logged | `clearance_history`, `requirements.is_default` |
 | **Appointment lifecycle** | Scheduled → Rescheduled → Completed / Cancelled (reason), each logged and notified. Overlap protection | `appointments`, `appointment_history` |
-| **In-browser file preview** | PDF in an iframe, DOCX rendered with `mammoth` | frontend only |
+| **In-browser file preview** | PDF only, shown in an iframe from the presigned URL (files are PDF only since 2026-10-13) | frontend only |
 
 ---
 
@@ -140,7 +140,7 @@ pending_verification ──return (reason)──▶ returned ──(student re-u
 ```
 - Staff pick the sanction(s) from the ones the handbook allows for that violation and offense number, set a **due date** (flexible), and add optional instructions (`staff_note`).
 - **Offense number (decision 14):** computed by the API when staff open the assign step, never typed: 1 + the count of the same student's earlier cases for the same violation with status `validated`, `for_sanction` or `resolved` (ordered by `case_date`, then id). A converted Major ("3 minor offense") counts against H068, not against the original violation. If a violation has no `handbook_entry_sanctions` row for that offense number, offer the highest defined offense number for it.
-- Student proof rules: PDF/DOCX only, ≤ 10 MB each, max **5** files; allowed while `assigned` or `returned`; while `pending_verification` the student may replace a file or remove one but **not the last one**; if staff already reviewed, those actions are rejected with "already reviewed".
+- Student proof rules: PDF only (decision of 2026-10-13; a wrong extension or content is refused with an error), ≤ 10 MB each, max **5** files; allowed while `assigned` or `returned`; while `pending_verification` the student may replace a file or remove one but **not the last one**; if staff already reviewed, those actions are rejected with "already reviewed".
 - **Online proof only (decision 16).** There is no in-person "record compliance" path: a sanction reaches `pending_verification` only when the student uploads at least one file (`POST /files` is the submission; there is no separate submit call). `case_sanctions.compliance_note` stays in the schema but is unused.
 - **Verify needs at least one file, and is blocked until every file has `date_viewed`** (staff opened it). The UI shows "n of m viewed". A pending sanction with no file cannot be verified, only returned.
 - "Late by N days" is derived from `due_date`, not stored.
@@ -157,14 +157,14 @@ pending_verification ──return (reason)──▶ returned ──(student re-u
 - The database rejects overlapping live (`scheduled`/`rescheduled`) windows for the same student.
 - Changing the start date → `rescheduled`; staff can mark `completed` or `cancelled` (reason required). All logged in `appointment_history` and notified.
 - **No reminders (decision 17).** The student is notified only when staff set, move, edit, complete or cancel an appointment (keys `appt:<id>:new`, `appt:<id>:rescheduled:<ms>`, `appt:<id>:remarks:<ms>`, `appt:<id>:completed`, `appt:<id>:cancelled`). Students have no actions on appointments. There are no holidays: only Sundays are skipped.
-- Staff routes: `GET /appointments?bucket=upcoming|history&q=&page=` (10 per page), `POST /appointments`, `PATCH /appointments/:id` (only `startDate`, `purpose`, `notes` are read; a new `startDate` = `rescheduled`, text-only = `remarks_updated`), `POST /appointments/:id/complete`, `POST /appointments/:id/cancel`. The end date is always computed by the API.
+- Staff routes: `GET /appointments?bucket=upcoming|history|all&q=&status=&range=today|week|past&on=YYYY-MM-DD&page=&focus=` (5 per page; `all` lists upcoming first, then past and closed, with group and status counts; `q` also matches `A-104`; UI-POLISH-SPEC D6), `POST /appointments`, `PATCH /appointments/:id` (only `startDate`, `purpose`, `notes` are read; a new `startDate` = `rescheduled`, text-only = `remarks_updated`), `POST /appointments/:id/complete`, `POST /appointments/:id/cancel`. The end date is always computed by the API.
 
 ### 4.6 Notifications
 - Helper: `notify({recipient, kind, title, message, link, idempotencyKey})`. If `idempotency_key` already exists, do nothing. Example keys: `san:12:completed`, `case:7:resolved`, `appt:3:new`.
 - Student notifications use `recipient_type = 'student'` + `student_id`. All staff share **one** in-app inbox (`recipient_type = 'staff'`, `student_id` NULL), matching your "single department" rule. A staff alert is emailed to **every active employee account** (there is no `SDO_STAFF_MAILBOX`).
 - **Order: commit first, notify second.** The API writes the DB change and the `notifications` row (`email_status = 'pending'`) in one transaction, then, after commit and in the background, sends the `{ "type", "payload" }` envelope to Power Automate **Flow 2**. Flow 2 sends the email and answers in its HTTP Response with `sent` or `failed`; the API sets `email_status` from that reply (decision 11). Timeouts and non-2xx leave the row `pending`, and an in-API sweep retries it. Details and payloads in `POWER-AUTOMATE.md`.
 - Inbox query for a student = their notifications, newest first.
-- Deep link `link_type + link_id` maps to a page: case, sanction, appointment, student, clearance, inbox.
+- Deep link `link_type + link_id` maps to a page: case, sanction, appointment, student, clearance, inbox. The page opens that record selected (UI-POLISH-SPEC 5.4b): student `/violations/:id`, `/sanctions/:id`, `/appointments/:id`; staff `/cases/:id?queue=all`, `/appointments/:id`.
 
 ### 4.7 (removed)
 Notifications carry every admin update (sanction assigned or changed, appointment made or moved, case validated or resolved, clearance changes). **Important notices** (built 2026-10-13, UI-POLISH-SPEC decision 1) are the one broadcast: staff publish a titled message with optional instructions and an optional expiry day; every active student gets a `notice` notification (inbox plus email through the usual delivery sweep). Editing rewrites those notifications, removing deletes them, and an expired notice is hidden from inboxes. The `notices` table is in `db/schema.sql`; `db/add-notices.sql` adds it to a database that already has the schema.
@@ -198,7 +198,7 @@ Fields: student ID, name, program, year level; select ≥ 1 violation (picked fr
 
 **Public:** Gate violation form (3 steps + confirmation with reference), as designed in the prototype.
 
-**Cross-cutting UI:** three responsive modes (mobile < 720, rail 720–1100, full sidebar) with bottom tab bar on mobile; confirm modals with required-reason field; toast; loading / empty / error / denied page states; pagination; PDF/DOCX preview.
+**Cross-cutting UI:** three responsive modes (mobile < 720, rail 720–1100, full sidebar) with bottom tab bar on mobile; confirm modals with required-reason field; toast; loading / empty / error / denied page states; pagination; PDF preview (files are PDF only).
 
 ---
 
@@ -217,7 +217,7 @@ Facts from Neon's docs ([overview](https://neon.com/docs/storage/overview), [get
 - **Two buckets, both private and created by the human in Neon (the API never creates buckets):** `STORAGE_BUCKET_FILES` (default name `assets-files`) holds student proof files; `STORAGE_BUCKET_TEMPLATES` (default `assets-sanction-templates`) holds the sanction template files staff upload (build step 8). Templates never fall back to the files bucket. Older spellings `BUCKET_STORAGE_FILES`, `BUCKET_STORAGE` and `STORAGE_BUCKET` are still read for the files bucket.
 
 Suggested flow (keeps files private, needs no bucket CORS):
-1. **Upload (through the API):** the client sends `POST /files` as `multipart/form-data` (sanction id + file). The server validates (mime, ≤ 10 MB, ≤ 5 files, status allows upload; use `multer` with memory storage and a 10 MB limit), checks the first bytes (PDF starts with `%PDF`, DOCX is a ZIP starting with `PK`), uploads to the key `proof/{case_sanction_id}/{uuid}.{ext}`, then inserts `files` + `case_sanction_files` + a timeline entry + notifications in one transaction. If the insert fails, delete the object.
+1. **Upload (through the API):** the client sends `POST /files` as `multipart/form-data` (sanction id + file). The server validates (mime, ≤ 10 MB, ≤ 5 files, status allows upload; use `multer` with memory storage and a 10 MB limit), checks the first bytes (a PDF starts with `%PDF`; anything else is refused), uploads to the key `proof/{case_sanction_id}/{uuid}.{ext}`, then inserts `files` + `case_sanction_files` + a timeline entry + notifications in one transaction. If the insert fails, delete the object.
 2. **Download / preview:** `GET /files/:id/url` returns a **presigned GET URL valid ~60 seconds**, after an authorization check (the owning student, or any staff). Opening it is a normal browser navigation or `<a>`/`<iframe>` load, which does not need CORS. When staff open a proof file, set `date_viewed` and `viewed_by_employee_id`.
 3. **Delete / replace:** delete the object, delete the DB rows, and write a timeline entry. Run a nightly job to remove orphan objects.
 4. Templates use the key `templates/{sanction_id}/{uuid}.{ext}`; any signed-in student can download them.
@@ -250,16 +250,17 @@ POST /sanction-templates/:sanctionId/files    (staff, multipart, one file; a new
 GET  /sanction-templates/files/:fileId/url    (any signed-in user: 60 s download link)
 
 GET  /cases?status=&class=&q=&sort=&page=     (staff)     GET /me/cases (student)
-GET  /cases/:id                               (staff)     GET /me/cases/:id (student)
+GET  /cases/:id                               (staff)     GET /me/cases/:id (student)   (the student detail adds `source`, `submissionCode` and the escalation links as case codes; UI-POLISH-SPEC 5.15)
 POST /cases                                   (staff records violation; optional remarks become the first log entry)
 POST /submissions/:id/validate | /reject      GET /submissions/:id/escalation-preview
+GET  /cases?status=&class=&q=&sort=newest|oldest&group=status&page=&focus=   (staff queue, 6 per page; `group=status` orders by stage first; `focus=<case id>` answers the page that holds it; rows carry the latest sanction code + status and the resolve date; UI-POLISH-SPEC 5.5, 5.4b)
 PATCH /cases/:id/student                      (staff links a reported case to a student id)
 GET  /cases/:id/sanction-options              (staff: offense number + allowed sanctions, computed by the API)
 POST /cases/:id/sanctions   (sanction_id, due_date, staff_note)
 POST /cases/:id/resolve | /resolve-without-sanction | /remarks
 # Free text (reasons, remarks, notes, instructions) is capped at 1000 characters everywhere.
 
-GET  /me/sanctions
+GET  /me/sanctions   (each sanction carries `assignedBy`, the assigning officer's name, never an employee id; UI-POLISH-SPEC D15)
 POST /files (multipart; this one request IS the submission)   GET /files/:id/url   DELETE /files/:id
 #   `:id` is the `case_sanction_files` id. A replace sends `replaceFileId` with exactly one file.
 POST /case-sanctions/:id/verify | /return       # no /submit and no /record-compliance (online proof only)
@@ -270,10 +271,11 @@ POST /staff/students/:studentId/reset-password                (staff: one-time t
 GET  /me/profile                                              (student: own account details)
 GET  /me/clearance/slip?academic_year=&semester=              (student: slip data; 409 `not_cleared` until the term is cleared)
 GET  /clearances?status=&q=&page=   GET /clearances/:id   POST /clearances (studentId, academicYear, semester)
+GET  /clearances/terms   GET /clearances/terms/:year/:semester/students?q=&page=   (staff: current term + terms with clearances; every active student of a term with their clearance or "Not set"; UI-POLISH-SPEC D3. Current term is assumed Aug-Nov 1st, Dec-Mar 2nd, Apr-Jul 3rd until item 8.3 is confirmed)
 POST /clearances/:id/requirements (label)   DELETE /clearances/:id/requirements/:rid
 POST /clearances/:id/requirements/:rid/complete (remarks) | /reverse (reason)   GET /me/clearance (student)
 #   A clearance always keeps at least one requirement (the last cannot be removed).
-GET  /appointments?bucket=&q=&page=   GET /appointments/:id   POST /appointments   PATCH /appointments/:id
+GET  /appointments?bucket=&q=&status=&range=&on=&page=&focus=   GET /appointments/:id   POST /appointments   PATCH /appointments/:id
 POST /appointments/:id/complete | /cancel        GET /me/appointments (student)
 GET  /notices   POST /notices   PATCH /notices/:id   DELETE /notices/:id    (staff: important notices; students read them in the inbox)
 GET  /me/notifications   POST /me/notifications/:id/read | /read-all

@@ -174,11 +174,25 @@ describe('student: proof upload', () => {
       .post('/files')
       .field('caseSanctionId', String(id))
       .attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME })
-      .attach('files', docxBytes, { filename: 'b.docx', contentType: DOCX_MIME });
+      .attach('files', pdfBytes, { filename: 'b.pdf', contentType: PDF_MIME });
     expect(response.status).toBe(201);
     expect(response.body.data.fileIds).toHaveLength(2);
     expect(store.state.caseSanctions[0].status).toBe('pending_verification');
     expect(storage.objects.size).toBe(2);
+  });
+
+  test('PDF only (D7): a DOCX is refused with 400 and "is not a PDF file", nothing is stored', async () => {
+    const id = await assign();
+    const agent = await signedInAgent(build(), STUDENT_A.email);
+    const response = await agent
+      .post('/files')
+      .field('caseSanctionId', String(id))
+      .attach('files', docxBytes, { filename: 'letter.docx', contentType: DOCX_MIME });
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('unsupported_type');
+    expect(response.body.error.message).toBe('letter.docx is not a PDF file.');
+    expect(storage.objects.size).toBe(0);
+    expect(store.state.caseSanctions[0].status).toBe('assigned');
   });
 
   test('when file storage is down the upload is a 503 storage_unavailable and the sanction is unchanged', async () => {
@@ -332,7 +346,7 @@ describe('download link and staff review', () => {
     const again = await student
       .post('/files')
       .field('caseSanctionId', String(id))
-      .attach('files', docxBytes, { filename: 'signed.docx', contentType: DOCX_MIME });
+      .attach('files', pdfBytes, { filename: 'signed.pdf', contentType: PDF_MIME });
     expect(again.status).toBe(201);
     expect(store.state.caseSanctions[0].status).toBe('pending_verification');
   });

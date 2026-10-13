@@ -39,6 +39,55 @@ export function stepProblem(step: 1 | 2 | 3, values: GateFormValues): string | n
   return details() ?? violations();
 }
 
+/** Year level as five pill buttons (deck W07). */
+export const YEAR_PILLS = YEAR_LEVEL_OPTIONS.map((option) => ({ value: option.value, label: option.label.replace(' year', '') }));
+
+export type DetailsErrors = Partial<Record<'studentId' | 'name' | 'program' | 'year', string>>;
+
+/** Step 1 shows one message under each field that needs it (deck W08, src 3336). */
+export function detailsErrors(values: GateFormValues): DetailsErrors {
+  const errors: DetailsErrors = {};
+  const id = values.studentId.trim();
+  if (id === '') errors.studentId = 'Enter your student ID.';
+  else if (!/^\d{4}-\d{7}$/.test(id)) errors.studentId = 'Use the format 2025-1234567.';
+  if (values.name.trim().length < 3) errors.name = 'Enter your full name.';
+  if (values.program.trim() === '') errors.program = 'Choose your program.';
+  if (!/^[1-5]$/.test(values.year)) errors.year = 'Choose your year level.';
+  return errors;
+}
+
+export function violationsError(ids: number[]): string | null {
+  return ids.length > 0 ? null : 'Pick at least one violation.';
+}
+
+export type GateCategory = 'All' | 'Minor' | 'Major';
+export interface GateViolation {
+  id: number;
+  name: string;
+  section: string;
+  category: 'Minor' | 'Major';
+}
+
+const matches = (violation: GateViolation, query: string): boolean => {
+  const needle = query.trim().toLowerCase();
+  return needle === '' || `${violation.name} ${violation.section}`.toLowerCase().includes(needle);
+};
+
+/** Step 2 list: the search over name and section, then the All / Minor / Major tab. */
+export function filterGateViolations(list: GateViolation[], query: string, category: GateCategory): GateViolation[] {
+  return list.filter((violation) => matches(violation, query) && (category === 'All' || violation.category === category));
+}
+
+/** The counts on the All / Minor / Major tabs, after the search. */
+export function categoryCounts(list: GateViolation[], query: string): Record<GateCategory, number> {
+  const found = list.filter((violation) => matches(violation, query));
+  return {
+    All: found.length,
+    Minor: found.filter((violation) => violation.category === 'Minor').length,
+    Major: found.filter((violation) => violation.category === 'Major').length,
+  };
+}
+
 /** The reference people see and quote: the first 8 characters of the submission uuid, in capitals. */
 export const shortReference = (reference: string): string => reference.slice(0, 8).toUpperCase();
 

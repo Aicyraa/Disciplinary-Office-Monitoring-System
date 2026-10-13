@@ -2,7 +2,8 @@ import type { NotificationKind, NotificationView } from '@shared/types';
 
 export type InboxCategory = 'all' | 'notices' | 'violations' | 'sanctions' | 'appointments' | 'clearance' | 'account';
 
-export const INBOX_PAGE_SIZE = 8;
+/** 6 per page, as the deck (UI-POLISH-SPEC 5.4c). */
+export const INBOX_PAGE_SIZE = 6;
 
 /** Which chip a notification belongs to (deck: All, Violations, Sanctions, Appointments, plus Clearance and Account). */
 export function inboxCategory(kind: NotificationKind): Exclude<InboxCategory, 'all'> {
@@ -23,6 +24,48 @@ export function inboxCategory(kind: NotificationKind): Exclude<InboxCategory, 'a
     case 'notice':
       return 'notices';
   }
+}
+
+const NOTE_ICON: Record<NotificationKind, string> = {
+  report: 'flag',
+  case: 'gavel',
+  esc: 'trending_up',
+  sanction: 'assignment',
+  appt: 'event',
+  clr: 'task_alt',
+  account: 'key',
+  newviol: 'report',
+  notice: 'campaign',
+};
+
+const CATEGORY_LOOK: Record<Exclude<InboxCategory, 'all'>, { category: string; tint: string }> = {
+  violations: { category: 'Violations', tint: 'bg-bad-soft text-bad-ink' },
+  sanctions: { category: 'Sanctions', tint: 'bg-amber-soft text-amber-ink' },
+  appointments: { category: 'Appointments', tint: 'bg-info-soft text-info-ink' },
+  notices: { category: 'Important notice', tint: 'bg-pending-soft text-warn-ink' },
+  clearance: { category: 'Clearance', tint: 'bg-success-soft text-success' },
+  account: { category: 'Account', tint: 'bg-neutral-soft text-neutral-ink' },
+};
+
+/** Icon, category word and tint of a notification (deck src 2238 to 2242). */
+export function notificationLook(kind: NotificationKind): { icon: string; category: string; tint: string } {
+  return { icon: NOTE_ICON[kind], ...CATEGORY_LOOK[inboxCategory(kind)] };
+}
+
+const manila = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', ...options });
+
+/** "Fri, Oct 9 · 10:40 AM" in Asia/Manila (bell and inbox rows). */
+export function notificationWhen(iso: string): string {
+  const date = new Date(iso);
+  const day = manila({ weekday: 'short', month: 'short', day: 'numeric' }).format(date);
+  return `${day} · ${manila({ hour: 'numeric', minute: '2-digit' }).format(date)}`;
+}
+
+/** "Wednesday, October 7, 2026 · 3:15 PM" (the message dialog). */
+export function notificationWhenLong(iso: string): string {
+  const date = new Date(iso);
+  const day = manila({ weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(date);
+  return `${day} · ${manila({ hour: 'numeric', minute: '2-digit' }).format(date)}`;
 }
 
 export const INBOX_CATEGORY_LABEL: Record<InboxCategory, string> = {
@@ -50,4 +93,45 @@ export function pageOf<T>(items: T[], page: number, size = INBOX_PAGE_SIZE): { r
   const pages = Math.max(1, Math.ceil(items.length / size));
   const current = Math.min(Math.max(1, page), pages);
   return { rows: items.slice((current - 1) * size, current * size), pages, page: current };
+}
+
+const DECK_CHIPS: ReadonlyArray<InboxCategory> = ['all', 'notices', 'violations', 'sanctions', 'appointments'];
+
+/** The deck's five chips with counts, always shown; Clearance and Account appear only when there are some. */
+export function inboxChips(items: NotificationView[]): Array<{ value: InboxCategory; label: string; count: number }> {
+  const counts = categoryCounts(items);
+  const extra: InboxCategory[] = (['clearance', 'account'] as const).filter((c) => counts[c] > 0);
+  return [...DECK_CHIPS, ...extra].map((value) => ({ value, label: INBOX_CATEGORY_LABEL[value], count: counts[value] }));
+}
+
+const EMPTY: Partial<Record<InboxCategory, string>> = {
+  violations: 'No violation updates.',
+  sanctions: 'No sanction updates.',
+  appointments: 'No appointment updates.',
+  notices: 'No important notices right now.',
+};
+
+export function inboxEmptyText(category: InboxCategory, unreadOnly: boolean): string {
+  if (unreadOnly) return 'No unread messages here.';
+  return EMPTY[category] ?? 'No messages yet.';
+}
+
+/** The message dialog's primary button (deck src 1946), from where the notification points. */
+export function openLabel(href: string | null): string | null {
+  if (!href) return null;
+  if (href.startsWith('/appointments')) return 'Open appointment';
+  if (href.startsWith('/violations') || href.startsWith('/cases')) return 'Open case';
+  if (href.startsWith('/sanctions')) return 'Open sanction';
+  if (href.startsWith('/students')) return 'Open student record';
+  if (href.startsWith('/clearance')) return 'Open clearance';
+  return null;
+}
+
+const NOTICE_SPLIT = '\n\nWhat to do: ';
+
+/** A notice's inbox message is the message plus "What to do: …" (API `inboxMessage`); the dialog shows them apart. */
+export function splitNotice(message: string): { body: string; instructions: string | null } {
+  const at = message.indexOf(NOTICE_SPLIT);
+  if (at < 0) return { body: message, instructions: null };
+  return { body: message.slice(0, at), instructions: message.slice(at + NOTICE_SPLIT.length) };
 }

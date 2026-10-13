@@ -15,7 +15,15 @@ type Owned<T> = { studentId: string } & T;
 export interface MemoryStudentData {
   profiles?: StudentProfileRecord[];
   /** The display code is derived from the dates by the fake, like the real repository does. */
-  cases?: Array<Owned<Omit<CaseRecord, 'code'>> & { history?: CaseHistoryRecord[] }>;
+  cases?: Array<
+    Owned<Omit<CaseRecord, 'code'>> & {
+      history?: CaseHistoryRecord[];
+      source?: 'gate' | 'staff';
+      submissionCode?: string;
+      countedTowardCaseId?: number;
+      linkedCaseIds?: number[];
+    }
+  >;
   sanctions?: Array<Owned<Omit<CaseSanctionRecord, 'caseCode'>>>;
   appointments?: Array<Owned<AppointmentRecord>>;
   clearances?: Array<Owned<ClearanceRecord>>;
@@ -53,7 +61,15 @@ export function createMemoryStudentViewRepo(data: MemoryStudentData = {}): Stude
       const row = cases.find((candidate) => candidate.studentId === studentId && candidate.caseId === caseId);
       if (!row) return null;
       const history = [...(row.history ?? [])].sort((a, b) => a.date.getTime() - b.date.getTime());
-      return { ...(strip(row, 'history') as Omit<CaseRecord, 'code'>), code: codeOf(row.caseId), history };
+      return {
+        ...(strip(row, 'history', 'source', 'submissionCode', 'countedTowardCaseId', 'linkedCaseIds') as Omit<CaseRecord, 'code'>),
+        code: codeOf(row.caseId),
+        history,
+        source: row.source ?? 'staff',
+        submissionCode: row.submissionCode ?? null,
+        countedTowardCode: row.countedTowardCaseId === undefined ? null : codeOf(row.countedTowardCaseId),
+        linkedCaseCodes: (row.linkedCaseIds ?? []).map(codeOf),
+      };
     },
     async listSanctions(studentId, options) {
       return sanctions

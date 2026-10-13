@@ -8,7 +8,9 @@ import {
   ACTIVE_SANCTION_STATUSES,
   CASE_PAGE_SIZE,
   SANCTION_QUEUE_PAGE_SIZE,
+  compareCases,
   emptyStatusCounts,
+  pageFor,
   type CaseListFilter,
   type CaseQueries,
 } from './queries.js';
@@ -389,6 +391,8 @@ const listInclude = {
   [ORIGINAL]: { include: { violations: true } },
   // Names only: never load the account row, which carries password_hashed.
   student_accounts: { select: { first_name: true, last_name: true } },
+  // The latest sanction only, for the queue row's third line.
+  case_sanctions: { select: { case_sanction_id: true, sanction_id: true, status: true }, orderBy: { case_sanction_id: 'desc' }, take: 1 },
 } as const;
 
 const employeeName = { select: { first_name: true, last_name: true } } as const;
@@ -399,9 +403,15 @@ type ListRow = CaseRow & {
   [CURRENT]: { handbook_section: string; violations: { violation_type: string; severity: string } };
   [ORIGINAL]: { violations: { violation_type: string } } | null;
   student_accounts: { first_name: string; last_name: string } | null;
+  case_sanctions: Array<{ case_sanction_id: number; sanction_id: number; status: string }>;
 };
 
 function toRow(row: ListRow, code: string, submissionCode: string | null): StaffCaseRow {
+  // The detail query loads every sanction (oldest first); the list loads the latest only.
+  const latest = row.case_sanctions.reduce<ListRow['case_sanctions'][number] | null>(
+    (best, s) => (best === null || s.case_sanction_id > best.case_sanction_id ? s : best),
+    null,
+  );
   return {
     id: row.disciplinary_case_id,
     code,
@@ -423,6 +433,8 @@ function toRow(row: ListRow, code: string, submissionCode: string | null): Staff
     submissionCode,
     isEscalated: row.is_escalated,
     convertedFrom: row[ORIGINAL]?.violations.violation_type ?? null,
+    sanction: latest ? { code: displayCode('S', latest.sanction_id), status: latest.status as CaseSanctionStatus } : null,
+    dateResolved: row.date_resolved?.toISOString() ?? null,
   };
 }
 
@@ -451,20 +463,47 @@ function listWhere(filter: CaseListFilter, codeCaseId: number | null): Prisma.di
 export function createPrismaCaseQueries(
   db: Pick<PrismaClient, 'disciplinary_cases' | 'case_sanctions' | '$queryRaw'>,
 ): CaseQueries {
+  const direction = (filter: CaseListFilter) => (filter.sort === 'newest' ? 'desc' : 'asc');
+
+  /** Plain date order: the database pages it. */
+  async function pageByDate(filter: CaseListFilter, where: Prisma.disciplinary_casesWhereInput) {
+    const [rows, total] = await Promise.all([
+      db.disciplinary_cases.findMany({
+        where,
+        include: listInclude,
+        orderBy: [{ case_date: direction(filter) }, { disciplinary_case_id: direction(filter) }],
+        skip: (filter.page - 1) * CASE_PAGE_SIZE,
+        take: CASE_PAGE_SIZE,
+      }),
+      db.disciplinary_cases.count({ where }),
+    ]);
+    return { rows, total, page: filter.page };
+  }
+
+  /**
+   * Stage order or a focused case: order the matching keys (id, status, date; three small columns) here, then
+   * load only the page's rows. One office's cases stay in the low thousands, so this is a light read.
+   */
+  async function pageInMemoryOrder(filter: CaseListFilter, where: Prisma.disciplinary_casesWhereInput) {
+    const keys = await db.disciplinary_cases.findMany({ where, select: { disciplinary_case_id: true, status: true, case_date: true } });
+    const ordered = keys
+      .map((k) => ({ id: k.disciplinary_case_id, status: k.status as CaseStatus, time: k.case_date.getTime() }))
+      .sort(compareCases(filter))
+      .map((k) => k.id);
+    const page = pageFor(ordered, filter);
+    const ids = ordered.slice((page - 1) * CASE_PAGE_SIZE, page * CASE_PAGE_SIZE);
+    const loaded = await db.disciplinary_cases.findMany({ where: { disciplinary_case_id: { in: ids } }, include: listInclude });
+    const byId = new Map(loaded.map((row) => [row.disciplinary_case_id, row]));
+    return { rows: ids.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])), total: ordered.length, page };
+  }
+
   return {
     async list(filter) {
       const parsed = filter.q ? parseCaseCode(filter.q) : null;
       const codeCaseId = parsed ? await findCaseIdByCode(db, parsed.year, parsed.ordinal) : null;
       const where = listWhere(filter, codeCaseId);
-      const [rows, total, grouped] = await Promise.all([
-        db.disciplinary_cases.findMany({
-          where,
-          include: listInclude,
-          orderBy: [{ case_date: filter.sort === 'newest' ? 'desc' : 'asc' }, { disciplinary_case_id: filter.sort === 'newest' ? 'desc' : 'asc' }],
-          skip: (filter.page - 1) * CASE_PAGE_SIZE,
-          take: CASE_PAGE_SIZE,
-        }),
-        db.disciplinary_cases.count({ where }),
+      const [{ rows, total, page }, grouped] = await Promise.all([
+        filter.group === undefined && filter.focus === undefined ? pageByDate(filter, where) : pageInMemoryOrder(filter, where),
         db.disciplinary_cases.groupBy({
           by: ['status'],
           where: listWhere({ ...filter, status: undefined }, codeCaseId),
@@ -487,6 +526,7 @@ export function createPrismaCaseQueries(
           ),
         ),
         total,
+        page,
         statusCounts,
       };
     },

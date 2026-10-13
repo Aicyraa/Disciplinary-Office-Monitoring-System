@@ -11,15 +11,15 @@ const KINDS: NotificationKind[] = ['report', 'case', 'esc', 'sanction', 'appt', 
 describe('linkPath', () => {
   test.each([
     ['student', 'case', 7, '/violations/7'],
-    ['student', 'sanction', 3, '/sanctions'],
-    ['student', 'appointment', 1, '/appointments'],
+    ['student', 'sanction', 3, '/sanctions/3'],
+    ['student', 'appointment', 1, '/appointments/1'],
     ['student', 'clearance', 1, '/clearance'],
     ['student', 'inbox', null, '/inbox'],
     ['student', 'student', 5, null],
-    ['staff', 'case', 7, '/cases/7'],
+    ['staff', 'case', 7, '/cases/7?queue=all'],
     ['staff', 'sanction', 3, '/cases'],
     ['staff', 'inbox', null, '/inbox'],
-    ['staff', 'appointment', 1, null],
+    ['staff', 'appointment', 1, '/appointments/1'],
   ] as const)('%s / %s / %s -> %s', (audience, type, id, expected) => {
     expect(linkPath(audience, type, id)).toBe(expected);
   });
@@ -27,6 +27,8 @@ describe('linkPath', () => {
   test('no link type means no link; a bad id falls back to the list page', () => {
     expect(linkPath('student', null, 4)).toBeNull();
     expect(linkPath('student', 'case', 0)).toBe('/violations');
+    expect(linkPath('student', 'sanction', null)).toBe('/sanctions');
+    expect(linkPath('staff', 'appointment', null)).toBe('/appointments');
     expect(linkPath('staff', 'case', null)).toBe('/cases');
   });
 });
@@ -281,7 +283,7 @@ describe('deliverPending', () => {
       notification_id: 1,
       idempotency_key: 'san:7:assigned',
       to: 'ana@students.nu-fairview.edu.ph',
-      link_url: 'http://localhost:5173/sanctions',
+      link_url: 'http://localhost:5173/sanctions/7',
     });
     expect(payload.html_body).toContain('Hi Ana,');
   });
@@ -416,7 +418,7 @@ describe('deliverPending', () => {
     const payload = (send.mock.calls[0] as unknown as [string, ReturnType<typeof buildNotifyPayload>])[1];
     expect(payload.to).toBe('officer@nu-fairview.edu.ph;second@nu-fairview.edu.ph');
     expect(payload.html_body).toContain('Hello,');
-    expect(payload.link_url).toBe('http://localhost:5173/cases/4');
+    expect(payload.link_url).toBe('http://localhost:5173/cases/4?queue=all');
   });
 
   test('nobody to email (no active employees, or an inactive student) is skipped, not retried forever', async () => {

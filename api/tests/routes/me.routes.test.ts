@@ -11,6 +11,7 @@ const caseBase: CaseRecord = {
   isEscalated: false,
   resolvedWithoutSanction: false,
   dateResolved: null,
+  handbookEntryId: 4,
   handbookSection: 'VI.D.1',
   violationType: 'Improper uniform',
   severity: 'Minor',
@@ -31,6 +32,7 @@ const sanctionBase: CaseSanctionRecord = {
   dateCompleted: null,
   staffNote: 'Bring a signed slip.',
   complianceNote: null,
+  assignedBy: 'Officer One',
   history: [{ eventType: 'assigned', remarks: null, byStaff: true, date: new Date('2026-09-02T02:00:00Z') }],
   files: [],
 };
@@ -47,6 +49,9 @@ const studentViews = createMemoryStudentViewRepo({
     {
       studentId: STUDENT_A.id,
       ...caseBase,
+      source: 'gate',
+      submissionCode: 'GI-1045',
+      countedTowardCaseId: 3,
       history: [
         { eventType: 'sanction_assigned', statusAfter: 'for_sanction', remarks: 'Assigned', date: new Date('2026-09-02T02:00:00Z') },
         { eventType: 'reported', statusAfter: 'reported', remarks: null, date: new Date('2026-09-01T02:00:00Z') },
@@ -62,6 +67,7 @@ const studentViews = createMemoryStudentViewRepo({
       severity: 'Major',
       originalViolationType: 'Improper uniform',
       caseDate: new Date('2026-09-10T02:00:00Z'),
+      linkedCaseIds: [1, 2],
     },
     { studentId: STUDENT_B.id, ...caseBase, caseId: 9 },
   ],
@@ -71,12 +77,12 @@ const studentViews = createMemoryStudentViewRepo({
   ],
   appointments: [
     // live, window still open today
-    { studentId: STUDENT_A.id, appointmentId: 1, startDate: new Date('2026-10-10T00:00:00Z'), endDate: new Date('2026-10-12T00:00:00Z'), purpose: 'Counselling', notes: null, status: 'scheduled', cancelReason: null },
+    { studentId: STUDENT_A.id, appointmentId: 1, startDate: new Date('2026-10-10T00:00:00Z'), endDate: new Date('2026-10-12T00:00:00Z'), purpose: 'Counselling', notes: null, status: 'scheduled', cancelReason: null, dateUpdated: new Date('2026-10-07T06:28:00Z') },
     // live but already ended
-    { studentId: STUDENT_A.id, appointmentId: 2, startDate: new Date('2026-10-01T00:00:00Z'), endDate: new Date('2026-10-07T00:00:00Z'), purpose: 'Follow-up', notes: null, status: 'rescheduled', cancelReason: null },
+    { studentId: STUDENT_A.id, appointmentId: 2, startDate: new Date('2026-10-01T00:00:00Z'), endDate: new Date('2026-10-07T00:00:00Z'), purpose: 'Follow-up', notes: null, status: 'rescheduled', cancelReason: null, dateUpdated: new Date('2026-10-07T06:28:00Z') },
     // future but cancelled
-    { studentId: STUDENT_A.id, appointmentId: 3, startDate: new Date('2026-10-20T00:00:00Z'), endDate: new Date('2026-10-26T00:00:00Z'), purpose: 'Interview', notes: null, status: 'cancelled', cancelReason: 'Student ill' },
-    { studentId: STUDENT_B.id, appointmentId: 4, startDate: new Date('2026-10-20T00:00:00Z'), endDate: new Date('2026-10-26T00:00:00Z'), purpose: 'B only', notes: null, status: 'scheduled', cancelReason: null },
+    { studentId: STUDENT_A.id, appointmentId: 3, startDate: new Date('2026-10-20T00:00:00Z'), endDate: new Date('2026-10-26T00:00:00Z'), purpose: 'Interview', notes: null, status: 'cancelled', cancelReason: 'Student ill', dateUpdated: new Date('2026-10-07T06:28:00Z') },
+    { studentId: STUDENT_B.id, appointmentId: 4, startDate: new Date('2026-10-20T00:00:00Z'), endDate: new Date('2026-10-26T00:00:00Z'), purpose: 'B only', notes: null, status: 'scheduled', cancelReason: null, dateUpdated: new Date('2026-10-07T06:28:00Z') },
   ],
   clearances: [
     {
@@ -135,6 +141,7 @@ describe('GET /me/cases', () => {
     const response = await agent.get('/me/cases');
     expect(response.status).toBe(200);
     expect(response.body.data.cases.map((c: { code: string }) => c.code)).toEqual(['SDO-2026-003', 'SDO-2026-001', 'SDO-2026-002']);
+    expect(response.body.data.cases[0].handbookEntryId).toBe(4);
   });
 
   test('shows rejected cases and converted majors with their original minor', async () => {
@@ -165,6 +172,14 @@ describe('GET /me/cases/:id', () => {
     expect(response.body.data.case.sanctions[0]).toMatchObject({ id: 7, sanctionCode: 'S-003', dueDate: '2026-09-20', staffNote: 'Bring a signed slip.' });
   });
 
+  test('carries the source and the escalation links as display codes (UI-POLISH-SPEC 5.15)', async () => {
+    const agent = await signedInAgent(built(), STUDENT_A.email);
+    const one = (await agent.get('/me/cases/1')).body.data.case;
+    expect(one).toMatchObject({ source: 'gate', submissionCode: 'GI-1045', countedTowardCode: 'SDO-2026-003', linkedCaseCodes: [] });
+    const three = (await agent.get('/me/cases/3')).body.data.case;
+    expect(three).toMatchObject({ source: 'staff', submissionCode: null, countedTowardCode: null, linkedCaseCodes: ['SDO-2026-001', 'SDO-2026-002'] });
+  });
+
   test("another student's case is a 404, indistinguishable from a missing one", async () => {
     const agent = await signedInAgent(built(), STUDENT_A.email);
     const other = await agent.get('/me/cases/9');
@@ -192,6 +207,13 @@ describe('GET /me/sanctions', () => {
       date: '2026-09-02T02:00:00.000Z',
     });
     expect(JSON.stringify(response.body)).not.toContain('B only');
+  });
+
+  test('names the officer who assigned the sanction, never their id (UI-POLISH-SPEC D15)', async () => {
+    const agent = await signedInAgent(built(), STUDENT_A.email);
+    const sanction = (await agent.get('/me/sanctions')).body.data.sanctions[0];
+    expect(sanction.assignedBy).toBe('Officer One');
+    expect(JSON.stringify(sanction)).not.toMatch(/employee/i);
   });
 
   test('a student with no data gets empty lists, not an error', async () => {
@@ -274,6 +296,7 @@ describe('GET /me/appointments', () => {
     expect(bucket(2)).toBe('history'); // live status but window ended
     expect(bucket(3)).toBe('history'); // cancelled
     expect(appointments.find((a: { id: number }) => a.id === 3).cancelReason).toBe('Student ill');
+    expect(appointments.find((a: { id: number }) => a.id === 3).dateUpdated).toBe('2026-10-07T06:28:00.000Z');
   });
 
   test("does not include another student's appointments", async () => {

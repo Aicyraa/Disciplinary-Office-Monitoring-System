@@ -2,14 +2,16 @@ import { BrowserRouter, MemoryRouter, Navigate, Outlet, Route, Routes } from 're
 import type { AccountRole } from '@shared/types';
 import { AuthProvider, useAuth, type AuthState } from '@/context/AuthContext';
 import { Shell } from '@/components/layout/Shell';
-import { LoadingState } from '@/components/ui';
+import { Spinner } from '@/components/feedback/PageState';
 import { ToastProvider } from '@/components/feedback';
-import { AccountDetailsPage } from '@/pages/account/AccountDetails';
 import { AppointmentsPage } from '@/pages/student/Appointments';
 import ChangePassword from '@/pages/account/ChangePassword';
 import { ClearancePage, ClearanceSlipPage } from '@/pages/student/Clearance';
-import { StaffHome, StudentDashboard } from '@/pages/shared/Dashboard';
-import { AddViolationPage, HandbookPage } from '@/pages/shared/Handbook';
+import { StaffHome } from '@/pages/staff/Dashboard';
+import { StudentDashboard } from '@/pages/student/Dashboard';
+import { StudentHandbookPage } from '@/pages/student/Handbook';
+import { SanctionTemplatesPage } from '@/pages/staff/SanctionTemplates';
+import { StaffViolationsPage } from '@/pages/staff/Violations';
 import GateReportPage from '@/pages/public/GateReport';
 import Login from '@/pages/public/Login';
 import { InboxPage } from '@/pages/shared/Inbox';
@@ -18,7 +20,7 @@ import { RecordViolationPage } from '@/pages/staff/RecordViolation';
 import { StaffClearancePage } from '@/pages/staff/Clearance';
 import { NoticesPage } from '@/pages/staff/Notices';
 import { StudentsPage } from '@/pages/staff/Students';
-import { MakeAppointmentPage, StaffAppointmentsPage } from '@/pages/staff/Appointments';
+import { EditAppointmentPage, MakeAppointmentPage, StaffAppointmentsPage } from '@/pages/staff/Appointments';
 import { CasesPage } from '@/pages/staff/Cases';
 import { SanctionsPage } from '@/pages/student/Sanctions';
 import { ViolationsPage } from '@/pages/student/Violations';
@@ -39,7 +41,10 @@ function RequireAuth() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2">
         <p className="font-semibold text-ink">Disciplinary Office Monitoring System</p>
-        <LoadingState label="Checking your session…" />
+        <p role="status" className="flex items-center justify-center gap-2 py-16 text-[13px] text-muted">
+          <Spinner />
+          Checking your session…
+        </p>
       </div>
     );
   }
@@ -66,6 +71,12 @@ function AppointmentsRoute() {
   return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffAppointmentsPage /> : <AppointmentsPage />;
 }
 
+/** Staff edit the handbook ("Violations"); students read it. */
+function HandbookRoute() {
+  const { state } = useAuth();
+  return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffViolationsPage /> : <StudentHandbookPage />;
+}
+
 /** One address, two screens: a student reads their own checklist, staff set up and mark everyone's. */
 function ClearanceRoute() {
   const { state } = useAuth();
@@ -82,11 +93,12 @@ function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<Shell />}>
           <Route index element={<Home />} />
-          <Route path="handbook" element={<HandbookPage />} />
-          <Route path="handbook/:id" element={<HandbookPage />} />
+          <Route path="handbook" element={<HandbookRoute />} />
+          <Route path="handbook/:id" element={<HandbookRoute />} />
           <Route path="inbox" element={<InboxPage />} />
-          <Route path="account" element={<AccountDetailsPage />} />
-          <Route path="account/password" element={<ChangePassword />} />
+          {/* Account details and Change password are dialogs (UI-POLISH-SPEC 5.10); the old addresses open them. */}
+          <Route path="account" element={<Navigate to="/" replace state={{ account: 'details' }} />} />
+          <Route path="account/password" element={<Navigate to="/" replace state={{ account: 'password' }} />} />
           <Route path="appointments" element={<AppointmentsRoute />} />
           <Route path="appointments/:id" element={<AppointmentsRoute />} />
           <Route path="clearance" element={<ClearanceRoute />} />
@@ -106,7 +118,10 @@ function AppRoutes() {
             <Route path="students" element={<StudentsPage />} />
             <Route path="students/:id" element={<StudentsPage />} />
             <Route path="appointments/new" element={<MakeAppointmentPage />} />
-            <Route path="handbook/new" element={<AddViolationPage />} />
+            <Route path="appointments/:id/edit" element={<EditAppointmentPage />} />
+            <Route path="handbook/new" element={<StaffViolationsPage adding />} />
+            <Route path="sanction-templates" element={<SanctionTemplatesPage />} />
+            <Route path="sanction-templates/:id" element={<SanctionTemplatesPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

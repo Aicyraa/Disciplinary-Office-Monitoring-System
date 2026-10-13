@@ -196,9 +196,17 @@ describe('uploadProof', () => {
     expect(store.state.sanctionNotifications.at(-1)).toMatchObject({ recipient: 'staff', studentId: null });
   });
 
+  test('PDF only (D7): a DOCX among the files refuses the whole submission and stores nothing', async () => {
+    const id = await assigned();
+    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), docx('letter.docx')] });
+    expect(result).toMatchObject({ ok: false, code: 'unsupported_type', message: 'letter.docx is not a PDF file.' });
+    expect(storage.objects.size).toBe(0);
+    expect(sanction(id).files).toHaveLength(0);
+  });
+
   test('accepts up to five files in one submission', async () => {
     const id = await assigned();
-    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf'), docx('c.docx'), pdf('d.pdf'), pdf('e.pdf')] });
+    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf'), pdf('d.pdf'), pdf('e.pdf')] });
     expect(result).toMatchObject({ ok: true });
     expect(sanction(id).files).toHaveLength(5);
     expect(storage.objects.size).toBe(5);
@@ -254,14 +262,14 @@ describe('uploadProof', () => {
     const result = await service.uploadProof({
       studentId: S1,
       caseSanctionId: id,
-      files: [docx('new.docx')],
+      files: [pdf('new.pdf')],
       replaceCaseSanctionFileId: oldFile.caseSanctionFileId,
     });
     expect(result).toMatchObject({ ok: true });
-    expect(sanction(id).files.map((f) => f.originalName)).toEqual(['new.docx']);
+    expect(sanction(id).files.map((f) => f.originalName)).toEqual(['new.pdf']);
     expect(storage.objects.has(oldFile.storageKey)).toBe(false);
     expect(storage.objects.size).toBe(1);
-    expect(sHistory(id).at(-1)).toMatchObject({ eventType: 'proof_replaced', remarks: 'new.docx' });
+    expect(sHistory(id).at(-1)).toMatchObject({ eventType: 'proof_replaced', remarks: 'new.pdf' });
     expect(sanction(id).status).toBe('pending_verification');
   });
 
@@ -345,7 +353,7 @@ describe('upload regressions from the step 5 review', () => {
     const result = await flaky.uploadProof({
       studentId: S1,
       caseSanctionId: id,
-      files: [docx('new.docx')],
+      files: [pdf('new.pdf')],
       replaceCaseSanctionFileId: sanction(id).files[0].caseSanctionFileId,
     });
     expect(result).toMatchObject({ ok: true });

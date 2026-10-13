@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { HandbookEntryView } from '@shared/types';
-import { formProblem, offenseSlots, toPicks, toSanctionList, type ViolationFormValues } from '@/utils/handbookForm';
+import { formErrors, isDirty, offenseLabel, offenseSlots, toPicks, toSanctionList, type ViolationFormValues } from '@/utils/handbookForm';
 
 const entry = (sanctions: Array<[number, number]>): HandbookEntryView => ({
   id: 1,
@@ -44,7 +44,7 @@ describe('offenseSlots', () => {
   });
 });
 
-describe('formProblem', () => {
+describe('form checks (deck src 3110 to 3116, UI-POLISH-SPEC 5.11)', () => {
   const valid: ViolationFormValues = {
     violationType: 'Loitering',
     severity: 'Minor',
@@ -52,16 +52,39 @@ describe('formProblem', () => {
     description: 'Staying in a restricted area.',
     picks: { 1: [1] },
   };
+  const others = [{ id: 7, violation: 'Improper uniform' }];
 
-  test('null for a complete form', () => {
-    expect(formProblem(valid)).toBeNull();
+  test('no errors for a complete form', () => {
+    expect(formErrors(valid, others, null)).toEqual({});
   });
 
-  test.each([
-    ['name', { violationType: '  ' }, /name/i],
-    ['section', { section: '' }, /section/i],
-    ['description', { description: ' ' }, /description/i],
-  ])('asks for the %s', (_field, override, message) => {
-    expect(formProblem({ ...valid, ...override })).toMatch(message);
+  test('inline messages for each field', () => {
+    expect(formErrors({ ...valid, violationType: ' ', section: '', description: ' ' }, others, null)).toEqual({
+      name: 'Enter the violation name.',
+      section: 'Enter the handbook section.',
+      description: 'Enter what the handbook says.',
+    });
+  });
+
+  test('a name already in the handbook (any case) is refused, except the entry itself', () => {
+    expect(formErrors({ ...valid, violationType: 'improper UNIFORM' }, others, null).name).toBe('This violation is already in the handbook.');
+    expect(formErrors({ ...valid, violationType: 'Improper uniform' }, others, 7)).toEqual({});
+  });
+});
+
+describe('selects per offense (D13)', () => {
+  test('empty selects and repeats are dropped from what is sent', () => {
+    expect(toSanctionList({ 1: [0, 2, 2], 2: [0] })).toEqual([{ offenseNumber: 1, sanctionId: 2 }]);
+  });
+
+  test('dirty compares what would be sent, not empty selects', () => {
+    const base: ViolationFormValues = { violationType: 'A', severity: 'Minor', section: 'S', description: 'D', picks: { 1: [1] } };
+    expect(isDirty({ ...base, picks: { 1: [1, 0] } }, base)).toBe(false);
+    expect(isDirty({ ...base, picks: { 1: [1], 2: [3] } }, base)).toBe(true);
+    expect(isDirty({ ...base, section: 'T' }, base)).toBe(true);
+  });
+
+  test('offense labels', () => {
+    expect([1, 2, 3, 4].map(offenseLabel)).toEqual(['1st offense', '2nd offense', '3rd offense', '4th offense']);
   });
 });

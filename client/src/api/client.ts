@@ -16,7 +16,6 @@ import type {
   StaffAppointmentListResponse,
   StaffAppointmentView,
   StaffClearanceView,
-  StaffClearanceListResponse,
   StaffCaseDetail,
   StaffCaseListResponse,
   StudentAppointmentView,
@@ -25,6 +24,8 @@ import type {
   StudentProfileView,
   StaffSanctionQueueResponse,
   ClearanceSlipView,
+  ClearanceRosterResponse,
+  ClearanceTermsResponse,
   StaffStudentListResponse,
   StaffStudentRecord,
   StudentClearanceResponse,
@@ -152,15 +153,20 @@ export interface StaffCaseQuery {
   class?: string;
   q?: string;
   sort?: 'newest' | 'oldest';
+  /** `status`: stage first, as "All cases" in the deck. */
+  group?: 'status';
   page?: number;
+  /** Answer the page holding this case id (deep links). */
+  focus?: number;
 }
 
 export const api = {
   login: (email: string, password: string) => post<{ user: AuthUser }>('/auth/login', { email, password }),
   logout: () => post<null>('/auth/logout'),
   me: () => get<{ user: AuthUser }>('/auth/me'),
-  changePassword: (currentPassword: string, newPassword: string) =>
-    post<{ user: AuthUser }>('/auth/change-password', { currentPassword, newPassword }),
+  /** `currentPassword` null: the forced change right after a temporary-password sign-in (UI-POLISH-SPEC D1). */
+  changePassword: (currentPassword: string | null, newPassword: string) =>
+    post<{ user: AuthUser }>('/auth/change-password', currentPassword === null ? { newPassword } : { currentPassword, newPassword }),
 
   handbook: () => get<{ entries: HandbookEntryView[] }>('/handbook'),
 
@@ -250,11 +256,19 @@ export const api = {
   fileUrl: (fileId: number) => get<{ url: string; expiresInSeconds: number }>(`/files/${fileId}/url`),
 
   // Staff appointments (SPEC 4.5, 7)
-  staffAppointments: (query: { bucket?: 'upcoming' | 'history'; q?: string; page?: number }) => {
+  staffAppointments: (query: {
+    bucket?: 'upcoming' | 'history' | 'all';
+    q?: string;
+    status?: string;
+    range?: string;
+    on?: string;
+    page?: number;
+    focus?: number;
+  }) => {
     const params: Record<string, string | number> = {};
-    if (query.bucket) params.bucket = query.bucket;
-    if (query.q) params.q = query.q;
-    if (query.page && query.page > 1) params.page = query.page;
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== '' && !(key === 'page' && value === 1)) params[key] = value;
+    }
     return get<StaffAppointmentListResponse>('/appointments', params);
   },
   // Notices (staff): broadcast, edit, remove
@@ -276,7 +290,9 @@ export const api = {
   // Public gate form (SPEC 4.10): no session.
   gateToken: () => get<{ token: string }>('/public/gate-form-token'),
   gateOptions: () =>
-    get<{ violations: Array<{ id: number; name: string; section: string }>; programs: string[] }>('/public/gate-form-options'),
+    get<{ violations: Array<{ id: number; name: string; section: string; category: 'Minor' | 'Major' }>; programs: string[] }>(
+      '/public/gate-form-options',
+    ),
   submitGateReport: (input: {
     token: string;
     studentId: string;
@@ -284,7 +300,8 @@ export const api = {
     program: string;
     year: string;
     violationIds: number[];
-  }) => request<{ reference: string; code: string; duplicate: boolean }>(() => http.post('/public/gate-reports', input)),
+  }) =>
+    request<{ reference: string; code: string; duplicate: boolean; submittedAt: string }>(() => http.post('/public/gate-reports', input)),
 
   // Handbook admin and sanction templates (SPEC 4.9, 6.1)
   createViolation: (input: {
@@ -324,12 +341,14 @@ export const api = {
     get<{ url: string; expiresInSeconds: number }>(`/sanction-templates/files/${fileId}/url`),
 
   // Staff clearance (SPEC 4.4, 7)
-  staffClearances: (query: { status?: 'pending' | 'cleared'; q?: string; page?: number }) => {
+  /** UI-POLISH-SPEC D3: the current term and the terms that have clearances. */
+  clearanceTerms: () => get<ClearanceTermsResponse>('/clearances/terms'),
+  /** UI-POLISH-SPEC D3: every active student of a term with their clearance, or none. */
+  clearanceRoster: (academicYear: number, semester: number, query: { q?: string; page?: number } = {}) => {
     const params: Record<string, string | number> = {};
-    if (query.status) params.status = query.status;
     if (query.q) params.q = query.q;
-    if (query.page && query.page > 1) params.page = query.page;
-    return get<StaffClearanceListResponse>('/clearances', params);
+    if (query.page) params.page = query.page;
+    return get<ClearanceRosterResponse>(`/clearances/terms/${academicYear}/${semester}/students`, params);
   },
   staffClearance: (id: number) => get<{ clearance: StaffClearanceView }>(`/clearances/${id}`),
   setUpClearance: (input: { studentId: string; academicYear: number; semester: number }) =>

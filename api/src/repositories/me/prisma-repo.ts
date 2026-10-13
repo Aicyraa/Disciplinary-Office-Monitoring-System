@@ -1,6 +1,6 @@
 import type { PrismaClient } from '../../../generated/prisma/client.js';
 import type { AppointmentStatus, CaseSanctionStatus, CaseStatus, Severity } from '@shared/types.js';
-import { loadCaseCodes } from '../cases/code-sql.js';
+import { loadCaseCodes, loadSubmissionCodes } from '../cases/code-sql.js';
 import type { CaseRecord, StudentProfileRecord, StudentViewRepo } from './repo.js';
 
 type Db = Pick<
@@ -21,6 +21,7 @@ type CaseRow = {
   status: string;
   case_date: Date;
   is_escalated: boolean;
+  handbook_entry_id: number;
   resolved_without_sanction: boolean;
   date_resolved: Date | null;
   [CURRENT]: { handbook_section: string; violations: { violation_type: string; severity: string } };
@@ -36,6 +37,7 @@ function toCaseRecord(row: CaseRow, code: string): CaseRecord {
     isEscalated: row.is_escalated,
     resolvedWithoutSanction: row.resolved_without_sanction,
     dateResolved: row.date_resolved,
+    handbookEntryId: row.handbook_entry_id,
     handbookSection: row[CURRENT].handbook_section,
     violationType: row[CURRENT].violations.violation_type,
     severity: row[CURRENT].violations.severity as Severity,
@@ -93,12 +95,24 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
     async getCase(studentId, caseId) {
       const row = await db.disciplinary_cases.findFirst({
         where: { disciplinary_case_id: caseId, student_id: studentId },
-        include: { ...caseInclude, case_status_history: { orderBy: { date_updated: 'asc' } } },
+        include: {
+          ...caseInclude,
+          case_status_history: { orderBy: { date_updated: 'asc' } },
+          case_escalations_case_escalations_major_case_idTodisciplinary_cases: { select: { minor_case_id: true } },
+          case_escalations_case_escalations_minor_case_idTodisciplinary_cases: { select: { major_case_id: true } },
+        },
       });
       if (!row) return null;
-      const code = (await loadCaseCodes(db, [caseId])).get(caseId) ?? '';
+      const linkedIds = row.case_escalations_case_escalations_major_case_idTodisciplinary_cases.map((link) => link.minor_case_id);
+      const towardId = row.case_escalations_case_escalations_minor_case_idTodisciplinary_cases?.major_case_id ?? null;
+      const codes = await loadCaseCodes(db, [caseId, ...linkedIds, ...(towardId === null ? [] : [towardId])]);
+      const submissionCodes = row.submission_ref ? await loadSubmissionCodes(db, [row.submission_ref]) : new Map<string, string>();
       return {
-        ...toCaseRecord(row as unknown as CaseRow, code),
+        ...toCaseRecord(row as unknown as CaseRow, codes.get(caseId) ?? ''),
+        source: row.source === 'gate' ? 'gate' : 'staff',
+        submissionCode: row.submission_ref ? (submissionCodes.get(row.submission_ref) ?? null) : null,
+        countedTowardCode: towardId === null ? null : (codes.get(towardId) ?? null),
+        linkedCaseCodes: linkedIds.map((id) => codes.get(id) ?? '').filter(Boolean),
         history: row.case_status_history.map((entry) => ({
           eventType: entry.event_type,
           statusAfter: entry.status_after as CaseStatus | null,
@@ -121,6 +135,8 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
           disciplinary_cases: { include: { [CURRENT]: { include: { violations: true } } } },
           case_sanction_history: { orderBy: { date_logged: 'asc' } },
           case_sanction_files: { include: { files: true }, orderBy: { case_sanction_file_id: 'asc' } },
+          // Name only (D15): never the account row, which carries password_hashed.
+          employee_accounts_case_sanctions_assigned_by_employee_idToemployee_accounts: { select: { first_name: true, last_name: true } },
         },
         orderBy: { date_assigned: 'desc' },
       });
@@ -142,6 +158,7 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
           dateCompleted: row.date_completed,
           staffNote: row.staff_note,
           complianceNote: row.compliance_note,
+          assignedBy: `${row.employee_accounts_case_sanctions_assigned_by_employee_idToemployee_accounts.first_name} ${row.employee_accounts_case_sanctions_assigned_by_employee_idToemployee_accounts.last_name}`,
           history: row.case_sanction_history.map((event) => ({
             eventType: event.event_type,
             remarks: event.remarks,
@@ -173,6 +190,7 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         notes: row.notes,
         status: row.status as AppointmentStatus,
         cancelReason: row.cancel_reason,
+        dateUpdated: row.date_updated,
       }));
     },
 
