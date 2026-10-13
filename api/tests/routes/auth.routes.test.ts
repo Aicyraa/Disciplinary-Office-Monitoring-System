@@ -241,3 +241,45 @@ describe('POST /staff/students/:studentId/reset-password', () => {
     expect(repo.accounts.get(`student:${STUDENT_ID}`)!.mustChangePassword).toBe(false);
   });
 });
+
+describe('POST /auth/change-password after a reset, without the temporary password (UI-POLISH-SPEC D1)', () => {
+  async function afterReset() {
+    const app = buildApp();
+    const staff = request.agent(app);
+    await staff.post('/auth/login').send({ email: STAFF_EMAIL, password: PASSWORD });
+    const { tempPassword } = (await staff.post(`/staff/students/${STUDENT_ID}/reset-password`)).body.data as { tempPassword: string };
+    const student = request.agent(app);
+    await student.post('/auth/login').send({ email: STUDENT_EMAIL, password: tempPassword });
+    return { app, student, tempPassword };
+  }
+
+  test('the session that signed in with the temporary password sets a new one with only the new password', async () => {
+    const { app, student } = await afterReset();
+    const changed = await student.post('/auth/change-password').send({ newPassword: 'Fresh1234' });
+    expect(changed.status).toBe(200);
+    expect(changed.body.data.user.mustChangePassword).toBe(false);
+    expect((await request(app).post('/auth/login').send({ email: STUDENT_EMAIL, password: 'Fresh1234' })).status).toBe(200);
+  });
+
+  test('reusing the temporary password is refused', async () => {
+    const { student, tempPassword } = await afterReset();
+    const same = await student.post('/auth/change-password').send({ newPassword: tempPassword });
+    expect(same.status).toBe(400);
+    expect(same.body.error.code).toBe('same_password');
+    expect(same.body.error.message).toBe('Don’t reuse the temporary password.');
+  });
+
+  test('the rules still apply', async () => {
+    const { student } = await afterReset();
+    const weak = await student.post('/auth/change-password').send({ newPassword: 'short1' });
+    expect(weak.body.error.code).toBe('weak_password');
+  });
+
+  test('an ordinary change still needs the current password', async () => {
+    const agent = request.agent(buildApp());
+    await agent.post('/auth/login').send({ email: STUDENT_EMAIL, password: PASSWORD });
+    const response = await agent.post('/auth/change-password').send({ newPassword: 'NewPass123' });
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('invalid_input');
+  });
+});

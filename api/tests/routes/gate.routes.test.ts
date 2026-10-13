@@ -47,12 +47,12 @@ describe('GET /public/gate-form-token and /public/gate-form-options (no sign-in)
     expect(response.body.data.token).toBe(signFormToken(SECRET, T0));
   });
 
-  test('the options list violations (no system entry, no sanctions or descriptions) and programs', async () => {
+  test('the options list violations with their category (no system entry, no sanctions or descriptions) and programs', async () => {
     const response = await request(build().app).get('/public/gate-form-options');
     expect(response.status).toBe(200);
     expect(response.body.data.violations).toEqual([
-      { id: 1, name: 'Improper uniform', section: 'VI.D.1' },
-      { id: 2, name: 'No ID', section: 'VI.D.2' },
+      { id: 1, name: 'Improper uniform', section: 'VI.D.1', category: 'Minor' },
+      { id: 2, name: 'No ID', section: 'VI.D.2', category: 'Minor' },
     ]);
     expect(response.body.data.programs).toEqual(['BS Computer Science', 'BS Nursing']);
   });
@@ -69,6 +69,7 @@ describe('POST /public/gate-reports', () => {
       reference: expect.stringMatching(/^[0-9a-f-]{36}$/),
       code: 'GI-1001',
       duplicate: false,
+      submittedAt: new Date(built.clock.now).toISOString(),
     });
     expect(built.store.state.cases).toHaveLength(2);
   });
@@ -78,7 +79,9 @@ describe('POST /public/gate-reports', () => {
     const first = await request(built.app).post('/public/gate-reports').send(body(tokenAged(built, 10_000)));
     const again = await request(built.app).post('/public/gate-reports').send(body(tokenAged(built, 12_000)));
     expect(again.status).toBe(200);
-    expect(again.body.data).toEqual({ reference: first.body.data.reference, code: 'GI-1001', duplicate: true });
+    // The time of the report that was already filed (deck W14 shows it on the success card).
+    expect(again.body.data.submittedAt).toBe(first.body.data.submittedAt);
+    expect(again.body.data).toEqual({ reference: first.body.data.reference, code: 'GI-1001', duplicate: true, submittedAt: first.body.data.submittedAt });
     expect(built.store.state.cases).toHaveLength(1);
   });
 

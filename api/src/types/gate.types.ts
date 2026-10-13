@@ -37,7 +37,7 @@ export interface GateTx {
     claimedStudentId: string,
     handbookEntryIds: number[],
     manilaDay: string,
-  ): Promise<Array<{ handbookEntryId: number; submissionRef: string }>>;
+  ): Promise<Array<{ handbookEntryId: number; submissionRef: string; submittedAt: Date }>>;
   insertGateCase(input: NewGateCase): Promise<number>;
   /** The display code of a submission (`GI-1042`): its rank among all submissions, by first case (codes.ts). */
   submissionCode(submissionRef: string): Promise<string>;
@@ -54,7 +54,8 @@ export interface GateStore {
 /** Read side for the public form's dropdowns. Only what a visitor needs: no descriptions, no sanctions. */
 export interface GateOptionsReader {
   listOptions(): Promise<{
-    violations: Array<{ id: number; name: string; section: string }>;
+    /** `category` is the handbook severity, for the form's Minor / Major filter (UI-POLISH-SPEC D2). */
+    violations: Array<{ id: number; name: string; section: string; category: 'Minor' | 'Major' }>;
     programs: string[];
   }>;
 }

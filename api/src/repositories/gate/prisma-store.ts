@@ -40,10 +40,12 @@ function createTx(db: Prisma.TransactionClient): GateTx {
           handbook_entry_id: { in: handbookEntryIds },
           case_date: { gte: start, lt: end },
         },
-        select: { handbook_entry_id: true, submission_ref: true },
+        select: { handbook_entry_id: true, submission_ref: true, case_date: true },
       });
       return rows.flatMap((row) =>
-        row.submission_ref ? [{ handbookEntryId: row.handbook_entry_id, submissionRef: row.submission_ref }] : [],
+        row.submission_ref
+          ? [{ handbookEntryId: row.handbook_entry_id, submissionRef: row.submission_ref, submittedAt: row.case_date }]
+          : [],
       );
     },
     async insertGateCase(input) {
@@ -114,7 +116,7 @@ export function createPrismaGateOptions(db: Pick<PrismaClient, 'handbook_entries
       const [entries, programs] = await Promise.all([
         db.handbook_entries.findMany({
           where: { violations: { is_system: false } },
-          include: { violations: { select: { violation_type: true } } },
+          include: { violations: { select: { violation_type: true, severity: true } } },
           orderBy: { handbook_entry_id: 'asc' },
         }),
         db.programs.findMany({ select: { program_name: true }, orderBy: { program_name: 'asc' } }),
@@ -124,6 +126,7 @@ export function createPrismaGateOptions(db: Pick<PrismaClient, 'handbook_entries
           id: entry.handbook_entry_id,
           name: entry.violations.violation_type,
           section: entry.handbook_section,
+          category: entry.violations.severity === 'Major' ? ('Major' as const) : ('Minor' as const),
         })),
         programs: programs.map((program) => program.program_name),
       };

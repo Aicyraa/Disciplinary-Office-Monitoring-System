@@ -111,9 +111,10 @@ export function createAuthRouter({
   });
 
   router.post('/auth/change-password', requireAuth, async (request, response, next) => {
-    const currentPassword = asString(request.body?.currentPassword);
+    // currentPassword may be left out only right after a temporary-password sign-in (D1; the service decides).
+    const currentPassword = asString(request.body?.currentPassword) || null;
     const newPassword = asString(request.body?.newPassword);
-    if (currentPassword === null || newPassword === null) {
+    if (newPassword === null) {
       sendError(response, 400, 'invalid_input', 'currentPassword and newPassword are required.');
       return;
     }
