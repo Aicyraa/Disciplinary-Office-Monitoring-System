@@ -359,3 +359,26 @@ describe('GET /case-sanctions (staff queue)', () => {
     expect((await student.get('/case-sanctions')).status).toBe(403);
   });
 });
+
+describe('case list status counts and detail case codes', () => {
+  test('statusCounts ignore the status filter but follow the class filter', async () => {
+    seedCase({ caseId: 1, status: 'reported' });
+    seedCase({ caseId: 2, status: 'reported', handbookEntryId: 3 });
+    seedCase({ caseId: 3, status: 'validated' });
+    seedCase({ caseId: 4, status: 'rejected' });
+    const agent = await staff();
+    const all = await agent.get('/cases').query({ status: 'validated' });
+    expect(all.body.data.total).toBe(1);
+    expect(all.body.data.statusCounts).toEqual({ reported: 2, validated: 1, for_sanction: 0, resolved: 0, rejected: 1 });
+    const minors = await agent.get('/cases').query({ class: 'Minor' });
+    expect(minors.body.data.statusCounts).toMatchObject({ reported: 1, validated: 1, rejected: 1 });
+  });
+
+  test('the case detail names the codes of the cases it links to', async () => {
+    seedCase({ caseId: 1, submissionRef: REF });
+    seedCase({ caseId: 2, submissionRef: REF });
+    const response = await (await staff()).get('/cases/1');
+    expect(response.body.data.case.siblingCaseIds).toEqual([2]);
+    expect(response.body.data.case.caseCodes).toEqual({ '1': 'SDO-2026-001', '2': 'SDO-2026-002' });
+  });
+});

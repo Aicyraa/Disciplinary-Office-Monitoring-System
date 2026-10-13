@@ -1,10 +1,11 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ACTION_PILL, DashboardCard, DateTile, Kpi, ProgressBar, RowItem } from '../components/DashboardCards';
-import { EmptyState, ErrorState, LoadingState, PageHeader, StatusPill } from '../components/ui';
+import { EmptyState, ErrorState, Icon, LoadingState, PageHeader, StatusPill } from '../components/ui';
 import { api } from '../lib/api';
 import { activeCases, caseCounts, clearanceProgress, nextAppointment, sanctionCounts } from '../lib/dashboard';
-import { formatDate, formatTerm } from '../lib/format';
+import { formatClock, formatDate, formatTerm } from '../lib/format';
 import { useApi, type ApiResource } from '../lib/useApi';
 
 /** The body of a card whose data may still be loading or have failed. */
@@ -160,6 +161,13 @@ export function StudentDashboard() {
   );
 }
 
+/** "Will escalate": validating this report would turn the student's third minor into a Major (SPEC 4.2). */
+function WillEscalate({ submissionRef }: { submissionRef: string }) {
+  const preview = useApi(() => api.escalationPreview(submissionRef), [submissionRef]);
+  if (preview.status !== 'ready' || preview.data.conversions.length === 0) return null;
+  return <span className="ml-2 rounded-full bg-[#FBE4E1] px-2 py-0.5 text-[11px] font-semibold text-danger">Will escalate</span>;
+}
+
 export function StaffHome() {
   const { state } = useAuth();
   const name = state.status === 'authenticated' ? state.user.firstName : '';
@@ -168,131 +176,199 @@ export function StaffHome() {
   const sanctioned = useApi(() => api.staffCases({ status: 'for_sanction', sort: 'oldest' }), []);
   const appointments = useApi(() => api.staffAppointments({ bucket: 'upcoming' }), []);
   const clearances = useApi(() => api.staffClearances({ status: 'pending' }), []);
+  const queue = useApi(() => api.sanctionQueue({ filter: 'active' }), []);
+  const [checkedAt, setCheckedAt] = useState(() => new Date());
+
+  // "Last checked" moves whenever the reports card has fresh data.
+  useEffect(() => {
+    if (reported.status === 'ready') setCheckedAt(new Date());
+  }, [reported.status]);
+
+  const refreshAll = () => {
+    reported.reload();
+    validated.reload();
+    sanctioned.reload();
+    appointments.reload();
+    clearances.reload();
+    queue.reload();
+  };
+
+  const lastChecked = (
+    <span className="flex items-center gap-1">
+      Last checked {formatClock(checkedAt)}
+      <button
+        type="button"
+        onClick={refreshAll}
+        aria-label="Refresh the dashboard"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-muted hover:bg-page"
+      >
+        <Icon name="refresh" className="text-base" />
+      </button>
+    </span>
+  );
 
   return (
     <>
       <PageHeader title={`Welcome, ${name}`} subtitle="What needs the office's attention today." />
-      <div className="grid gap-4 full:grid-cols-2">
-        <DashboardCard icon="flag" tone="danger" title="Reports to validate" to="/cases" className="full:row-span-2">
-          <Body resource={reported}>
-            {({ cases, total }) => (
-              <>
-                <div className="grid grid-cols-3 gap-2">
-                  <Kpi value={total} label="Reports to validate" tone={total > 0 ? 'danger' : undefined} />
-                  <Kpi value={validated.status === 'ready' ? validated.data.total : '–'} label="Awaiting decision" />
-                  <Kpi value={sanctioned.status === 'ready' ? sanctioned.data.total : '–'} label="With sanctions" />
-                </div>
-                {cases.length === 0 ? (
-                  <div className="mt-4">
-                    <EmptyState title="No report is waiting for validation." />
+      <div className="grid items-start gap-4 full:grid-cols-2">
+        <div className="space-y-4">
+          <DashboardCard icon="flag" tone="danger" title="Reports to validate" subtitle={lastChecked} to="/cases">
+            <Body resource={reported}>
+              {({ cases, total }) => (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Kpi value={total} label="Reports to validate" tone={total > 0 ? 'danger' : undefined} />
+                    <Kpi value={validated.status === 'ready' ? validated.data.total : '–'} label="Awaiting decision" />
+                    <Kpi value={queue.status === 'ready' ? queue.data.counts.pendingVerification : '–'} label="Sanctions to verify" />
                   </div>
-                ) : (
-                  <ul className="mt-4">
-                    {cases.slice(0, 4).map((row) => (
-                      <RowItem
-                        key={row.id}
-                        title={row.student?.name ?? row.claimed?.name ?? 'Unknown student'}
-                        meta={`${row.code} · ${row.violation}${row.student ? '' : ' · No matching record'}`}
-                        right={
-                          <Link
-                            to={`/cases/${row.id}`}
-                            className={ACTION_PILL}
-                            aria-label={`Validate ${row.code}`}
-                          >
+                  {cases.length === 0 ? (
+                    <div className="mt-4">
+                      <EmptyState title="No report is waiting for validation." />
+                    </div>
+                  ) : (
+                    <ul className="mt-4">
+                      {cases.slice(0, 4).map((row) => (
+                        <li key={row.id} className="flex items-center justify-between gap-3 border-t border-line py-2 first:border-t-0">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-ink">
+                              {row.student?.name ?? row.claimed?.name ?? 'Unknown student'}
+                              {row.student ? <span className="ml-1 font-normal text-muted">{row.student.id}</span> : null}
+                              {row.submissionRef && row.student ? <WillEscalate submissionRef={row.submissionRef} /> : null}
+                              {row.student ? null : (
+                                <span className="ml-2 rounded-full bg-[#FBE4E1] px-2 py-0.5 text-[11px] font-semibold text-danger">
+                                  No matching record
+                                </span>
+                              )}
+                            </div>
+                            <div className="truncate text-xs text-muted">
+                              {row.submissionCode ?? row.code} · {row.violation}
+                            </div>
+                          </div>
+                          <Link to={`/cases/${row.id}`} className={ACTION_PILL} aria-label={`Validate ${row.code}`}>
                             Validate
                           </Link>
-                        }
-                      />
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
-          </Body>
-        </DashboardCard>
-
-        <DashboardCard icon="gavel" tone="gold" title="Awaiting decision" subtitle="Validated cases with no sanction yet" to="/cases">
-          <Body resource={validated}>
-            {({ cases, total }) =>
-              cases.length === 0 ? (
-                <p className="text-sm text-muted">No case is waiting for a decision.</p>
-              ) : (
-                <>
-                  <p className="mb-2 text-xs text-muted">{total} to decide</p>
-                  <ul>
-                    {cases.slice(0, 3).map((row) => (
-                      <RowItem
-                        key={row.id}
-                        title={row.student?.name ?? 'Unknown student'}
-                        meta={`${row.code} · ${row.violation}`}
-                        right={
-                          <Link
-                            to={`/cases/${row.id}`}
-                            className={ACTION_PILL}
-                            aria-label={`Decide ${row.code}`}
-                          >
-                            Decide
-                          </Link>
-                        }
-                      />
-                    ))}
-                  </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </>
-              )
-            }
-          </Body>
-        </DashboardCard>
+              )}
+            </Body>
+          </DashboardCard>
 
-        <DashboardCard icon="event" title="Upcoming appointments" to="/appointments">
-          <Body resource={appointments}>
-            {({ appointments: list, total }) =>
-              list.length === 0 ? (
-                <p className="text-sm text-muted">No appointment is scheduled.</p>
-              ) : (
+          <DashboardCard icon="assignment" tone="gold" title="Sanctions" subtitle="In progress, overdue and waiting for verification" to="/cases">
+            <Body resource={queue}>
+              {({ sanctions, counts }) => (
                 <>
-                  <p className="mb-2 text-xs text-muted">{total} upcoming</p>
-                  <ul>
-                    {list.slice(0, 3).map((a) => (
-                      <RowItem
-                        key={a.id}
-                        title={a.student.name}
-                        meta={`${formatDate(a.startDate)} to ${formatDate(a.endDate)} · ${a.purpose}`}
-                        right={<StatusPill status={a.status} kind="appointment" />}
-                      />
-                    ))}
-                  </ul>
-                </>
-              )
-            }
-          </Body>
-        </DashboardCard>
-
-        <DashboardCard icon="verified_user" tone="success" title="Clearance work" subtitle="Terms not yet cleared" to="/clearance" className="full:col-span-2">
-          <Body resource={clearances}>
-            {({ clearances: list, total }) =>
-              list.length === 0 ? (
-                <p className="text-sm text-muted">No clearance is waiting.</p>
-              ) : (
-                <>
-                  <p className="mb-2 text-xs text-muted">{total} not yet cleared</p>
-                  <ul>
-                    {list.slice(0, 3).map((c) => {
-                      const done = c.items.filter((item) => item.status === 'completed').length;
-                      return (
+                  <div className="grid grid-cols-3 gap-2">
+                    <Kpi value={counts.active - counts.pendingVerification} label="In progress" />
+                    <Kpi value={counts.overdue} label="Overdue" tone={counts.overdue > 0 ? 'danger' : undefined} />
+                    <Kpi value={counts.pendingVerification} label="To verify" />
+                  </div>
+                  {sanctions.length === 0 ? (
+                    <p className="mt-3 text-sm text-muted">No sanction is in progress.</p>
+                  ) : (
+                    <ul className="mt-3">
+                      {sanctions.slice(0, 3).map((row) => (
                         <RowItem
-                          key={c.id}
-                          title={c.student.name}
-                          meta={`${formatTerm(c.academicYear, c.semester)} · ${done} of ${c.items.length} requirements done`}
-                          right={<StatusPill status={c.status} kind="clearance" />}
+                          key={row.id}
+                          title={`${row.student?.name ?? 'Unknown student'} · ${row.sanctionCode}`}
+                          meta={`${row.type} · Due ${formatDate(row.dueDate)}${row.overdue ? ` · ${row.lateByDays} day${row.lateByDays === 1 ? '' : 's'} late` : ''}`}
+                          right={
+                            <Link to={`/cases/${row.caseId}`} className={ACTION_PILL}>
+                              {row.status === 'pending_verification' ? 'Verify' : 'Open'}
+                            </Link>
+                          }
                         />
-                      );
-                    })}
-                  </ul>
+                      ))}
+                    </ul>
+                  )}
                 </>
-              )
-            }
-          </Body>
-        </DashboardCard>
+              )}
+            </Body>
+          </DashboardCard>
+        </div>
+
+        <div className="space-y-4">
+          <DashboardCard icon="gavel" tone="gold" title="Awaiting decision" subtitle="Validated cases with no sanction yet" to="/cases">
+            <Body resource={validated}>
+              {({ cases, total }) =>
+                cases.length === 0 ? (
+                  <p className="text-sm text-muted">No case is waiting for a decision.</p>
+                ) : (
+                  <>
+                    <p className="mb-2 text-xs text-muted">{total} to decide</p>
+                    <ul>
+                      {cases.slice(0, 3).map((row) => (
+                        <RowItem
+                          key={row.id}
+                          title={row.student?.name ?? 'Unknown student'}
+                          meta={`${row.code} · ${row.violation}`}
+                          right={
+                            <Link to={`/cases/${row.id}`} className={ACTION_PILL} aria-label={`Decide ${row.code}`}>
+                              Decide
+                            </Link>
+                          }
+                        />
+                      ))}
+                    </ul>
+                  </>
+                )
+              }
+            </Body>
+          </DashboardCard>
+
+          <DashboardCard icon="event" title="Upcoming appointments" to="/appointments">
+            <Body resource={appointments}>
+              {({ appointments: list, total }) =>
+                list.length === 0 ? (
+                  <p className="text-sm text-muted">No appointment is scheduled.</p>
+                ) : (
+                  <>
+                    <p className="mb-2 text-xs text-muted">{total} upcoming</p>
+                    <ul>
+                      {list.slice(0, 3).map((a) => (
+                        <RowItem
+                          key={a.id}
+                          title={`${a.student.name} · ${a.code}`}
+                          meta={`${formatDate(a.startDate)} to ${formatDate(a.endDate)} · ${a.purpose}`}
+                          right={<StatusPill status={a.status} kind="appointment" />}
+                        />
+                      ))}
+                    </ul>
+                  </>
+                )
+              }
+            </Body>
+          </DashboardCard>
+
+          <DashboardCard icon="verified_user" tone="success" title="Clearance work" subtitle="Terms not yet cleared" to="/clearance">
+            <Body resource={clearances}>
+              {({ clearances: list, total }) =>
+                list.length === 0 ? (
+                  <p className="text-sm text-muted">No clearance is waiting.</p>
+                ) : (
+                  <>
+                    <p className="mb-2 text-xs text-muted">{total} not yet cleared</p>
+                    <ul>
+                      {list.slice(0, 3).map((c) => {
+                        const done = c.items.filter((item) => item.status === 'completed').length;
+                        return (
+                          <RowItem
+                            key={c.id}
+                            title={c.student.name}
+                            meta={`${formatTerm(c.academicYear, c.semester)} · ${done} of ${c.items.length} requirements done`}
+                            right={<StatusPill status={c.status} kind="clearance" />}
+                          />
+                        );
+                      })}
+                    </ul>
+                  </>
+                )
+              }
+            </Body>
+          </DashboardCard>
+        </div>
       </div>
     </>
   );

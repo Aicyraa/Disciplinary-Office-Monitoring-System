@@ -3,22 +3,25 @@ import type { AccountRole } from '@shared/types';
 import { AuthProvider, useAuth, type AuthState } from './auth/AuthContext';
 import { Shell } from './components/Shell';
 import { LoadingState } from './components/ui';
+import { ToastProvider } from './components/feedback';
+import { AccountDetailsPage } from './pages/AccountDetails';
 import { AppointmentsPage } from './pages/Appointments';
 import ChangePassword from './pages/ChangePassword';
-import { ClearancePage } from './pages/Clearance';
+import { ClearancePage, ClearanceSlipPage } from './pages/Clearance';
 import { StaffHome, StudentDashboard } from './pages/Dashboard';
-import { HandbookPage } from './pages/Handbook';
+import { AddViolationPage, HandbookPage } from './pages/Handbook';
 import GateReportPage from './pages/GateReport';
 import Login from './pages/Login';
 import { InboxPage } from './pages/Inbox';
-import { NotFoundPage } from './pages/Misc';
+import { NoAccessPage, NotFoundPage } from './pages/Misc';
 import { RecordViolationPage } from './pages/RecordViolation';
 import { StaffClearancePage } from './pages/StaffClearance';
+import { NoticesPage } from './pages/Notices';
+import { StudentsPage } from './pages/Students';
 import { MakeAppointmentPage, StaffAppointmentsPage } from './pages/StaffAppointments';
-import { CaseDetailPage } from './pages/StaffCaseDetail';
 import { CasesPage } from './pages/StaffCases';
 import { SanctionsPage } from './pages/Sanctions';
-import { ViolationDetail, ViolationsList } from './pages/Violations';
+import { ViolationsPage } from './pages/Violations';
 
 export type Access = 'loading' | 'login' | 'change-password' | 'allow';
 
@@ -48,7 +51,7 @@ function RequireAuth() {
 /** Pages for one role only (the `/me/*` API is 403 for staff, the case API is 403 for students). */
 function RoleOnly({ role }: { role: AccountRole }) {
   const { state } = useAuth();
-  if (state.status === 'authenticated' && state.user.role !== role) return <Navigate to="/" replace />;
+  if (state.status === 'authenticated' && state.user.role !== role) return <NoAccessPage />;
   return <Outlet />;
 }
 
@@ -80,19 +83,30 @@ function AppRoutes() {
         <Route element={<Shell />}>
           <Route index element={<Home />} />
           <Route path="handbook" element={<HandbookPage />} />
+          <Route path="handbook/:id" element={<HandbookPage />} />
           <Route path="inbox" element={<InboxPage />} />
+          <Route path="account" element={<AccountDetailsPage />} />
+          <Route path="account/password" element={<ChangePassword />} />
           <Route path="appointments" element={<AppointmentsRoute />} />
+          <Route path="appointments/:id" element={<AppointmentsRoute />} />
           <Route path="clearance" element={<ClearanceRoute />} />
+          <Route path="clearance/:id" element={<ClearanceRoute />} />
           <Route element={<RoleOnly role="student" />}>
-            <Route path="violations" element={<ViolationsList />} />
-            <Route path="violations/:id" element={<ViolationDetail />} />
+            <Route path="violations" element={<ViolationsPage />} />
+            <Route path="violations/:id" element={<ViolationsPage />} />
             <Route path="sanctions" element={<SanctionsPage />} />
+            <Route path="sanctions/:id" element={<SanctionsPage />} />
+            <Route path="clearance/slip" element={<ClearanceSlipPage />} />
           </Route>
           <Route element={<RoleOnly role="staff" />}>
             <Route path="record" element={<RecordViolationPage />} />
             <Route path="cases" element={<CasesPage />} />
-            <Route path="cases/:id" element={<CaseDetailPage />} />
+            <Route path="cases/:id" element={<CasesPage />} />
+            <Route path="notices" element={<NoticesPage />} />
+            <Route path="students" element={<StudentsPage />} />
+            <Route path="students/:id" element={<StudentsPage />} />
             <Route path="appointments/new" element={<MakeAppointmentPage />} />
+            <Route path="handbook/new" element={<AddViolationPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>
@@ -107,7 +121,9 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppRoutes />
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );

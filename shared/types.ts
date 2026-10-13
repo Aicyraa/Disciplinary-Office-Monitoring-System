@@ -87,7 +87,7 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
  * The closed set of notification kinds: the `notifications.kind` values, and the `type` of every
  * Power Automate request. A new kind is a spec change, not an ad-hoc string.
  */
-export type NotificationKind = 'report' | 'case' | 'esc' | 'sanction' | 'appt' | 'clr' | 'account' | 'newviol';
+export type NotificationKind = 'report' | 'case' | 'esc' | 'sanction' | 'appt' | 'clr' | 'account' | 'newviol' | 'notice';
 
 export type NotificationLinkType = 'case' | 'sanction' | 'appointment' | 'student' | 'clearance' | 'inbox';
 
@@ -108,6 +108,24 @@ export type NotificationListResponse = {
   notifications: NotificationView[];
   unreadCount: number;
 };
+
+/** A notice the office broadcast to every student (UI-POLISH-SPEC decision 1). Staff manage them. */
+export type NoticeView = {
+  id: number;
+  title: string;
+  message: string;
+  instructions: string | null;
+  /** YYYY-MM-DD, or null when the notice does not expire. */
+  expiresOn: string | null;
+  expired: boolean;
+  createdBy: string;
+  dateCreated: string;
+  dateUpdated: string;
+  /** Students who received it. */
+  recipients: number;
+};
+
+export type NoticeListResponse = { notices: NoticeView[] };
 
 export type AccountRole = 'student' | 'staff';
 
@@ -238,7 +256,7 @@ export type StudentSanctionView = {
 
 export type StudentCaseView = {
   id: number;
-  /** Display code, C001 style. */
+  /** Display code, `SDO-2026-016`. */
   code: string;
   status: CaseStatus;
   caseDate: string;
@@ -478,7 +496,10 @@ export type StaffCaseRow = {
 
 export type StaffCaseListResponse = {
   cases: StaffCaseRow[];
+  /** Cases matching every filter, status included. */
   total: number;
+  /** Matches per status with the status filter left out (class and search still apply), for the status menu. */
+  statusCounts: Record<CaseStatus, number>;
   page: number;
   pageSize: number;
 };
@@ -498,6 +519,8 @@ export type StaffCaseDetail = StaffCaseRow & {
   countedTowardCaseId: number | null;
   /** Other cases from the same gate submission. */
   siblingCaseIds: number[];
+  /** Display codes of this case and the cases named above, keyed by case id. */
+  caseCodes: Record<string, string>;
   sanctions: StaffSanctionView[];
 };
 

@@ -10,22 +10,24 @@ const values: GateFormValues = {
 };
 
 describe('stepProblem', () => {
-  test('step 1: the student id format and a name', () => {
+  test('step 1 (Details): the student id format, a name, a program and a year level', () => {
     expect(stepProblem(1, values)).toBeNull();
     expect(stepProblem(1, { ...values, studentId: '' })).toMatch(/student ID/i);
     expect(stepProblem(1, { ...values, studentId: '2025-123' })).toMatch(/2025-1234567/);
     expect(stepProblem(1, { ...values, name: ' ' })).toMatch(/name/i);
     expect(stepProblem(1, { ...values, name: 'A' })).toMatch(/name/i);
+    expect(stepProblem(1, { ...values, program: '' })).toMatch(/program/i);
+    expect(stepProblem(1, { ...values, year: '' })).toMatch(/year/i);
   });
 
-  test('step 2: a program and a year level', () => {
+  test('step 2 (Violations): at least one violation', () => {
     expect(stepProblem(2, values)).toBeNull();
-    expect(stepProblem(2, { ...values, program: '' })).toMatch(/program/i);
-    expect(stepProblem(2, { ...values, year: '' })).toMatch(/year/i);
+    expect(stepProblem(2, { ...values, violationIds: [] })).toMatch(/violation/i);
   });
 
-  test('step 3: at least one violation', () => {
+  test('step 3 (Review): everything is checked again', () => {
     expect(stepProblem(3, values)).toBeNull();
+    expect(stepProblem(3, { ...values, program: '' })).toMatch(/program/i);
     expect(stepProblem(3, { ...values, violationIds: [] })).toMatch(/violation/i);
   });
 });

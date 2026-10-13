@@ -25,8 +25,14 @@ const inAudience = (row: MemoryNotification, audience: Audience): boolean =>
     : row.recipientType === 'student' && row.studentId === audience.studentId;
 
 /** In-memory inbox and writer for tests; scopes by audience exactly as the real store must. */
-export function createMemoryNotifications(seed: MemoryNotification[] = [], now: () => Date = () => new Date()): MemoryNotifications {
+export function createMemoryNotifications(
+  seed: MemoryNotification[] = [],
+  now: () => Date = () => new Date(),
+  /** Ids of notices past their expiry; their notifications are hidden from every inbox. */
+  expiredNoticeIds: () => number[] = () => [],
+): MemoryNotifications {
   const rows = [...seed];
+  const hidden = (row: MemoryNotification): boolean => row.kind === 'notice' && row.linkId !== null && expiredNoticeIds().includes(row.linkId);
   let nextId = rows.reduce((max, row) => Math.max(max, row.notificationId), 0) + 1;
   const toRow = (row: MemoryNotification): InboxRow => ({
     notificationId: row.notificationId,
@@ -43,13 +49,13 @@ export function createMemoryNotifications(seed: MemoryNotification[] = [], now: 
     rows,
     async list(audience, { limit, unreadOnly }) {
       return rows
-        .filter((row) => inAudience(row, audience) && (!unreadOnly || !row.isRead))
+        .filter((row) => inAudience(row, audience) && !hidden(row) && (!unreadOnly || !row.isRead))
         .sort((a, b) => b.dateCreated.getTime() - a.dateCreated.getTime() || b.notificationId - a.notificationId)
         .slice(0, limit)
         .map(toRow);
     },
     async unreadCount(audience) {
-      return rows.filter((row) => inAudience(row, audience) && !row.isRead).length;
+      return rows.filter((row) => inAudience(row, audience) && !hidden(row) && !row.isRead).length;
     },
     async markRead(audience, notificationId) {
       const row = rows.find((candidate) => candidate.notificationId === notificationId && inAudience(candidate, audience));

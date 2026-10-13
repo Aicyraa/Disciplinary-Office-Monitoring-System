@@ -19,21 +19,24 @@ export const YEAR_LEVEL_OPTIONS = [
   { value: '5', label: '5th year' },
 ] as const;
 
-/** A sentence for what is missing on a step, or null. The API checks everything again. */
+/**
+ * A sentence for what is missing on a step, or null. The API checks everything again.
+ * Steps follow the design deck: 1 Details (ID, name, program, year level), 2 Violations, 3 Review (all of it).
+ */
 export function stepProblem(step: 1 | 2 | 3, values: GateFormValues): string | null {
-  if (step === 1) {
+  const details = (): string | null => {
     const id = values.studentId.trim();
     if (id === '') return 'Enter the student ID.';
     if (!/^\d{4}-\d{7}$/.test(id)) return 'Use the student ID format 2025-1234567.';
     if (values.name.trim().length < 2) return 'Enter the student name.';
-    return null;
-  }
-  if (step === 2) {
     if (values.program.trim() === '') return 'Choose the program.';
     if (!/^[1-5]$/.test(values.year)) return 'Choose the year level.';
     return null;
-  }
-  return values.violationIds.length > 0 ? null : 'Choose at least one violation.';
+  };
+  const violations = (): string | null => (values.violationIds.length > 0 ? null : 'Choose at least one violation.');
+  if (step === 1) return details();
+  if (step === 2) return violations();
+  return details() ?? violations();
 }
 
 /** The reference people see and quote: the first 8 characters of the submission uuid, in capitals. */

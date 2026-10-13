@@ -38,10 +38,18 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
   return <section className={`rounded-lg border border-line bg-white p-4 ${className}`}>{children}</section>;
 }
 
-export function LoadingState({ label = 'Loading…' }: { label?: string }) {
+/** Placeholder cards while data loads. The label stays in the DOM (hidden) so screen readers announce it. */
+export function LoadingState({ label = 'Loading…', cards = 3 }: { label?: string; cards?: number }) {
   return (
-    <div role="status" className="py-10 text-center text-sm text-muted">
-      {label}
+    <div role="status" aria-busy="true" className="space-y-3 py-2">
+      <span className="sr-only">{label}</span>
+      {Array.from({ length: cards }, (_, index) => (
+        <div key={index} aria-hidden="true" className="animate-pulse rounded-lg border border-line bg-white p-4 motion-reduce:animate-none">
+          <div className="h-4 w-1/3 rounded bg-line" />
+          <div className="mt-3 h-3 w-2/3 rounded bg-line" />
+          <div className="mt-2 h-3 w-1/2 rounded bg-line" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -90,7 +98,7 @@ export function Resource<T>({
 }
 
 export const fieldClass =
-  'block w-full rounded-md border border-line-strong bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-primary';
+  'block min-h-11 w-full rounded-md border border-line-strong bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-primary';
 
 export const buttonClass =
-  'inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-active disabled:opacity-60';
+  'inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-active disabled:opacity-60';

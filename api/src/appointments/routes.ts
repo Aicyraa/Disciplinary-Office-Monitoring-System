@@ -94,6 +94,16 @@ export function createAppointmentRouter({ service, queries, now = () => new Date
     });
   });
 
+  router.get('/appointments/:id', async (request, response) => {
+    const id = parseId(request.params.id);
+    const row = id === null ? null : await queries.get(id);
+    if (!row) {
+      sendError(response, 404, 'not_found', 'Not found.');
+      return;
+    }
+    sendOk(response, { appointment: toStaffAppointmentView(row, manilaToday(now())) });
+  });
+
   router.post('/appointments', async (request, response) => {
     const { studentId, startDate, purpose, notes } = request.body ?? {};
     if (typeof studentId !== 'string' || !STUDENT_ID_PATTERN.test(studentId.trim())) {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { StaffProofFileView, StaffSanctionView } from '@shared/types';
-import { ReasonForm } from '../components/ReasonForm';
+import { ConfirmModal, useToast } from '../components/feedback';
 import { Icon, Resource, StatusPill, buttonClass, fieldClass } from '../components/ui';
 import { api, toApiError } from '../lib/api';
 import { addDays, formatSize, manilaToday } from '../lib/files';
@@ -35,18 +35,18 @@ async function openProof(fileId: number): Promise<void> {
 }
 
 function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; onChanged: () => void }) {
+  const toast = useToast();
   const [form, setForm] = useState<'return' | null>(null);
-  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const summary = viewedSummary(sanction.files);
 
   const succeed = (text: string) => {
     setForm(null);
-    setNotice({ tone: 'success', text });
+    toast.show(text, 'success');
     onChanged();
   };
   const failed = (error: unknown) => {
     setForm(null);
-    setNotice({ tone: 'error', text: msg(error) });
+    toast.show(msg(error), 'error');
     onChanged();
   };
 
@@ -75,7 +75,7 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
       {sanction.files.length > 0 ? (
         <div className="mt-3">
           <div className="text-sm font-medium text-ink">
-            Proof files{' '}
+            Submitted proof{' '}
             <span className="font-normal text-muted">
               ({summary.viewed} of {summary.total} viewed)
             </span>
@@ -93,12 +93,13 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
                 <button
                   type="button"
                   aria-label={`Open ${file.name}`}
-                  className="rounded-md border border-line-strong px-2.5 py-1 text-xs font-medium text-ink hover:bg-page"
+                  className="inline-flex min-h-11 items-center gap-1 rounded-md border border-line-strong px-3 text-xs font-medium text-ink hover:bg-page"
                   onClick={() => {
                     openProof(file.id).then(onChanged, failed);
                   }}
                 >
-                  Open
+                  <Icon name="visibility" className="text-base" />
+                  View
                 </button>
               </li>
             ))}
@@ -106,20 +107,11 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
         </div>
       ) : null}
 
-      {notice ? (
-        <p
-          role={notice.tone === 'error' ? 'alert' : 'status'}
-          className={`mt-2 text-sm font-medium ${notice.tone === 'error' ? 'text-danger' : 'text-success'}`}
-        >
-          {notice.text}
-        </p>
-      ) : null}
-
       {sanction.status === 'pending_verification' && !summary.allViewed ? (
         <p className="mt-2 text-xs text-muted">
           {summary.total === 0
             ? 'No proof file is attached. Return it so the student can upload one.'
-            : `Open every file to enable Verify (${summary.viewed} of ${summary.total} opened).`}
+            : `Open each file before you verify this sanction (${summary.viewed} of ${summary.total} opened).`}
         </p>
       ) : null}
 
@@ -128,7 +120,7 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
           <>
             <button
               type="button"
-              className={buttonClass}
+              className={`${buttonClass} min-h-11`}
               disabled={!summary.allViewed}
               title={summary.allViewed ? undefined : 'Open every file first'}
               onClick={async () => {
@@ -140,14 +132,14 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
                 }
               }}
             >
-              Verify
+              Verify sanction
             </button>
             <button
               type="button"
-              className="rounded-md border border-danger px-4 py-2 text-sm font-semibold text-danger hover:bg-page"
+              className="inline-flex min-h-11 items-center rounded-md border border-danger px-4 text-sm font-semibold text-danger hover:bg-page"
               onClick={() => setForm('return')}
             >
-              Return
+              Return to student
             </button>
           </>
         ) : null}
@@ -156,23 +148,23 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
         <p className="mt-2 text-xs text-muted">Waiting for the student to upload proof. Files are the only way to complete a sanction.</p>
       ) : null}
 
-      {form === 'return' ? (
-        <ReasonForm
-          title="Return for revision"
-          description="The student is told why and can upload again."
-          label="Reason (required)"
-          submitLabel="Return"
-          onCancel={() => setForm(null)}
-          onSubmit={async (reason) => {
-            try {
-              await api.returnSanction(sanction.id, reason);
-            } catch (error) {
-              throw new Error(msg(error));
-            }
-            succeed('Returned to the student.');
-          }}
-        />
-      ) : null}
+      <ConfirmModal
+        open={form === 'return'}
+        title="Return to student"
+        description="The student is told why and can upload proof again."
+        reasonLabel="Reason (required)"
+        confirmLabel="Return to student"
+        danger
+        onClose={() => setForm(null)}
+        onConfirm={async (reason) => {
+          try {
+            await api.returnSanction(sanction.id, reason);
+          } catch (error) {
+            throw new Error(msg(error));
+          }
+          succeed('Returned to the student.');
+        }}
+      />
     </li>
   );
 }

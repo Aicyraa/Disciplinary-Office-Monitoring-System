@@ -113,7 +113,7 @@ All outbound calls go through **one** helper, for example `api/src/integrations/
 }
 ```
 Rules:
-1. `type` is a closed union exported from `shared/types.ts` (import with `import type`), equal to the `notifications.kind` values: `report`, `case`, `esc`, `sanction`, `appt`, `clr`, `account`, `newviol`. A new type means a spec change, not an ad-hoc string.
+1. `type` is a closed union exported from `shared/types.ts` (import with `import type`), equal to the `notifications.kind` values: `report`, `case`, `esc`, `sanction`, `appt`, `clr`, `account`, `newviol`, `notice`. A new type means a spec change, not an ad-hoc string.
 2. `payload` is a plain JSON object built by a **pure builder function per `type`** (so tests need no network and no database). Never spread request bodies or DB rows into it.
 3. The flow reads `triggerBody()?['type']` and `triggerBody()?['payload']?['<field>']`. Each flow's Parse JSON schema must declare both keys.
 4. The helper reads the URL lazily from env (`PA_NOTIFY_URL` for every type, `report` included), uses a 10-second timeout, and never throws into the business transaction.

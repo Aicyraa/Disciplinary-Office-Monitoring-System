@@ -66,14 +66,14 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
     }
     const text = typeof q === 'string' ? q.slice(0, 100) : undefined;
     const pageNumber = page === undefined ? 1 : Number(page);
-    const { rows, total } = await queries.list({
+    const { rows, total, statusCounts } = await queries.list({
       status: status as CaseStatus | undefined,
       severity: severity as Severity | undefined,
       q: text,
       sort: sort === 'oldest' ? 'oldest' : 'newest',
       page: pageNumber,
     });
-    sendOk(response, { cases: rows, total, page: pageNumber, pageSize: CASE_PAGE_SIZE });
+    sendOk(response, { cases: rows, total, statusCounts, page: pageNumber, pageSize: CASE_PAGE_SIZE });
   });
 
   router.get('/cases/:id', async (request, response) => {

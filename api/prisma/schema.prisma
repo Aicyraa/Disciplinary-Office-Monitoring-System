@@ -215,6 +215,7 @@ model employee_accounts {
   disciplinary_cases                                                       disciplinary_cases[]
   files                                                                    files[]
   sanction_templates                                                       sanction_templates[]
+  notices                                                                  notices[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -276,6 +277,18 @@ model notifications {
 
   @@index([email_status], map: "ix_notif_email", where: raw("(email_status = 'pending'::text)"))
   @@index([student_id, is_read, date_created(sort: Desc)], map: "ix_notif_inbox")
+}
+
+model notices {
+  notice_id              Int               @id @default(autoincrement())
+  title                  String
+  message                String
+  instructions           String?
+  expires_on             DateTime?         @db.Date
+  created_by_employee_id String            @db.VarChar(20)
+  date_created           DateTime          @default(now()) @db.Timestamptz(6)
+  date_updated           DateTime          @default(now()) @db.Timestamptz(6)
+  employee_accounts      employee_accounts @relation(fields: [created_by_employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model programs {

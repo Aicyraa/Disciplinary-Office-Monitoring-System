@@ -19,7 +19,7 @@ export function DashboardCard({
   icon: string;
   tone?: 'primary' | 'danger' | 'gold' | 'success';
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   /** Where the pill goes. Omitted: no pill. */
   to?: string;
   action?: string;
@@ -44,7 +44,7 @@ export function DashboardCard({
             <h2 id={headingId} className="truncate text-base font-semibold text-ink">
               {title}
             </h2>
-            {subtitle ? <p className="truncate text-xs text-muted">{subtitle}</p> : null}
+            {subtitle ? <div className="text-xs text-muted">{subtitle}</div> : null}
           </div>
         </div>
         {to ? (

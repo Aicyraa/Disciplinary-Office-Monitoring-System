@@ -8,6 +8,7 @@ import {
   ACTIVE_SANCTION_STATUSES,
   CASE_PAGE_SIZE,
   SANCTION_QUEUE_PAGE_SIZE,
+  emptyStatusCounts,
   type CaseListFilter,
   type CaseQueries,
 } from './queries.js';
@@ -455,7 +456,7 @@ export function createPrismaCaseQueries(
       const parsed = filter.q ? parseCaseCode(filter.q) : null;
       const codeCaseId = parsed ? await findCaseIdByCode(db, parsed.year, parsed.ordinal) : null;
       const where = listWhere(filter, codeCaseId);
-      const [rows, total] = await Promise.all([
+      const [rows, total, grouped] = await Promise.all([
         db.disciplinary_cases.findMany({
           where,
           include: listInclude,
@@ -464,7 +465,16 @@ export function createPrismaCaseQueries(
           take: CASE_PAGE_SIZE,
         }),
         db.disciplinary_cases.count({ where }),
+        db.disciplinary_cases.groupBy({
+          by: ['status'],
+          where: listWhere({ ...filter, status: undefined }, codeCaseId),
+          _count: { _all: true },
+        }),
       ]);
+      const statusCounts = emptyStatusCounts();
+      for (const group of grouped) {
+        if (group.status in statusCounts) statusCounts[group.status as CaseStatus] = group._count._all;
+      }
       const codes = await loadCaseCodes(db, rows.map((row) => row.disciplinary_case_id));
       const refs = [...new Set(rows.flatMap((row) => (row.submission_ref ? [row.submission_ref] : [])))];
       const submissionCodes = await loadSubmissionCodes(db, refs);
@@ -477,6 +487,7 @@ export function createPrismaCaseQueries(
           ),
         ),
         total,
+        statusCounts,
       };
     },
 
@@ -554,6 +565,13 @@ export function createPrismaCaseQueries(
 
       const asMajor = row[AS_MAJOR] as Array<{ minor_case_id: number }>;
       const asMinor = row[AS_MINOR] as { major_case_id: number } | null;
+      const related = [
+        caseId,
+        ...asMajor.map((link) => link.minor_case_id),
+        ...(asMinor ? [asMinor.major_case_id] : []),
+        ...siblings.map((sibling) => sibling.disciplinary_case_id),
+      ];
+      const allCodes = await loadCaseCodes(db, [...new Set(related)]);
       const detail: StaffCaseDetail = {
         ...toRow(
           row as unknown as ListRow,
@@ -572,6 +590,7 @@ export function createPrismaCaseQueries(
         createdFromCaseIds: asMajor.map((link) => link.minor_case_id),
         countedTowardCaseId: asMinor?.major_case_id ?? null,
         siblingCaseIds: siblings.map((sibling) => sibling.disciplinary_case_id),
+        caseCodes: Object.fromEntries(related.map((id) => [String(id), allCodes.get(id) ?? ''])),
         sanctions: row.case_sanctions.map((sanction) =>
           toStaffSanctionView(toSanctionRecord(sanction as unknown as SanctionRow), today),
         ),

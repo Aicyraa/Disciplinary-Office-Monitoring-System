@@ -75,6 +75,7 @@ const KIND_INTRO: Record<NotificationKind, { subjectPrefix: string; intro: strin
   clr: { subjectPrefix: 'Clearance', intro: 'There is an update on your clearance.' },
   account: { subjectPrefix: 'Account', intro: 'There is a change to your account.' },
   newviol: { subjectPrefix: 'New violation', intro: 'A violation was recorded.' },
+  notice: { subjectPrefix: 'Important notice', intro: 'The SDO office posted an important notice for students.' },
 };
 
 type Builder = (input: NotifyInput) => NotifyPayload;
@@ -98,7 +99,7 @@ function build(kind: NotificationKind): Builder {
       html_body:
         `<p>${greeting}</p>` +
         `<p>${escapeHtml(intro)}</p>` +
-        `<p><strong>${escapeHtml(input.title)}</strong><br>${escapeHtml(input.message)}</p>` +
+        `<p><strong>${escapeHtml(input.title)}</strong><br>${escapeHtml(input.message).replace(/\r?\n/g, '<br>')}</p>` +
         link +
         '<p style="color:#5B6576;font-size:12px">NU Fairview Student Discipline Office. This is an automatic message; do not reply.</p>',
       link_url: href,
@@ -119,6 +120,7 @@ export const notifyPayloadBuilders: Record<NotificationKind, Builder> = {
   clr: build('clr'),
   account: build('account'),
   newviol: build('newviol'),
+  notice: build('notice'),
 };
 
 export function buildNotifyPayload(kind: NotificationKind, input: NotifyInput): NotifyPayload {

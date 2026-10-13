@@ -60,7 +60,7 @@ For each feature: the spec section to read, and the rules that must not be broke
 - Staff mark done or reverse (**reason required**); each change is a `clearance_history` row. All items done → `status = 'cleared'`. No auto-computation.
 
 ### 3.10 Notifications and timelines (SPEC 4.6, 6.3, POWER-AUTOMATE)
-- **There is no separate announcements/notices feature.** Notifications carry every admin update: sanction assigned or changed, appointment made or moved, case validated/rejected/resolved, clearance changes, password reset.
+- Notifications carry every admin update: sanction assigned or changed, appointment made or moved, case validated/rejected/resolved, clearance changes, password reset. **Important notices** are the one broadcast (kind `notice`): staff publish title, message, optional instructions and optional expiry; one notification per active student is written in the same transaction as the notice (key `notice:<id>:<studentId>`); edit rewrites them, remove deletes them, an expired notice is hidden from inboxes. Staff-only routes; students never call `/notices`.
 - Use one helper `notify({recipient, kind, title, message, link, idempotencyKey})`. If the `idempotency_key` exists, do nothing. Keys look like `san:12:completed`, `case:7:resolved`, `appt:3:new`. Students have `recipient_type='student'`; all staff share one in-app inbox (`recipient_type='staff'`, `student_id` NULL), and a staff alert is emailed to every active employee account (no `SDO_STAFF_MAILBOX`). Deep link = `link_type + link_id`.
 - Student UI: inbox, unread badge, a "you have N unread" toast after login.
 - Every case, sanction, appointment and clearance has a timeline of who did what and when (the `*_history` tables).

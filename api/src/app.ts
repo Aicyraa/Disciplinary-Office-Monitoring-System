@@ -26,6 +26,9 @@ import type { TemplateService } from './templates/service.js';
 import type { HandbookRepo } from './handbook/repo.js';
 import { errorHandler, notFoundHandler, sendError } from './http.js';
 import { createMeRouter } from './me/routes.js';
+import { createNoticeRouter } from './notices/routes.js';
+import type { NoticeService } from './notices/service.js';
+import type { NoticeStore } from './notices/types.js';
 import { createStudentsRouter } from './students/routes.js';
 import type { InboxStore } from './notifications/inbox.js';
 import { createNotificationsRouter } from './notifications/routes.js';
@@ -73,6 +76,8 @@ export interface AppDeps {
     appointments?: { service: AppointmentService; queries: AppointmentQueries };
     /** Staff clearance workflow: the rules (service) and the read side (queries). */
     clearance?: { service: ClearanceService; queries: ClearanceQueries };
+    /** Staff notices: broadcast, edit, remove (UI-POLISH-SPEC decision 1). */
+    notices?: { service: NoticeService; store: NoticeStore; onPublished?: () => void };
     /** The in-app inbox: a student's own, and the single shared staff inbox. */
     notifications?: { inbox: InboxStore };
     /** Injected so tests control "today" (Asia/Manila). */
@@ -155,6 +160,7 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
       if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
       if (data.appointments) app.use(createAppointmentRouter({ ...data.appointments, now: data.now }));
       if (data.clearance) app.use(createClearanceRouter(data.clearance));
+      if (data.notices) app.use(createNoticeRouter({ ...data.notices, now: data.now }));
       if (data.notifications) app.use(createNotificationsRouter({ store: data.notifications.inbox }));
     }
   }

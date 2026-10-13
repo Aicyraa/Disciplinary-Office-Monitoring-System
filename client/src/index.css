@@ -60,3 +60,15 @@ body {
     outline-offset: 2px;
   }
 }
+
+/* Respect "reduce motion": no pulsing placeholders or smooth scrolling for people who ask the system not to animate. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -7,18 +7,26 @@ import type {
   AccountRole,
   ApiSuccess,
   AuthUser,
+  NoticeListResponse,
   NotificationListResponse,
   EscalationConversion,
   HandbookEntryView,
   SanctionAssignmentOptions,
   SanctionTemplateView,
   StaffAppointmentListResponse,
+  StaffAppointmentView,
+  StaffClearanceView,
   StaffClearanceListResponse,
   StaffCaseDetail,
   StaffCaseListResponse,
   StudentAppointmentView,
   StudentCaseDetailView,
   StudentCaseView,
+  StudentProfileView,
+  StaffSanctionQueueResponse,
+  ClearanceSlipView,
+  StaffStudentListResponse,
+  StaffStudentRecord,
   StudentClearanceResponse,
   StudentSanctionView,
 } from '@shared/types';
@@ -156,6 +164,9 @@ export const api = {
 
   handbook: () => get<{ entries: HandbookEntryView[] }>('/handbook'),
 
+  myClearanceSlip: (academicYear: number, semester: number) =>
+    get<{ slip: ClearanceSlipView }>('/me/clearance/slip', { academic_year: academicYear, semester }),
+  myProfile: () => get<{ profile: StudentProfileView }>('/me/profile'),
   myCases: () => get<{ cases: StudentCaseView[] }>('/me/cases'),
   myCase: (id: number) => get<{ case: StudentCaseDetailView }>(`/me/cases/${id}`),
   mySanctions: () => get<{ sanctions: StudentSanctionView[] }>('/me/sanctions'),
@@ -180,6 +191,21 @@ export const api = {
     return get<StaffCaseListResponse>('/cases', params);
   },
   staffCase: (id: number) => get<{ case: StaffCaseDetail }>(`/cases/${id}`),
+  students: (query: { q?: string; page?: number } = {}) => {
+    const params: Record<string, string | number> = {};
+    if (query.q) params.q = query.q;
+    if (query.page) params.page = query.page;
+    return get<StaffStudentListResponse>('/students', params);
+  },
+  student: (studentId: string) => get<StaffStudentRecord>(`/students/${encodeURIComponent(studentId)}`),
+  resetStudentPassword: (studentId: string) =>
+    post<{ tempPassword: string }>(`/staff/students/${encodeURIComponent(studentId)}/reset-password`),
+  sanctionQueue: (query: { filter?: 'active' | 'pending_verification' | 'overdue'; page?: number } = {}) => {
+    const params: Record<string, string | number> = {};
+    if (query.filter) params.filter = query.filter;
+    if (query.page) params.page = query.page;
+    return get<StaffSanctionQueueResponse>('/case-sanctions', params);
+  },
   recordViolation: (studentId: string, handbookEntryId: number, remarks?: string) =>
     post<{ caseId: number; conversions: EscalationConversion[] }>('/cases', {
       studentId,
@@ -231,6 +257,14 @@ export const api = {
     if (query.page && query.page > 1) params.page = query.page;
     return get<StaffAppointmentListResponse>('/appointments', params);
   },
+  // Notices (staff): broadcast, edit, remove
+  notices: () => get<NoticeListResponse>('/notices'),
+  publishNotice: (input: { title: string; message: string; instructions?: string; expiresOn?: string }) =>
+    post<{ noticeId: number; recipients: number }>('/notices', input),
+  editNotice: (id: number, input: { title: string; message: string; instructions?: string; expiresOn?: string }) =>
+    patch<{ ok: true }>(`/notices/${id}`, input),
+  removeNotice: (id: number) => del<{ ok: true }>(`/notices/${id}`),
+  staffAppointment: (id: number) => get<{ appointment: StaffAppointmentView }>(`/appointments/${id}`),
   createAppointment: (input: { studentId: string; startDate: string; purpose: string; notes: string }) =>
     post<{ appointmentId: number }>('/appointments', input),
   updateAppointment: (appointmentId: number, input: { startDate?: string; purpose?: string; notes?: string }) =>
@@ -297,6 +331,7 @@ export const api = {
     if (query.page && query.page > 1) params.page = query.page;
     return get<StaffClearanceListResponse>('/clearances', params);
   },
+  staffClearance: (id: number) => get<{ clearance: StaffClearanceView }>(`/clearances/${id}`),
   setUpClearance: (input: { studentId: string; academicYear: number; semester: number }) =>
     post<{ clearanceId: number }>('/clearances', input),
   markRequirementDone: (clearanceId: number, requirementId: number, remarks: string) =>

@@ -32,6 +32,8 @@ import { createHandbookAdminService } from './handbook/admin-service.js';
 import { createPrismaHandbookAdminStore } from './handbook/admin-prisma-store.js';
 import { filesBucketFromEnv, templatesBucketFromEnv } from './storage/config.js';
 import { createPrismaTemplateReader, createPrismaTemplateStore } from './templates/prisma-store.js';
+import { createNoticeService } from './notices/service.js';
+import { createPrismaNoticeStore } from './notices/prisma-store.js';
 import { createTemplateService } from './templates/service.js';
 import { createS3Storage } from './storage/s3.js';
 import { createUnavailableStorage } from './storage/unavailable.js';
@@ -110,6 +112,7 @@ function buildApp(): Built {
   const appointmentStore = withAfterCommit(createPrismaAppointmentStore(prisma), scheduler.kick);
   const clearanceStore = withAfterCommit(createPrismaClearanceStore(prisma), scheduler.kick);
   const notificationWriter = createPrismaNotificationWriter(prisma);
+  const noticeStore = createPrismaNoticeStore(prisma);
 
   // File storage is optional in development (everything but proof files keeps working) and required in production.
   const filesBucket = filesBucketFromEnv();
@@ -184,6 +187,11 @@ function buildApp(): Built {
       appointments: {
         service: createAppointmentService({ store: appointmentStore }),
         queries: createPrismaAppointmentQueries(prisma),
+      },
+      notices: {
+        service: createNoticeService({ store: noticeStore }),
+        store: noticeStore,
+        onPublished: scheduler.kick,
       },
       notifications: { inbox: createPrismaInboxStore(prisma) },
     },
