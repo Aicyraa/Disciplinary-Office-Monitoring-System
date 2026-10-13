@@ -59,7 +59,7 @@ export function returnReason(sanction: Pick<StudentSanctionView, 'history' | 'st
 export function nextStep(sanction: Pick<StudentSanctionView, 'status' | 'sanctionCode' | 'history'>): string {
   switch (sanction.status) {
     case 'assigned':
-      return `Complete sanction ${sanction.sanctionCode}, then upload your proof below as a PDF or DOCX file.`;
+      return `Complete sanction ${sanction.sanctionCode}, then upload your proof below as a PDF file.`;
     case 'returned': {
       const reason = returnReason(sanction);
       return `The office returned your proof${reason ? `: ${reason}` : '.'} Upload it again below.`;

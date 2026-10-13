@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Icon } from '@/components/ui';
+import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils/cn';
 
 /** Centred "nothing here" block inside a card or pane: icon, title, one line of help. */

@@ -1,11 +1,15 @@
 import { describe, expect, test } from 'vitest';
-import { MAX_FILE_BYTES, addDays, checkSelection, formatSize, manilaToday, progressPercent, uploadButtonLabel } from '@/utils/files';
+import { ACCEPT_ATTRIBUTE, MAX_FILE_BYTES, addDays, checkSelection, formatSize, manilaToday, progressPercent, splitSelection, uploadButtonLabel } from '@/utils/files';
 
 const file = (name: string, size = 1024) => ({ name, size });
 
 describe('checkSelection', () => {
-  test('accepts PDF and DOCX files within the limits', () => {
-    expect(checkSelection([file('a.pdf'), file('B.DOCX')], 0)).toBeNull();
+  test('accepts PDF files within the limits (any case of the extension)', () => {
+    expect(checkSelection([file('a.pdf'), file('B.PDF')], 0)).toBeNull();
+  });
+
+  test('PDF only (D7): a DOCX is refused with "is not a PDF file."', () => {
+    expect(checkSelection([file('letter.docx')], 0)).toBe('letter.docx is not a PDF file.');
   });
 
   test('needs at least one file', () => {
@@ -19,8 +23,8 @@ describe('checkSelection', () => {
   });
 
   test.each([
-    ['photo.png', 1024, /only PDF or DOCX/],
-    ['notes.txt', 1024, /only PDF or DOCX/],
+    ['photo.png', 1024, /is not a PDF file/],
+    ['notes.txt', 1024, /is not a PDF file/],
     ['empty.pdf', 0, /empty/],
     ['huge.pdf', MAX_FILE_BYTES + 1, /larger than 10 MB/],
   ])('rejects %s', (name, size, pattern) => {
@@ -29,6 +33,35 @@ describe('checkSelection', () => {
 
   test('exactly 10 MB is fine', () => {
     expect(checkSelection([file('edge.pdf', MAX_FILE_BYTES)], 0)).toBeNull();
+  });
+});
+
+describe('splitSelection (a wrong file is rejected, the others stay)', () => {
+  test('keeps the PDFs, drops the rest and names the first problem', () => {
+    const result = splitSelection([file('a.pdf'), file('photo-of-letter.png'), file('b.pdf')], 0);
+    expect(result.accepted.map((f) => f.name)).toEqual(['a.pdf', 'b.pdf']);
+    expect(result.error).toBe('photo-of-letter.png is not a PDF file.');
+  });
+
+  test('too large and empty files are dropped with their message', () => {
+    expect(splitSelection([file('big.pdf', MAX_FILE_BYTES + 1)], 0)).toEqual({ accepted: [], error: 'big.pdf is larger than 10 MB.' });
+    expect(splitSelection([file('zero.pdf', 0)], 0).error).toBe('zero.pdf is empty.');
+  });
+
+  test('stops at five files in all and says so', () => {
+    const result = splitSelection([file('a.pdf'), file('b.pdf'), file('c.pdf')], 3);
+    expect(result.accepted.map((f) => f.name)).toEqual(['a.pdf', 'b.pdf']);
+    expect(result.error).toBe('You can upload up to 5 files.');
+  });
+
+  test('nothing wrong: no error', () => {
+    expect(splitSelection([file('a.pdf')], 0)).toEqual({ accepted: [file('a.pdf')], error: null });
+  });
+});
+
+describe('ACCEPT_ATTRIBUTE', () => {
+  test('the file picker offers PDFs only', () => {
+    expect(ACCEPT_ATTRIBUTE).toBe('.pdf,application/pdf');
   });
 });
 

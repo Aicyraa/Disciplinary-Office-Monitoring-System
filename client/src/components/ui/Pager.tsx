@@ -1,4 +1,4 @@
-import { Icon } from '@/components/ui';
+import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils/cn';
 import { pagerItems } from '@/utils/pager';
 

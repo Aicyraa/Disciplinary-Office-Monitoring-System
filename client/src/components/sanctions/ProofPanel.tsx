@@ -1,7 +1,7 @@
 import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import type { StudentSanctionView } from '@shared/types';
 import { api, toApiError } from '@/api/client';
-import { ACCEPTED_EXTENSIONS, MAX_FILES, checkSelection, formatSize, uploadButtonLabel } from '@/utils/files';
+import { ACCEPT_ATTRIBUTE, MAX_FILES, checkSelection, formatSize, splitSelection, uploadButtonLabel } from '@/utils/files';
 import { Icon } from '@/components/ui';
 
 type Notice = { tone: 'success' | 'error'; text: string };
@@ -54,14 +54,13 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
     }
   }
 
-  /** Picking or dropping again adds to the list (the same file twice is ignored). */
+  /** Picking or dropping again adds to the list (the same file twice is ignored); a wrong file is refused, the others stay. */
   function addFiles(picked: File[]) {
     if (picked.length === 0) return;
-    setSelected((current) => [
-      ...current,
-      ...picked.filter((file) => !current.some((c) => c.name === file.name && c.size === file.size)),
-    ]);
-    setNotice(null);
+    const fresh = picked.filter((file) => !selected.some((c) => c.name === file.name && c.size === file.size));
+    const { accepted, error } = splitSelection(fresh, sanction.files.length + selected.length);
+    setSelected((current) => [...current, ...accepted]);
+    setNotice(error ? { tone: 'error', text: error } : null);
   }
 
   function submit() {
@@ -147,7 +146,7 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
       <input
         ref={replaceRef}
         type="file"
-        accept={ACCEPTED_EXTENSIONS.join(',')}
+        accept={ACCEPT_ATTRIBUTE}
         className="sr-only"
         aria-label="Choose the replacement file"
         tabIndex={-1}
@@ -186,7 +185,7 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
               ref={pickRef}
               type="file"
               multiple
-              accept={ACCEPTED_EXTENSIONS.join(',')}
+              accept={ACCEPT_ATTRIBUTE}
               className="sr-only"
               tabIndex={-1}
               onChange={(event) => {
@@ -213,13 +212,13 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
                 if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
               }}
               onDrop={onDrop}
-              className={`flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                dragging ? 'border-primary bg-primary/5' : 'border-line-strong bg-white'
+              className={`flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors hover:border-primary hover:bg-upload-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                dragging ? 'border-primary bg-upload-hover' : 'border-upload-line bg-upload-bg'
               } ${busy ? 'cursor-not-allowed opacity-60' : ''}`}
             >
               <Icon name="cloud_upload" className="text-4xl text-primary" />
               <p className="mt-1 text-sm font-semibold text-ink">Choose files to upload</p>
-              <p className="mt-1 text-xs text-muted">Click to choose or drag files here · PDF or DOCX, up to 10 MB each, {MAX_FILES} files max</p>
+              <p className="mt-1 text-xs text-muted">Click to choose or drag files here · PDF only, up to 10 MB each, {MAX_FILES} files max</p>
             </div>
 
             {selected.length > 0 ? (

@@ -1,7 +1,14 @@
 /** Client-side limits that mirror the API (SPEC 4.3 / 6.1). The API stays the authority. */
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_FILES = 5;
-export const ACCEPTED_EXTENSIONS = ['.pdf', '.docx'] as const;
+/** Files are PDF only so every file can be previewed inside the app (UI-POLISH-SPEC D7). */
+export const ACCEPTED_EXTENSIONS = ['.pdf'] as const;
+/** The `accept` attribute of every file input. */
+export const ACCEPT_ATTRIBUTE = '.pdf,application/pdf';
+
+export const notPdfMessage = (name: string): string => `${name} is not a PDF file.`;
+
+const isPdfName = (name: string): boolean => ACCEPTED_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
 
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -17,12 +24,37 @@ export function checkSelection(
   if (files.length === 0) return 'Choose at least one file.';
   if (existingCount + files.length > MAX_FILES) return `You can attach at most ${MAX_FILES} files.`;
   for (const file of files) {
-    const lower = file.name.toLowerCase();
-    if (!ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext))) return `${file.name}: only PDF or DOCX files are accepted.`;
+    if (!isPdfName(file.name)) return notPdfMessage(file.name);
     if (file.size === 0) return `${file.name} is empty.`;
     if (file.size > MAX_FILE_BYTES) return `${file.name} is larger than 10 MB.`;
   }
   return null;
+}
+
+/**
+ * Picking or dropping files: keep the good ones, drop the rest and name the first problem (deck W71: a wrong file
+ * is rejected inline and the other files stay). `existingCount` is what is already chosen or attached.
+ */
+export function splitSelection<T extends { name: string; size: number }>(
+  files: ReadonlyArray<T>,
+  existingCount: number,
+): { accepted: T[]; error: string | null } {
+  const accepted: T[] = [];
+  let error: string | null = null;
+  for (const file of files) {
+    const problem = !isPdfName(file.name)
+      ? notPdfMessage(file.name)
+      : file.size === 0
+        ? `${file.name} is empty.`
+        : file.size > MAX_FILE_BYTES
+          ? `${file.name} is larger than 10 MB.`
+          : existingCount + accepted.length >= MAX_FILES
+            ? `You can upload up to ${MAX_FILES} files.`
+            : null;
+    if (problem === null) accepted.push(file);
+    else error ??= problem;
+  }
+  return { accepted, error };
 }
 
 /** Add days to a YYYY-MM-DD calendar day (UTC arithmetic, so no time zone can shift it). */

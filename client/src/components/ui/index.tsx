@@ -1,14 +1,9 @@
 import type { ReactNode } from 'react';
 import { pillTone, statusLabel, type StatusKind } from '@/utils/format';
 import type { ApiResource } from '@/hooks/useApi';
+import { Icon } from './Icon';
 
-export function Icon({ name, className = '' }: { name: string; className?: string }) {
-  return (
-    <span className={`material-symbols-outlined ${className}`} aria-hidden="true">
-      {name}
-    </span>
-  );
-}
+export { Icon } from './Icon';
 
 export function StatusPill({ status, label, kind }: { status: string; label?: string; kind?: StatusKind }) {
   const tone = pillTone(status);

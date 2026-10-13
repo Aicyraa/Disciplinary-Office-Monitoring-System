@@ -51,6 +51,12 @@
   --color-disabled-ink: #6b7480;
   --color-skeleton: #e6eaee;
   --color-scrim: rgba(16, 22, 52, 0.5);
+  /* Upload drop zone (UI-POLISH-SPEC 4.2b): resting, hover and drag-over. */
+  --color-upload-bg: #f7f8fc;
+  --color-upload-hover: #eef0fa;
+  --color-upload-line: #aeb6e3;
+  /* Selected option of a segmented control. */
+  --shadow-tab: 0 1px 2px rgba(28, 36, 69, 0.12);
 
   /* Responsive modes: bottom tab bar under 720, icon rail 720-1100, full sidebar above. */
   --breakpoint-rail: 720px;
@@ -91,6 +97,20 @@ body {
 
 /* In the base layer so utilities such as focus-visible:outline-white can override it (unlayered CSS would win). */
 @layer base {
+  /* UI-POLISH-SPEC 4.2b: Tailwind v4 resets buttons to the arrow cursor; every clickable thing shows a hand. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  label[for],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
   :focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;

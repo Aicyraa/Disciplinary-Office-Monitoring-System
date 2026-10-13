@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cva } from 'class-variance-authority';
-import { Icon } from '@/components/ui';
+import { Icon } from '@/components/ui/Icon';
 
 /** Shared look of Field, Select and Textarea (UI-POLISH-SPEC 4.2): 44 px (48 on the gate form), radius 8. */
 export const controlVariants = cva(

@@ -43,7 +43,7 @@ describe('ProofPanel', () => {
     const html = render(base);
     expect(html).toContain('Upload your proof');
     expect(html).toContain('multiple');
-    expect(html).toContain('accept=".pdf,.docx"');
+    expect(html).toContain('accept=".pdf,application/pdf"');
     expect(html).toContain('5 files max');
     expect(html).toContain('No file uploaded yet.');
     expect(html).not.toContain('Replace');
@@ -53,7 +53,7 @@ describe('ProofPanel', () => {
     const html = render(base);
     expect(html).toContain('Choose files to upload');
     expect(html).toContain('Click to choose or drag files here');
-    expect(html).toContain('PDF or DOCX, up to 10 MB each, 5 files max');
+    expect(html).toContain('PDF only, up to 10 MB each, 5 files max');
     expect(html).toMatch(/<div role="button" tabindex="0"[^>]*hover:border-primary/);
     expect(html).toContain('border-dashed');
   });

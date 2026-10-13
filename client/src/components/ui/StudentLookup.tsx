@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react';
-import { Icon } from '@/components/ui';
+import { Icon } from '@/components/ui/Icon';
 import { Field } from './Field';
 
 /** What the live lookup has found so far; the API owns the answer, this only shows it. */

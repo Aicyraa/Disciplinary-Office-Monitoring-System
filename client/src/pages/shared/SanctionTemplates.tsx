@@ -6,7 +6,7 @@ import { TemplateView, hasTemplateContent } from '@/components/templates/Templat
 import { useToast } from '@/components/feedback';
 import { EmptyState, ErrorState, Icon, LoadingState, buttonClass, fieldClass } from '@/components/ui';
 import { api, toApiError } from '@/api/client';
-import { ACCEPTED_EXTENSIONS, checkSelection, formatSize, uploadButtonLabel } from '@/utils/files';
+import { ACCEPT_ATTRIBUTE, checkSelection, formatSize, uploadButtonLabel } from '@/utils/files';
 import { useApi } from '@/hooks/useApi';
 
 type Notice = { tone: 'success' | 'error'; text: string };
@@ -153,7 +153,7 @@ function FileManager({ template, onChanged }: { template: SanctionTemplateView; 
       <input
         ref={pickRef}
         type="file"
-        accept={ACCEPTED_EXTENSIONS.join(',')}
+        accept={ACCEPT_ATTRIBUTE}
         className="sr-only"
         tabIndex={-1}
         aria-label={`Choose the template file for ${template.type}`}
@@ -177,7 +177,7 @@ function FileManager({ template, onChanged }: { template: SanctionTemplateView; 
         <button type="button" disabled={busy || !selected} onClick={() => void upload()} className={buttonClass}>
           {uploadButtonLabel({ count: selected ? 1 : 0, busy, percent })}
         </button>
-        <span className="text-xs text-muted">PDF or DOCX, up to 10 MB. One file; a new upload replaces it.</span>
+        <span className="text-xs text-muted">PDF only, up to 10 MB. One file; a new upload replaces it.</span>
       </div>
       {selected ? (
         <p className="mt-2 text-sm" aria-label="File ready to upload">

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cva } from 'class-variance-authority';
-import { Icon } from '@/components/ui';
+import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils/cn';
 
 const alertVariants = cva('flex items-start gap-2.5 rounded-lg border px-3.5 py-3 text-[13px] leading-5', {

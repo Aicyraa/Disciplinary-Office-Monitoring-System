@@ -1,5 +1,5 @@
 import { useId, type ComponentProps } from 'react';
-import { Icon } from '@/components/ui';
+import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils/cn';
 import { FieldShell, controlVariants, describedBy } from './FieldShell';
 
