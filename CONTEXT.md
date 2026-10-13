@@ -877,3 +877,13 @@ Commits: 1030eed (sidebar, top bar, bell, account dialogs, phone bar, drawer), 7
 - Evidence: `npm test` 78 files / 1250 pass; lint and typecheck clean; build exit 0.
 - Not checked live (dev server denied in this session). HUMAN CHECK: run `npm run dev`, sign in as staff and as student at 390 / 900 / 1280 px -> sidebar 264 / rail 80 / phone tab bar; collapse button toggles; bell opens the popover on both roles; More opens the blue drawer from the left; avatar menu opens the two dialogs.
 - Known for later slices: each page still shows its old action buttons (kept on purpose until its slice); the screen layouts themselves are U3–U12.
+
+## U3 Public screens (UI-POLISH-SPEC 5.2, 5.3, D1, D2) — main session, branch worktree-ui-polish-build
+
+Commits: a7f97c0 (API D1 + D2), 1fa68eb (client).
+- **D1 (API):** `POST /auth/change-password` accepts no `currentPassword` only while the account has `must_change_password`; reusing the temporary password answers `same_password` "Don’t reuse the temporary password."; an ordinary change without the current password is `invalid_input`. Route tests added.
+- **D2 (API):** gate options carry `category` (handbook severity); `POST /public/gate-reports` answers `submittedAt` (the first report's time on a repeat). Prisma and memory stores updated.
+- **Client:** shared `PublicSplit` (hero + gold edge, band on phone). Sign-in, Set a new password (new + confirm, live rules, `api.changePassword(null, …)`), gate form rebuilt per W07–W14 (per-field errors, year pills, Minor/Major tabs, cards, review, "not sent" alert on a network failure, success card). `StageTracker` got `size`.
+- Evidence: `npm test` 79 files / 1261 pass; lint, typecheck clean; build exit 0.
+- RISK for the human: D1 trusts the account flag, not the session's sign-in method, so a session that was already open before a staff reset could also set a new password without the temporary one. If that matters, the reset should end the student's other sessions (a small API change; not done).
+- Not checked live (dev server denied). HUMAN CHECK: reset a dev student's password as staff, sign in with the temporary one -> the split "Set a new password" screen; reusing the temporary password shows the alert; a new one lands on the dashboard with "Password set. Welcome back.". Open `/report`, try Next with empty fields -> a message under each field; finish -> the GI reference with the time.
