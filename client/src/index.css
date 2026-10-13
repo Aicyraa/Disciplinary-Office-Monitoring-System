@@ -66,6 +66,8 @@
   /* Start-date calendar (src 3240): available day border, unavailable day border. */
   --color-calendar-open: #8fd0a8;
   --color-calendar-closed: #e3e8ec;
+  /* Accent bar of the Minor class tile (src 2956). */
+  --color-minor-accent: #6b78c8;
   /* Selected option of a segmented control. */
   --shadow-tab: 0 1px 2px rgba(28, 36, 69, 0.12);
 

@@ -1,21 +1,25 @@
 import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { Link } from 'react-router-dom';
 import type { StudentSanctionView } from '@shared/types';
 import { api, toApiError } from '@/api/client';
-import { ACCEPT_ATTRIBUTE, MAX_FILES, checkSelection, fileMeta, lastFileRemovalMessage, splitSelection, uploadButtonLabel } from '@/utils/files';
-import { Icon } from '@/components/ui/Icon';
-import { FileRow } from '@/components/ui/FileRow';
 import { ConfirmModal, useToast } from '@/components/feedback';
 import { FilePreview, type PreviewFile } from '@/components/feedback/FilePreview';
-
-type Notice = { tone: 'success' | 'error'; text: string };
+import { StatusPill } from '@/components/ui';
+import { Button } from '@/components/ui/Button';
+import { FileRow } from '@/components/ui/FileRow';
+import { Icon } from '@/components/ui/Icon';
+import { cn } from '@/utils/cn';
+import { ACCEPT_ATTRIBUTE, MAX_FILES, checkSelection, fileMeta, lastFileRemovalMessage, splitSelection } from '@/utils/files';
+import { uploadPanel } from '@/utils/studentView';
 
 /**
- * Proof upload for one sanction (SPEC 4.3, 6.1). What is offered comes from the API's `canUpload` and
- * `canChangeFiles`; the API enforces the same rules again, so this is only a convenience.
+ * Proof of completion for one sanction (deck src 1187 to 1224, SPEC 4.3, 6.1). What is offered follows the API's
+ * `canUpload` and `canChangeFiles`; the API enforces the same rules again. Files are PDF only (D7).
  */
 export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionView; onChanged: () => void }) {
+  const toast = useToast();
   const [selected, setSelected] = useState<File[]>([]);
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [percent, setPercent] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -24,22 +28,21 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
   const [replaceTarget, setReplaceTarget] = useState<number | null>(null);
   const [previewing, setPreviewing] = useState<{ file: PreviewFile; loadUrl: () => Promise<string> } | null>(null);
   const [removing, setRemoving] = useState<{ id: number; name: string } | null>(null);
-  const toast = useToast();
-
-  if (sanction.status === 'completed' && sanction.files.length === 0) return null;
+  const panel = uploadPanel(sanction);
+  const canEdit = sanction.canUpload && !busy;
+  const canChange = sanction.canChangeFiles && !busy;
 
   async function run(work: () => Promise<void>, success: string) {
     setBusy(true);
     setPercent(null);
-    setNotice(null);
+    setError(null);
     try {
       await work();
       toast.show(success, 'success');
       setSelected([]);
-      if (pickRef.current) pickRef.current.value = '';
       onChanged();
-    } catch (error) {
-      setNotice({ tone: 'error', text: toApiError(error).message });
+    } catch (caught) {
+      setError(toApiError(caught).message);
       onChanged();
     } finally {
       setBusy(false);
@@ -48,52 +51,32 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
     }
   }
 
-  /** Uploaded files open in the preview modal through the API's short-lived link; never in a new tab. */
-  function viewUploaded(file: StudentSanctionView['files'][number]) {
-    setPreviewing({ file: { name: file.name, meta: fileMeta(file) }, loadUrl: async () => (await api.fileUrl(file.id)).url });
-  }
-
-  /** A chosen file not sent yet previews from the browser's own copy. */
-  function viewChosen(file: File) {
-    setPreviewing({
-      file: { name: file.name, meta: fileMeta({ name: file.name, sizeBytes: file.size }) },
-      loadUrl: async () => URL.createObjectURL(file),
-    });
-  }
-
-  function askRemove(file: { id: number; name: string }) {
-    // Deck src 2473: the last submitted file can only be replaced.
-    const blocked = lastFileRemovalMessage(sanction.status, sanction.files.length);
-    if (blocked) {
-      setNotice({ tone: 'error', text: blocked });
-      return;
-    }
-    setRemoving(file);
-  }
-
-  /** Picking or dropping again adds to the list (the same file twice is ignored); a wrong file is refused, the others stay. */
+  /** Picking or dropping adds to the list; a wrong file is refused with a message and the others stay. */
   function addFiles(picked: File[]) {
     if (picked.length === 0) return;
     const fresh = picked.filter((file) => !selected.some((c) => c.name === file.name && c.size === file.size));
-    const { accepted, error } = splitSelection(fresh, sanction.files.length + selected.length);
+    const { accepted, error: problem } = splitSelection(fresh, sanction.files.length + selected.length);
     setSelected((current) => [...current, ...accepted]);
-    setNotice(error ? { tone: 'error', text: error } : null);
+    setError(problem);
   }
 
   function submit() {
     const problem = checkSelection(selected, sanction.files.length);
     if (problem) {
-      setNotice({ tone: 'error', text: problem });
+      setError(problem);
       return;
     }
-    void run(
-      () => api.uploadProof(sanction.id, selected, undefined, setPercent).then(() => undefined),
-      `Proof submitted for ${sanction.sanctionCode}.`,
-    );
+    void run(() => api.uploadProof(sanction.id, selected, undefined, setPercent).then(() => undefined), `Proof submitted for ${sanction.sanctionCode}.`);
+  }
+
+  function askRemove(file: { id: number; name: string }) {
+    const blocked = lastFileRemovalMessage(sanction.status, sanction.files.length);
+    if (blocked) setError(blocked);
+    else setRemoving(file);
   }
 
   const openPicker = () => {
-    if (!busy) pickRef.current?.click();
+    if (canEdit) pickRef.current?.click();
   };
   const onZoneKey = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -104,39 +87,43 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
-    if (!busy) addFiles(Array.from(event.dataTransfer.files));
+    if (canEdit) addFiles(Array.from(event.dataTransfer.files));
   };
 
-  const title = sanction.status === 'returned' ? 'Upload a corrected file' : 'Upload your proof';
-
   return (
-    <div className="mt-3 rounded-md bg-page p-3">
-      <h3 className="text-sm font-semibold text-ink">Proof of completion</h3>
+    <div className="flex flex-col overflow-hidden rounded-xl border border-line">
+      <div className="flex items-center gap-3 border-b border-line-soft bg-surface-2 px-4 py-3.5">
+        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-info-soft text-primary">
+          <Icon name="upload_file" className="!text-xl" />
+        </span>
+        <span className="min-w-0 flex-1 leading-snug">
+          <span className="block text-[15px] font-bold text-ink">{panel.title}</span>
+          <span className="block truncate text-xs text-muted">{panel.sub}</span>
+        </span>
+        <StatusPill status={sanction.status} kind="sanction" />
+      </div>
 
-      {sanction.files.length > 0 ? (
-        <div className="mt-2 flex flex-col gap-2">
-          {sanction.files.map((file) => (
-            <FileRow
-              key={file.id}
-              name={file.name}
-              meta={fileMeta(file)}
-              onView={() => viewUploaded(file)}
-              onReplace={
-                sanction.canChangeFiles && !busy
-                  ? () => {
-                      setReplaceTarget(file.id);
-                      replaceRef.current?.click();
-                    }
-                  : undefined
-              }
-              onRemove={sanction.canChangeFiles && !busy ? () => askRemove(file) : undefined}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="mt-1 text-sm text-muted">No file uploaded yet.</p>
-      )}
+      {panel.returned ? (
+        <p role="alert" className="mx-4 mt-3.5 flex items-center gap-2 rounded-[10px] bg-bad-soft px-3.5 py-2.5 text-[13px] text-pretty text-bad-ink">
+          <Icon name="undo" className="!text-lg" />
+          {panel.returned}
+        </p>
+      ) : null}
 
+      <input
+        ref={pickRef}
+        id={`proof-${sanction.id}`}
+        type="file"
+        multiple
+        accept={ACCEPT_ATTRIBUTE}
+        className="sr-only"
+        tabIndex={-1}
+        onChange={(event) => {
+          const picked = Array.from(event.target.files ?? []);
+          event.target.value = '';
+          addFiles(picked);
+        }}
+      />
       {/* One hidden input serves every Replace button. */}
       <input
         ref={replaceRef}
@@ -151,124 +138,122 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
           if (!file || replaceTarget === null) return;
           const problem = checkSelection([file], 0);
           if (problem) {
-            setNotice({ tone: 'error', text: problem });
-            toast.show('Replacement failed. Use a PDF file.', 'error');
+            setError(problem);
+            toast.show(problem.includes('10 MB') ? 'Replacement failed. The file is over 10 MB.' : 'Replacement failed. Use a PDF file.', 'error');
             return;
           }
           const old = sanction.files.find((f) => f.id === replaceTarget)?.name ?? 'the file';
-          void run(
-            () => api.uploadProof(sanction.id, [file], replaceTarget, setPercent).then(() => undefined),
-            `Replaced ${old} with ${file.name}.`,
-          );
+          void run(() => api.uploadProof(sanction.id, [file], replaceTarget, setPercent).then(() => undefined), `Replaced ${old} with ${file.name}.`);
         }}
       />
 
-      {sanction.canUpload ? (
-        <div className="mt-3 overflow-hidden rounded-lg border border-line bg-white">
-          <div className="flex items-center gap-3 border-b border-line bg-page px-3 py-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Icon name="upload_file" />
-            </span>
-            <div className="min-w-0">
-              <label htmlFor={`proof-${sanction.id}`} className="block text-sm font-semibold text-ink">
-                {title}
-              </label>
-              <p className="truncate text-xs text-muted">
-                {sanction.sanctionCode} · {sanction.type}
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3">
-            <input
-              id={`proof-${sanction.id}`}
-              ref={pickRef}
-              type="file"
-              multiple
-              accept={ACCEPT_ATTRIBUTE}
-              className="sr-only"
-              tabIndex={-1}
-              onChange={(event) => {
-                const picked = Array.from(event.target.files ?? []);
-                event.target.value = '';
-                addFiles(picked);
-              }}
-            />
-
-            <div
-              role="button"
-              tabIndex={0}
-              aria-disabled={busy}
-              aria-label="Choose files to upload"
-              onClick={openPicker}
-              onKeyDown={onZoneKey}
-              onDragEnter={(event) => {
-                event.preventDefault();
-                if (!busy) setDragging(true);
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDragLeave={(event) => {
-                // Moving over a child element fires dragleave on the container too: only clear when truly leaving.
-                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
-              }}
-              onDrop={onDrop}
-              className={`flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors hover:border-primary hover:bg-upload-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                dragging ? 'border-primary bg-upload-hover' : 'border-upload-line bg-upload-bg'
-              } ${busy ? 'cursor-not-allowed opacity-60' : ''}`}
-            >
-              <Icon name="cloud_upload" className="text-4xl text-primary" />
-              <p className="mt-1 text-sm font-semibold text-ink">Choose files to upload</p>
-              <p className="mt-1 text-xs text-muted">Click to choose or drag files here · PDF only, up to 10 MB each, {MAX_FILES} files max</p>
-            </div>
-
-            {selected.length > 0 ? (
-              <div className="mt-3 flex flex-col gap-2" aria-label="Files ready to upload">
-                {selected.map((file) => (
-                  <FileRow
-                    key={`${file.name}-${file.size}`}
-                    name={file.name}
-                    meta={fileMeta({ name: file.name, sizeBytes: file.size })}
-                    onView={() => viewChosen(file)}
-                    onRemove={busy ? undefined : () => setSelected((current) => current.filter((c) => c !== file))}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {busy ? (
-              <div
-                role="progressbar"
-                aria-label="Upload progress"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={percent ?? undefined}
-                className="mt-3 h-2 overflow-hidden rounded-full bg-line"
-              >
-                <div
-                  className={`h-full rounded-full bg-primary transition-[width] ${percent === null ? 'w-1/3 animate-pulse' : ''}`}
-                  style={percent === null ? undefined : { width: `${percent}%` }}
-                />
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              disabled={busy || selected.length === 0}
-              onClick={submit}
-              className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-active disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
-            >
-              {uploadButtonLabel({ count: selected.length, busy, percent })}
-            </button>
-          </div>
+      {panel.open && sanction.canUpload ? (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-disabled={busy}
+          aria-label="Choose files to upload"
+          onClick={openPicker}
+          onKeyDown={onZoneKey}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            if (canEdit) setDragging(true);
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+          }}
+          onDrop={onDrop}
+          className={cn(
+            'mx-4 mt-3.5 flex min-h-32 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed px-4 py-[18px] text-center outline-none transition-colors hover:border-primary hover:bg-upload-hover focus-visible:ring-[3px] focus-visible:ring-primary/35',
+            dragging ? 'border-primary bg-upload-hover' : 'border-upload-line bg-upload-bg',
+            busy && 'cursor-not-allowed opacity-60',
+          )}
+        >
+          <Icon name="cloud_upload" className="!text-[32px] text-primary" />
+          <span className="text-[15px] font-bold text-ink">Choose files to upload</span>
+          <span className="text-[13px] text-pretty text-muted">
+            <span className="rail:hidden">Tap to choose</span>
+            <span className="hidden rail:inline">Click to choose or drag files here</span> · PDF only, up to 10 MB each, {MAX_FILES} files max
+          </span>
         </div>
       ) : null}
 
-      {sanction.status === 'pending_verification' && !sanction.canChangeFiles ? (
-        <p className="mt-2 text-xs text-muted">The office is reviewing this proof, so it can no longer be changed.</p>
+      {error ? (
+        <p role="alert" className="mx-4 mt-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-danger">
+          <Icon name="error" className="!text-lg" />
+          {error}
+        </p>
       ) : null}
 
-      {previewing ? <FilePreview file={previewing.file} loadUrl={previewing.loadUrl} onClose={() => setPreviewing(null)} /> : null}
+      {panel.open ? (
+        <Link
+          to={`/handbook?tab=templates&sanction=${sanction.sanctionId}`}
+          className="mx-3 mt-2.5 inline-flex min-h-9 items-center gap-1.5 self-start rounded-lg px-2 text-[13px] font-semibold text-primary outline-none hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25"
+        >
+          <Icon name="menu_book" className="!text-lg" />
+          View the template for this sanction
+        </Link>
+      ) : null}
 
+      {sanction.files.length + selected.length > 0 ? (
+        <div className="mx-4 mt-3.5 overflow-hidden rounded-[10px] border border-line-soft" aria-label="Proof files">
+          {sanction.files.map((file) => (
+            <FileRow
+              key={file.id}
+              name={file.name}
+              meta={fileMeta(file)}
+              onView={() => setPreviewing({ file: { name: file.name, meta: fileMeta(file) }, loadUrl: async () => (await api.fileUrl(file.id)).url })}
+              onReplace={
+                canChange
+                  ? () => {
+                      setReplaceTarget(file.id);
+                      replaceRef.current?.click();
+                    }
+                  : undefined
+              }
+              onRemove={canChange ? () => askRemove(file) : undefined}
+              className="-mb-px rounded-none border-0 border-b border-line-soft"
+            />
+          ))}
+          {selected.map((file) => {
+            const meta = `${fileMeta({ name: file.name, sizeBytes: file.size })} · Not submitted yet`;
+            return (
+              <FileRow
+                key={`${file.name}-${file.size}`}
+                name={file.name}
+                meta={meta}
+                onView={() => setPreviewing({ file: { name: file.name, meta }, loadUrl: async () => URL.createObjectURL(file) })}
+                onRemove={busy ? undefined : () => setSelected((current) => current.filter((c) => c !== file))}
+                className="-mb-px rounded-none border-0 border-b border-line-soft"
+              />
+            );
+          })}
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-2 px-4 pt-3.5 pb-4">
+        {panel.open && sanction.canUpload ? (
+          <Button
+            size="xl"
+            fullWidth
+            busy={busy}
+            busyLabel={`Uploading…${percent === null ? '' : ` ${percent}%`}`}
+            disabled={selected.length === 0}
+            onClick={submit}
+          >
+            {selected.length === 0 ? 'Add a file to submit' : panel.submitLabel}
+          </Button>
+        ) : null}
+        {panel.note ? (
+          <p role="status" className="flex items-center gap-2 text-[13px] text-pretty text-muted">
+            <Icon name={panel.note.icon} className="!text-lg" />
+            {panel.note.text}
+          </p>
+        ) : null}
+      </div>
+
+      {previewing ? <FilePreview file={previewing.file} loadUrl={previewing.loadUrl} onClose={() => setPreviewing(null)} /> : null}
       <ConfirmModal
         open={removing !== null}
         tone="danger"
@@ -282,23 +267,14 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
           if (!target) return;
           try {
             await api.deleteProofFile(target.id);
-          } catch (error) {
-            throw new Error(toApiError(error).message);
+          } catch (caught) {
+            throw new Error(toApiError(caught).message);
           }
           setRemoving(null);
           toast.show(`Removed ${target.name}.`, 'success');
           onChanged();
         }}
       />
-
-      {notice ? (
-        <p
-          role={notice.tone === 'error' ? 'alert' : 'status'}
-          className={`mt-2 text-sm font-medium ${notice.tone === 'error' ? 'text-danger' : 'text-success'}`}
-        >
-          {notice.text}
-        </p>
-      ) : null}
     </div>
   );
 }

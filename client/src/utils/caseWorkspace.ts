@@ -54,8 +54,11 @@ const longDate = (iso: string): string =>
 
 const trimDot = (text: string): string => text.replace(/\.$/, '');
 
-/** One sentence per timeline event, from what the event stored. */
-function sentence(entry: StaffCaseDetail['timeline'][number], detail: Pick<StaffCaseDetail, 'submissionCode'>): string {
+/** One sentence per timeline event, from what the event stored (staff History and the student Timeline). */
+export function caseEventSentence(
+  entry: Pick<StaffCaseDetail['timeline'][number], 'eventType' | 'remarks'>,
+  detail: Pick<StaffCaseDetail, 'submissionCode'>,
+): string {
   const gi = detail.submissionCode ?? 'the gate report';
   const remarks = entry.remarks?.trim() ?? '';
   switch (entry.eventType) {
@@ -82,7 +85,7 @@ export function historyItems(detail: Pick<StaffCaseDetail, 'timeline' | 'submiss
     .map((entry, index) => ({
       id: index,
       date: longDate(entry.date),
-      text: sentence(entry, detail),
+      text: caseEventSentence(entry, detail),
       by: entry.by === 'System' ? undefined : entry.by,
     }))
     .reverse();
