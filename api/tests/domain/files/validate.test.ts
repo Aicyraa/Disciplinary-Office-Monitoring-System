@@ -4,25 +4,21 @@ import { DOCX_MIME, MAX_FILE_BYTES, MAX_FILES_PER_SANCTION, PDF_MIME, validateUp
 const pdfBytes = new TextEncoder().encode('%PDF-1.7 fake');
 const docxBytes = Uint8Array.from([0x50, 0x4b, 0x03, 0x04, 0x00]);
 
-describe('validateUpload', () => {
+describe('validateUpload (PDF only, UI-POLISH-SPEC D7)', () => {
   test('accepts a PDF and returns the pdf extension', () => {
-    expect(validateUpload({ mimeType: PDF_MIME, bytes: pdfBytes, existingCount: 0 })).toEqual({ ok: true, ext: 'pdf' });
+    expect(validateUpload({ mimeType: PDF_MIME, bytes: pdfBytes, existingCount: 4 })).toEqual({ ok: true, ext: 'pdf' });
   });
 
-  test('accepts a DOCX and returns the docx extension', () => {
-    expect(validateUpload({ mimeType: DOCX_MIME, bytes: docxBytes, existingCount: 4 })).toEqual({ ok: true, ext: 'docx' });
+  test('refuses a DOCX: files are PDF only so every file can be previewed in the app', () => {
+    expect(validateUpload({ mimeType: DOCX_MIME, bytes: docxBytes, existingCount: 0 })).toEqual({ ok: false, code: 'unsupported_type' });
   });
 
-  test('rejects a mime type outside PDF/DOCX', () => {
+  test('rejects any other mime type', () => {
     expect(validateUpload({ mimeType: 'image/png', bytes: pdfBytes, existingCount: 0 })).toEqual({ ok: false, code: 'unsupported_type' });
   });
 
   test('rejects a PDF mime whose bytes are not %PDF (renamed file)', () => {
     expect(validateUpload({ mimeType: PDF_MIME, bytes: docxBytes, existingCount: 0 })).toEqual({ ok: false, code: 'content_mismatch' });
-  });
-
-  test('rejects a DOCX mime whose bytes are not a ZIP', () => {
-    expect(validateUpload({ mimeType: DOCX_MIME, bytes: pdfBytes, existingCount: 0 })).toEqual({ ok: false, code: 'content_mismatch' });
   });
 
   test('rejects an empty file', () => {

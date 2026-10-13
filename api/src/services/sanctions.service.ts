@@ -1,6 +1,6 @@
 import { displayCode } from '../domain/codes.js';
 import type { CaseSanctionRecord, CaseStore, CaseTx } from '../types/cases.types.js';
-import { validateUpload, MAX_FILES_PER_SANCTION, type UploadErrorCode } from '../domain/files/validate.js';
+import { validateUpload, MAX_FILES_PER_SANCTION, type UploadErrorCode, notPdfMessage } from '../domain/files/validate.js';
 import { PRESIGN_TTL_SECONDS, proofKey, type ObjectStorage } from '../integrations/storage/types.js';
 import { allowedSanctions, offenseNumber, type HandbookSanctionRow } from '../domain/sanctions/rules.js';
 
@@ -127,7 +127,7 @@ export function createSanctionService({
     studentId: string,
     replaceId: number | undefined,
     files: UploadedFile[],
-  ): SanctionFailure | { ok: true; replacing: boolean; extensions: Array<'pdf' | 'docx'> } {
+  ): SanctionFailure | { ok: true; replacing: boolean; extensions: Array<'pdf'> } {
     if (!record || !isOwnedBy(record, studentId)) return fail('not_found', 'Sanction not found.');
     if (record.status === 'completed') return fail('invalid_status', 'This sanction is already completed.');
 
@@ -144,7 +144,7 @@ export function createSanctionService({
 
     // Type, size, magic bytes and the 5-file cap, for every file, before anything is stored.
     const existingCount = replacing ? record.files.length - 1 : record.files.length;
-    const extensions: Array<'pdf' | 'docx'> = [];
+    const extensions: Array<'pdf'> = [];
     for (const [index, file] of files.entries()) {
       const result = validateUpload({ mimeType: file.mimeType, bytes: file.bytes, existingCount: existingCount + index });
       if (!result.ok) return fail(result.code, uploadMessage(result.code, file.name));
@@ -492,7 +492,7 @@ export function createSanctionService({
 function uploadMessage(code: UploadErrorCode, name: string): string {
   switch (code) {
     case 'unsupported_type':
-      return `${name}: only PDF or DOCX files are accepted.`;
+      return notPdfMessage(name);
     case 'empty':
       return `${name} is empty.`;
     case 'too_large':
@@ -500,6 +500,6 @@ function uploadMessage(code: UploadErrorCode, name: string): string {
     case 'too_many_files':
       return 'You can attach at most 5 files.';
     case 'content_mismatch':
-      return `${name} does not look like a real PDF or DOCX file.`;
+      return notPdfMessage(name);
   }
 }
