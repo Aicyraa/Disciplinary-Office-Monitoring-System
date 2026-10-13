@@ -864,3 +864,16 @@ Commits: 38c11c0 (API PDF only), 555a6f4 (client PDF only, cursor/hover rules, I
 - HUMAN CHECK: sign in as the dev student, open My violations → a case with a sanction → upload a PDF → click View -> the PDF shows inside the modal (not a new tab); click Download -> the file saves. As staff, open that case → View each file -> "N of M viewed" updates and Verify turns green after the last one.
 - HUMAN CHECK: if the preview iframe stays blank, the storage response may forbid framing (`X-Frame-Options` / CSP) -> report the response headers of the presigned URL; then the API needs a streaming `/files/:id/content` route.
 - Not done here (later slices): screen layouts, copy of the other modals and toasts (U5 to U12), removing `mammoth` (needs a dependency checkpoint).
+
+## U2 Chrome (UI-POLISH-SPEC 5.1, 5.10, D9, D10, D11) — main session, branch worktree-ui-polish-build
+
+Commits: 1030eed (sidebar, top bar, bell, account dialogs, phone bar, drawer), 7ac5526 (MasterDetail v2, page titles).
+- Nav: deck icons and labels ("My Violations", "Student Handbook", `space_dashboard`, `folder_managed`…); phone tabs Home / Cases / Students / Schedule (student: Home / Violations / Sanctions / Schedule); breadcrumb is `Staff › Cases` (portal › page).
+- Sidebar 264 px / 80 px rail with the 4 px gold edge, gold active bar, filled gold icon, rail count chips; header button collapses it (auto rail 720–1100 px).
+- Top bar 64 px (56 px phone with the seal); bell for both roles (D11) with the popover (5 latest, Mark all as read, Open inbox, role footer); account menu pills.
+- Account details and Change password are dialogs (`components/account/AccountModals.tsx`): first name row (D10), live rules, one alert, toast "Password changed."; `/account` and `/account/password` redirect home and open them. `pages/account/AccountDetails.tsx` removed. The forced change (`/change-password`) is still the old page until U3.
+- Phone: tab bar with filled active icon and red badges, More = blue sidebar sliding from the left; content is full width (no `max-w-5xl`).
+- MasterDetail v2: container query at 800 px, per-screen ratios, equal-height scrolling panes, stacked on phone with scroll-to-record. PageHeader keeps an sr-only h1 and its actions only (`visible` outside the app frame).
+- Evidence: `npm test` 78 files / 1250 pass; lint and typecheck clean; build exit 0.
+- Not checked live (dev server denied in this session). HUMAN CHECK: run `npm run dev`, sign in as staff and as student at 390 / 900 / 1280 px -> sidebar 264 / rail 80 / phone tab bar; collapse button toggles; bell opens the popover on both roles; More opens the blue drawer from the left; avatar menu opens the two dialogs.
+- Known for later slices: each page still shows its old action buttons (kept on purpose until its slice); the screen layouts themselves are U3–U12.
