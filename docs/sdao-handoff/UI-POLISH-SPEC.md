@@ -40,11 +40,13 @@ Status: **accepted** (2026-10-13); decisions D1 to D16 answered in section 7. Th
 | Token | Value | Used for |
 |---|---|---|
 | `primary-hover` / `primary-press` / `primary-busy` | `#2A3376` / `#20285E` / `#4A5498` | Primary button hover, active, busy |
+| `primary-tint` | `#F0F2FA` | Hover background of secondary pills, text buttons and menu items ("View", "Open inbox", account menu) |
 | `surface-2` | `#F7F9FA` | Stat tiles, list group heads, action footers, table heads |
 | `line-soft` | `#EEF1F4` | Inner borders, segmented-tab track, count bubbles |
 | `row-hover` / `row-selected` | `#EEF1F9` / `#E8EBF7` | List rows |
 | `info-soft` / `info-ink` | `#E8EBF7` / `#2B347A` | Info alert, "Next step", sanction ladder, notification category "Appointments" |
 | `danger-soft` / `danger-line` / `danger-ink` | `#FCEEEE` / `#F1C9C9` / `#8E1F17` | Error alert, danger hover |
+| `danger-strong` | `#C0392B` | Border of danger-outline buttons ("Reject", "Return to student"), invalid field border, phone tab-bar badge |
 | `bad-soft` / `bad-ink` | `#F7E6E6` / `#9B2C2C` | Major pill, flags ("Will escalate"), PDF file tile |
 | `warn-soft` / `warn-ink` | `#FEF6D8` / `#7A5A00` | "Note from the SDO", due-date card, dashboard decision tile |
 | `amber-soft` / `amber-ink` | `#FCE9C6` / `#7A4600` | "Escalated", "Treated as Major", escalation notes |
