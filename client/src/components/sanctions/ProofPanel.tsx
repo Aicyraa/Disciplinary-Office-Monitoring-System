@@ -16,7 +16,16 @@ import { uploadPanel } from '@/utils/studentView';
  * Proof of completion for one sanction (deck src 1187 to 1224, SPEC 4.3, 6.1). What is offered follows the API's
  * `canUpload` and `canChangeFiles`; the API enforces the same rules again. Files are PDF only (D7).
  */
-export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionView; onChanged: () => void }) {
+export function ProofPanel({
+  sanction,
+  handbookEntryId,
+  onChanged,
+}: {
+  sanction: StudentSanctionView;
+  /** The case's handbook entry, for "View this offense in the Handbook" (its templates are listed there). */
+  handbookEntryId?: number;
+  onChanged: () => void;
+}) {
   const toast = useToast();
   const [selected, setSelected] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -186,13 +195,13 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
         </p>
       ) : null}
 
-      {panel.open ? (
+      {panel.open && handbookEntryId !== undefined ? (
         <Link
-          to={`/handbook?tab=templates&sanction=${sanction.sanctionId}`}
+          to={`/handbook/${handbookEntryId}`}
           className="mx-3 mt-2.5 inline-flex min-h-9 items-center gap-1.5 self-start rounded-lg px-2 text-[13px] font-semibold text-primary outline-none hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25"
         >
           <Icon name="menu_book" className="!text-lg" />
-          View the template for this sanction
+          View this offense in the Handbook
         </Link>
       ) : null}
 

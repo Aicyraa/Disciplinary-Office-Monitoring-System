@@ -128,7 +128,7 @@ export function ViolationDetail({ caseId, onChanged }: { caseId: number; onChang
             </p>
           ) : null}
           {sanctions.map((sanction) => (
-            <ProofPanel key={sanction.id} sanction={sanction} onChanged={reload} />
+            <ProofPanel key={sanction.id} sanction={sanction} handbookEntryId={record.handbookEntryId} onChanged={reload} />
           ))}
           {sanctions[0] ? (
             <Link to={`/sanctions/${sanctions[0].id}`} className={cn(buttonVariants({ variant: 'secondary', size: 'lg', fullWidth: true }), 'min-h-[46px]')}>

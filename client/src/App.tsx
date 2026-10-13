@@ -9,7 +9,7 @@ import ChangePassword from '@/pages/account/ChangePassword';
 import { ClearancePage, ClearanceSlipPage } from '@/pages/student/Clearance';
 import { StaffHome } from '@/pages/staff/Dashboard';
 import { StudentDashboard } from '@/pages/student/Dashboard';
-import { HandbookPage } from '@/pages/shared/Handbook';
+import { StudentHandbookPage } from '@/pages/student/Handbook';
 import { SanctionTemplatesPage } from '@/pages/staff/SanctionTemplates';
 import { StaffViolationsPage } from '@/pages/staff/Violations';
 import GateReportPage from '@/pages/public/GateReport';
@@ -71,7 +71,7 @@ function AppointmentsRoute() {
 /** Staff edit the handbook ("Violations"); students read it. */
 function HandbookRoute() {
   const { state } = useAuth();
-  return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffViolationsPage /> : <HandbookPage />;
+  return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffViolationsPage /> : <StudentHandbookPage />;
 }
 
 /** One address, two screens: a student reads their own checklist, staff set up and mark everyone's. */
