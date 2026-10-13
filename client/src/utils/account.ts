@@ -1,6 +1,6 @@
 import type { AccountRole, AuthUser, StudentProfileView } from '@shared/types';
 
-const ordinalYear = (level: number): string =>
+export const ordinalYear = (level: number): string =>
   `${level}${level === 1 ? 'st' : level === 2 ? 'nd' : level === 3 ? 'rd' : 'th'} Year`;
 
 /** The rows of the Account details modal (deck src 3489). The first name stands in for the deck's username (D10). */

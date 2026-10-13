@@ -1,205 +1,249 @@
-import { useEffect, useRef, useState, type FormEvent, type MutableRefObject } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import type { CaseStatus, Severity, StaffCaseRow } from '@shared/types';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import type { Severity } from '@shared/types';
 import { MasterDetail } from '@/components/layout/MasterDetail';
-import { EmptyState, ErrorState, Icon, LoadingState, PageHeader, StatusPill, buttonClass, fieldClass } from '@/components/ui';
-import { Pagination } from '@/components/ui/Pagination';
+import { PageError, Spinner } from '@/components/feedback/PageState';
+import { StatusPill } from '@/components/ui';
+import { ChipGroup } from '@/components/ui/ChipGroup';
+import { EmptyBlock } from '@/components/ui/EmptyBlock';
+import { controlVariants } from '@/components/ui/FieldShell';
+import { GroupHead } from '@/components/ui/GroupHead';
+import { HighTag } from '@/components/ui/HighTag';
+import { Icon } from '@/components/ui/Icon';
+import { ListCard } from '@/components/ui/ListCard';
+import { Pager } from '@/components/ui/Pager';
+import { Tag } from '@/components/ui/Tag';
 import { api } from '@/api/client';
-import { STATUS_ORDER, groupCases, statusOption } from '@/utils/caseView';
-import { formatDate } from '@/utils/format';
 import { useApi } from '@/hooks/useApi';
+import { caseRowView, groupHeads, queueFromParam, queueOptions, type QueueKey } from '@/utils/caseView';
+import { cn } from '@/utils/cn';
+import { manilaToday } from '@/utils/files';
+import { formatDate } from '@/utils/format';
 import { CaseWorkspace } from './CaseDetail';
 
-/** One line describing who a case is about: the matched student, or what the guard typed. */
-export function whoLabel(row: Pick<StaffCaseRow, 'student' | 'claimed'>): string {
-  if (row.student) return `${row.student.name} (${row.student.id})`;
-  const claimed = row.claimed;
-  if (claimed && (claimed.name || claimed.studentId)) {
-    return `${claimed.name ?? 'Unknown'} (${claimed.studentId ?? 'no ID'}) · not matched`;
-  }
-  return 'Unknown student';
-}
+/** Links inside the queue carry this, so arriving from elsewhere (dashboard, bell) is told apart (5.4b). */
+const FROM_QUEUE = { fromQueue: true } as const;
 
-function ClassChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
-        active ? 'border-primary bg-primary text-white' : 'border-line-strong bg-white text-ink'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
+const CLASSES = [
+  { value: '', label: 'All' },
+  { value: 'Minor', label: 'Minor' },
+  { value: 'Major', label: 'Major' },
+] as const;
 
-function CaseQueue({ selectedId, reloadRef }: { selectedId: number | null; reloadRef: MutableRefObject<(() => void) | null> }) {
-  // The queue opens on "Needs review" like the deck; "All statuses" is one choice away.
-  const [status, setStatus] = useState<CaseStatus | ''>('reported');
+function CaseQueue({
+  selectedId,
+  reloadRef,
+  onFirstRow,
+}: {
+  selectedId: number | null;
+  reloadRef: React.MutableRefObject<(() => void) | null>;
+  onFirstRow: (id: number | null) => void;
+}) {
+  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const queue = queueFromParam(params.get('queue'));
   const [severity, setSeverity] = useState<Severity | ''>('');
-  const [sort] = useState<'newest' | 'oldest'>('newest');
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
+  // null: open the page that holds the selected case (a deep link); a number once the officer pages.
+  const [page, setPage] = useState<number | null>(null);
+  const today = manilaToday();
 
-  const resource = useApi(() => api.staffCases({ status, class: severity, q, sort, page }), [status, severity, q, sort, page]);
+  // Arriving from outside the queue resets what could hide the selected case (UI-POLISH-SPEC 5.4b).
+  const arrivedFromOutside = !(location.state as { fromQueue?: boolean } | null)?.fromQueue;
+  useEffect(() => {
+    if (!arrivedFromOutside) return;
+    setSeverity('');
+    setSearch('');
+    setQ('');
+    setPage(null);
+  }, [location.key, arrivedFromOutside]);
+
+  // The list filters while typing (deck src 554), a moment after the last key.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQ((current) => {
+        if (current !== search.trim()) setPage(1);
+        return search.trim();
+      });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const resource = useApi(
+    () =>
+      api.staffCases({
+        status: queue.status,
+        class: severity,
+        q,
+        group: queue.key === 'all' ? 'status' : undefined,
+        page: page ?? 1,
+        focus: page === null && selectedId !== null ? selectedId : undefined,
+      }),
+    [queue.key, severity, q, page, page === null ? selectedId : null],
+  );
   useEffect(() => {
     reloadRef.current = resource.reload;
   }, [reloadRef, resource.reload]);
 
-  function submitSearch(event: FormEvent) {
-    event.preventDefault();
-    setPage(1);
-    setQ(search.trim());
-  }
+  const firstId = resource.status === 'ready' ? (resource.data.cases[0]?.id ?? null) : undefined;
+  useEffect(() => {
+    if (firstId !== undefined) onFirstRow(firstId);
+  }, [firstId, onFirstRow]);
 
   const counts = resource.status === 'ready' ? resource.data.statusCounts : null;
+  const shownPage = resource.status === 'ready' ? resource.data.page : (page ?? 1);
+  const pageCount = resource.status === 'ready' ? Math.max(1, Math.ceil(resource.data.total / resource.data.pageSize)) : 1;
+  const heads = resource.status === 'ready' && queue.key === 'all' ? groupHeads(resource.data.cases, resource.data.statusCounts) : new Map();
+  const highlighted = selectedId ?? (firstId === undefined ? null : firstId);
+
+  function pickQueue(key: QueueKey) {
+    const next = new URLSearchParams(params);
+    next.set('queue', key);
+    setParams(next, { state: FROM_QUEUE });
+    setPage(1);
+  }
 
   return (
-    <section aria-label="Case queue" className="rounded-lg border border-line bg-white">
-      <div className="space-y-3 border-b border-line p-3">
-        <form onSubmit={submitSearch} role="search" className="flex gap-2">
-          <label className="relative block min-w-0 flex-1">
-            <span className="sr-only">Search cases</span>
-            <Icon name="search" className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-            <input
-              type="search"
-              placeholder="Case ID, student ID, name or violation"
-              className={`${fieldClass} min-h-11 pl-10`}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
+    <ListCard className="@container flex h-full flex-col">
+      <div className="flex flex-col gap-3 border-b border-line-soft px-6 py-[18px]">
+        <label className="relative block">
+          <span className="sr-only">Search cases</span>
+          <Icon name="search" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 !text-xl text-muted-2" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Case ID, student ID, email, name or violation"
+            className={cn(controlVariants(), 'pl-10')}
+          />
+        </label>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <label className="flex min-w-0 flex-[1_1_220px] items-center gap-2">
+            <span className="text-xs font-semibold whitespace-nowrap text-muted">Status</span>
+            <span className="relative block min-w-0 flex-1">
+              <select
+                aria-label="Case queue"
+                value={queue.key}
+                onChange={(event) => pickQueue(event.target.value as QueueKey)}
+                className={cn(controlVariants(), 'min-h-11 cursor-pointer appearance-none pr-9 font-medium rail:min-h-10')}
+              >
+                {queueOptions(counts).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <Icon name="expand_more" className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-muted" />
+            </span>
           </label>
-          <button type="submit" className={`${buttonClass} min-h-11`}>
-            Search
-          </button>
-        </form>
-        <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="case-status" className="text-sm font-medium text-muted">
-            Status
-          </label>
-          <select
-            id="case-status"
-            className={`${fieldClass} min-h-11 w-auto min-w-0 flex-1`}
-            value={status}
-            onChange={(event) => {
+          <ChipGroup
+            label="Classification"
+            options={CLASSES}
+            value={severity}
+            onChange={(value) => {
+              setSeverity(value as Severity | '');
               setPage(1);
-              setStatus(event.target.value as CaseStatus | '');
             }}
-          >
-            <option value="">
-              All statuses{counts ? ` (${Object.values(counts).reduce((sum, n) => sum + n, 0)})` : ''}
-            </option>
-            {STATUS_ORDER.map((value) => (
-              <option key={value} value={value}>
-                {statusOption(value, counts?.[value])}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Class">
-          {([['', 'All'], ['Minor', 'Minor'], ['Major', 'Major']] as const).map(([value, label]) => (
-            <ClassChip
-              key={label}
-              active={severity === value}
-              onClick={() => {
-                setPage(1);
-                setSeverity(value);
-              }}
-            >
-              {label}
-            </ClassChip>
-          ))}
+            className="gap-1.5"
+          />
         </div>
       </div>
 
-      {resource.status === 'loading' ? <LoadingState label="Loading cases…" cards={3} /> : null}
-      {resource.status === 'error' ? <ErrorState message={resource.error.message} onRetry={resource.reload} /> : null}
-      {resource.status === 'ready' ? (
-        resource.data.cases.length === 0 ? (
-          <div className="p-3">
-            <EmptyState title="No cases match." hint="Change the status or search." />
-          </div>
-        ) : (
-          <>
-            {groupCases(resource.data.cases).map((group) => (
-              <div key={group.status}>
-                <p className="flex items-center gap-2 bg-page px-3 py-1.5 text-[11px] font-bold tracking-wide text-muted uppercase">
-                  {group.title}
-                  <span className="font-normal normal-case">{group.rows.length === 1 ? "1 case" : `${group.rows.length} cases`}</span>
-                </p>
-                <ul>
-                  {group.rows.map((row) => (
-                    <li key={row.id}>
-                      <Link
-                        to={`/cases/${row.id}`}
-                        aria-current={row.id === selectedId ? 'page' : undefined}
-                        className={`flex min-h-16 gap-3 border-b border-line px-3 py-2 hover:bg-page ${
-                          row.id === selectedId ? 'bg-primary/10' : ''
-                        }`}
-                      >
-                        <span className="w-24 shrink-0 text-xs">
-                          <span className="block font-semibold text-ink">{row.code}</span>
-                          <span className="block text-muted">{formatDate(row.caseDate)}</span>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {resource.status === 'loading' ? (
+          <p role="status" className="flex items-center justify-center gap-2 px-6 py-10 text-[13px] text-muted">
+            <Spinner />
+            Loading cases…
+          </p>
+        ) : null}
+        {resource.status === 'error' ? <PageError page="the cases" detail={resource.error.message} onRetry={resource.reload} /> : null}
+        {resource.status === 'ready' && resource.data.cases.length === 0 ? (
+          <EmptyBlock icon="search_off" title="No cases in this queue">
+            Try another filter, name, student ID or case number.
+          </EmptyBlock>
+        ) : null}
+        {resource.status === 'ready'
+          ? resource.data.cases.map((row) => {
+              const view = caseRowView(row, today);
+              const head = heads.get(row.id);
+              const selected = row.id === highlighted;
+              return (
+                <div key={row.id}>
+                  {head ? <GroupHead tone={head.tone} label={head.label} count={head.count} unit={head.count === 1 ? 'case' : 'cases'} /> : null}
+                  <Link
+                    to={`/cases/${row.id}?queue=${queue.key}`}
+                    state={FROM_QUEUE}
+                    aria-current={selected ? 'true' : undefined}
+                    className={cn(
+                      'flex min-h-[72px] items-center gap-3.5 border-b border-line-soft px-6 py-2.5 outline-none transition-colors',
+                      'focus-visible:ring-[3px] focus-visible:ring-primary/35 focus-visible:ring-inset',
+                      selected ? 'bg-row-selected shadow-[inset_3px_0_0_var(--color-primary)]' : 'bg-white hover:bg-row-hover',
+                    )}
+                  >
+                    <span className="hidden w-[108px] shrink-0 leading-snug @min-[560px]:block">
+                      <span className="block text-xs font-bold whitespace-nowrap text-ink">{row.code}</span>
+                      <span className="block text-xs whitespace-nowrap text-muted">{formatDate(row.caseDate)}</span>
+                    </span>
+                    <span className="min-w-0 flex-1 leading-snug">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {view.high ? <HighTag className="shrink-0">HIGH</HighTag> : null}
+                        <span className="truncate font-semibold text-ink">{view.name}</span>
+                        <span className="min-w-0 truncate text-xs text-muted">{view.studentId}</span>
+                      </span>
+                      <span className="mt-[3px] flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-[13px] text-body">
+                          <span className="@min-[560px]:hidden">{row.code} · </span>
+                          {row.violation}
                         </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-ink">
-                            {row.student?.name ?? row.claimed?.name ?? 'Unknown student'}
-                            <span className="ml-1 font-normal text-muted">{row.student?.id ?? row.claimed?.studentId ?? ''}</span>
-                          </span>
-                          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted">
-                            {row.violation}
-                            <StatusPill status={row.severity} />
-                            {row.isEscalated ? <span className="rounded-full bg-[#FCE9C6] px-2 py-0.5 text-xs font-semibold text-[#7A4600]">Escalated</span> : null}
-                            {row.convertedFrom ? <span className="rounded-full bg-[#FCE9C6] px-2 py-0.5 text-xs font-semibold text-[#7A4600]">3rd minor · Major</span> : null}
-                            {row.student === null ? <span className="rounded-full bg-[#FBE4E1] px-2 py-0.5 text-xs font-semibold text-danger">No matching record</span> : null}
-                          </span>
-                        </span>
-                        <span className="shrink-0">
-                          <StatusPill status={row.status} kind="case" />
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-            <Pagination page={page} total={resource.data.total} pageSize={resource.data.pageSize} onPage={setPage} noun="cases" />
-          </>
-        )
-      ) : null}
-    </section>
+                        <StatusPill status={row.severity} />
+                        {view.tag ? <Tag className="shrink-0">{view.tag}</Tag> : null}
+                        {view.unmatched ? <Tag className="shrink-0 bg-bad-soft text-bad-ink">No matching record</Tag> : null}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-muted">{view.line3}</span>
+                    </span>
+                    <span className="mt-0.5 shrink-0 self-start">
+                      <StatusPill status={row.status} kind="case" />
+                    </span>
+                  </Link>
+                </div>
+              );
+            })
+          : null}
+      </div>
+      <Pager page={shownPage} pageCount={pageCount} onChange={setPage} className="mt-auto border-t border-line-soft py-2.5" />
+    </ListCard>
   );
 }
 
-/** Staff Cases (deck W17 to W29): the queue on the left, the selected case on the right. */
+/** Staff Cases (deck W17 to W29): the queue on the left, the selected case on the right. No page header. */
 export function CasesPage() {
   const { id } = useParams();
   const caseId = /^\d+$/.test(id ?? '') ? Number(id) : null;
   // The workspace tells the queue to reload after an action, so a validated report leaves "Needs review".
   const reloadQueue = useRef<(() => void) | null>(null);
+  // With nothing selected, the wide layout shows the first case of the queue (deck: `cs[0]`).
+  const [firstRow, setFirstRow] = useState<number | null>(null);
 
   return (
     <>
-      <PageHeader
-        title="Cases"
-        subtitle="Every recorded and reported violation."
-        actions={
-          <Link to="/record" className={`${buttonClass} min-h-11`}>
-            Record violation
-          </Link>
-        }
-      />
+      <h1 className="sr-only">Cases</h1>
       <MasterDetail
         ratio="cases"
         detailKey={caseId}
-        list={<CaseQueue selectedId={caseId} reloadRef={reloadQueue} />}
+        list={<CaseQueue selectedId={caseId} reloadRef={reloadQueue} onFirstRow={setFirstRow} />}
         detail={caseId === null ? null : <CaseWorkspace key={caseId} caseId={caseId} onChanged={() => reloadQueue.current?.()} />}
-        emptyDetail={<EmptyState title="Select a case" hint="Open a report from the queue to validate it or follow its sanction." />}
-        backTo="/cases"
-        backLabel="All cases"
+        emptyDetail={
+          firstRow === null ? (
+            <div className="rounded-xl border border-line bg-white">
+              <EmptyBlock icon="inbox" title="No case selected">
+                Pick a case from the queue to review it.
+              </EmptyBlock>
+            </div>
+          ) : (
+            <CaseWorkspace key={firstRow} caseId={firstRow} onChanged={() => reloadQueue.current?.()} />
+          )
+        }
       />
     </>
   );

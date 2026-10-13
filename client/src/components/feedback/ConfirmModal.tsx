@@ -23,6 +23,8 @@ export interface ConfirmModalProps {
   reasonPlaceholder?: string;
   /** The text field may stay empty (optional remarks). */
   reasonOptional?: boolean;
+  /** The text field's value when the dialog opens (the current remarks). */
+  initialReason?: string;
   /** Shown in a dashed monospace box (a temporary password). */
   code?: string;
   /** The confirm label while `onConfirm` runs. */
@@ -45,6 +47,7 @@ export function ConfirmModal({
   reasonLabel,
   reasonPlaceholder,
   reasonOptional = false,
+  initialReason = '',
   code,
   busyLabel = 'Working…',
   onConfirm,
@@ -61,9 +64,10 @@ export function ConfirmModal({
 
   useEffect(() => {
     if (!open) return;
-    setReason('');
+    setReason(initialReason);
     setError(null);
     setBusy(false);
+    // Reset only when the dialog opens; a changing initial value must not wipe what is being typed.
   }, [open]);
 
   useDialogFocus({ open, panelRef, onClose: busy ? undefined : onClose });

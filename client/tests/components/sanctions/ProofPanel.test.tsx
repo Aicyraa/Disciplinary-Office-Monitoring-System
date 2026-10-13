@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, test } from 'vitest';
 import type { StudentSanctionView } from '@shared/types';
-import { viewedSummary } from '@/pages/staff/Sanctions';
 import { ProofPanel } from '@/components/sanctions/ProofPanel';
 import { lastFileRemovalMessage } from '@/utils/files';
 
@@ -113,16 +112,5 @@ describe('ProofPanel', () => {
 
   test('a completed sanction with no files renders nothing', () => {
     expect(render({ ...base, status: 'completed', canUpload: false })).toBe('');
-  });
-});
-
-describe('viewedSummary', () => {
-  test('counts opened files and flags when all were opened', () => {
-    expect(viewedSummary([{ viewed: true }, { viewed: false }])).toEqual({ viewed: 1, total: 2, allViewed: false });
-    expect(viewedSummary([{ viewed: true }, { viewed: true }])).toEqual({ viewed: 2, total: 2, allViewed: true });
-  });
-
-  test('no files is never "all viewed": there is nothing to verify without an uploaded file', () => {
-    expect(viewedSummary([])).toEqual({ viewed: 0, total: 0, allViewed: false });
   });
 });

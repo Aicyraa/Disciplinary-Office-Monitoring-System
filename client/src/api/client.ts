@@ -154,7 +154,11 @@ export interface StaffCaseQuery {
   class?: string;
   q?: string;
   sort?: 'newest' | 'oldest';
+  /** `status`: stage first, as "All cases" in the deck. */
+  group?: 'status';
   page?: number;
+  /** Answer the page holding this case id (deep links). */
+  focus?: number;
 }
 
 export const api = {
