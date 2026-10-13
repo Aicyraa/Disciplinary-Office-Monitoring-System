@@ -297,6 +297,8 @@ export type StudentAppointmentView = {
   notes: string | null;
   status: AppointmentStatus;
   cancelReason: string | null;
+  /** ISO timestamp of the last change. */
+  dateUpdated: string;
   /** Upcoming: live status and the window has not ended (Asia/Manila date). Everything else is history. */
   bucket: 'upcoming' | 'history';
 };

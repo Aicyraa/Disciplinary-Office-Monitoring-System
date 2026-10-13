@@ -77,12 +77,12 @@ const studentViews = createMemoryStudentViewRepo({
   ],
   appointments: [
     // live, window still open today
-    { studentId: STUDENT_A.id, appointmentId: 1, startDate: new Date('2026-10-10T00:00:00Z'), endDate: new Date('2026-10-12T00:00:00Z'), purpose: 'Counselling', notes: null, status: 'scheduled', cancelReason: null },
+    { studentId: STUDENT_A.id, appointmentId: 1, startDate: new Date('2026-10-10T00:00:00Z'), endDate: new Date('2026-10-12T00:00:00Z'), purpose: 'Counselling', notes: null, status: 'scheduled', cancelReason: null, dateUpdated: new Date('2026-10-07T06:28:00Z') },
     // live but already ended
-    { studentId: STUDENT_A.id, appointmentId: 2, startDate: new Date('2026-10-01T00:00:00Z'), endDate: new Date('2026-10-07T00:00:00Z'), purpose: 'Follow-up', notes: null, status: 'rescheduled', cancelReason: null },
+    { studentId: STUDENT_A.id, appointmentId: 2, startDate: new Date('2026-10-01T00:00:00Z'), endDate: new Date('2026-10-07T00:00:00Z'), purpose: 'Follow-up', notes: null, status: 'rescheduled', cancelReason: null, dateUpdated: new Date('2026-10-07T06:28:00Z') },
     // future but cancelled
-    { studentId: STUDENT_A.id, appointmentId: 3, startDate: new Date('2026-10-20T00:00:00Z'), endDate: new Date('2026-10-26T00:00:00Z'), purpose: 'Interview', notes: null, status: 'cancelled', cancelReason: 'Student ill' },
-    { studentId: STUDENT_B.id, appointmentId: 4, startDate: new Date('2026-10-20T00:00:00Z'), endDate: new Date('2026-10-26T00:00:00Z'), purpose: 'B only', notes: null, status: 'scheduled', cancelReason: null },
+    { studentId: STUDENT_A.id, appointmentId: 3, startDate: new Date('2026-10-20T00:00:00Z'), endDate: new Date('2026-10-26T00:00:00Z'), purpose: 'Interview', notes: null, status: 'cancelled', cancelReason: 'Student ill', dateUpdated: new Date('2026-10-07T06:28:00Z') },
+    { studentId: STUDENT_B.id, appointmentId: 4, startDate: new Date('2026-10-20T00:00:00Z'), endDate: new Date('2026-10-26T00:00:00Z'), purpose: 'B only', notes: null, status: 'scheduled', cancelReason: null, dateUpdated: new Date('2026-10-07T06:28:00Z') },
   ],
   clearances: [
     {
@@ -296,6 +296,7 @@ describe('GET /me/appointments', () => {
     expect(bucket(2)).toBe('history'); // live status but window ended
     expect(bucket(3)).toBe('history'); // cancelled
     expect(appointments.find((a: { id: number }) => a.id === 3).cancelReason).toBe('Student ill');
+    expect(appointments.find((a: { id: number }) => a.id === 3).dateUpdated).toBe('2026-10-07T06:28:00.000Z');
   });
 
   test("does not include another student's appointments", async () => {

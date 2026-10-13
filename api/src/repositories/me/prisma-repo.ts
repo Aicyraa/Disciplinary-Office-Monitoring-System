@@ -190,6 +190,7 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
         notes: row.notes,
         status: row.status as AppointmentStatus,
         cancelReason: row.cancel_reason,
+        dateUpdated: row.date_updated,
       }));
     },
 

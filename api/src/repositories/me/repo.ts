@@ -79,6 +79,8 @@ export interface AppointmentRecord {
   notes: string | null;
   status: AppointmentStatus;
   cancelReason: string | null;
+  /** Last change, for "A-104 · Updated Oct 7, 2026" (UI-POLISH-SPEC 5.18). */
+  dateUpdated: Date;
 }
 
 export interface ClearanceTermRecord {

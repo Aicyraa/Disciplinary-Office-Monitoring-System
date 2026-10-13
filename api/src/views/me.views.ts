@@ -164,6 +164,7 @@ export function toAppointmentView(record: AppointmentRecord, today: string): Stu
     notes: record.notes,
     status: record.status,
     cancelReason: record.cancelReason,
+    dateUpdated: record.dateUpdated.toISOString(),
     bucket: appointmentBucket(record, today),
   };
 }

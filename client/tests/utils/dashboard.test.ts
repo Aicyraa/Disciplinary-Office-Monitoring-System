@@ -60,6 +60,7 @@ describe('nextAppointment', () => {
     code: `A-${String(id).padStart(3, '0')}`,
     startDate,
     endDate: startDate,
+    dateUpdated: '2026-10-07T02:00:00.000Z',
     purpose: 'x',
     notes: null,
     status: 'scheduled',
