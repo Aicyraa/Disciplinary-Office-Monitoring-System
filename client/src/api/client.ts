@@ -16,7 +16,6 @@ import type {
   StaffAppointmentListResponse,
   StaffAppointmentView,
   StaffClearanceView,
-  StaffClearanceListResponse,
   StaffCaseDetail,
   StaffCaseListResponse,
   StudentAppointmentView,
@@ -350,13 +349,6 @@ export const api = {
     if (query.q) params.q = query.q;
     if (query.page) params.page = query.page;
     return get<ClearanceRosterResponse>(`/clearances/terms/${academicYear}/${semester}/students`, params);
-  },
-  staffClearances: (query: { status?: 'pending' | 'cleared'; q?: string; page?: number }) => {
-    const params: Record<string, string | number> = {};
-    if (query.status) params.status = query.status;
-    if (query.q) params.q = query.q;
-    if (query.page && query.page > 1) params.page = query.page;
-    return get<StaffClearanceListResponse>('/clearances', params);
   },
   staffClearance: (id: number) => get<{ clearance: StaffClearanceView }>(`/clearances/${id}`),
   setUpClearance: (input: { studentId: string; academicYear: number; semester: number }) =>

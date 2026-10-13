@@ -988,3 +988,17 @@ Commit: the client commit after this entry (no API change).
 - Form (`pages/staff/notices/NoticeForm.tsx`): "New important notice" / "Edit notice" with the source sub lines; Title, Message, Instructions or reminders (optional), Expiration date (optional) + help; inline errors "Enter a title." / "Enter the message students should read." / "Choose today or a later date, or leave it blank." (+ the API length limits); Cancel + "Publish notice" / "Save changes" with `campaign`; toasts "Notice published to N students." / "Notice updated. Students see the new version." / "Notice removed.". Rules in `utils/notices.ts` (tested; the old page-level test moved there).
 - Evidence: `npm test` 86 files / 1349 pass; lint, typecheck clean; build exit 0.
 - Not checked live (dev server denied). HUMAN CHECK: `npm run dev` as staff -> Notices: publish one (toast with the student count), edit it (Edited row), remove it (modal, toast).
+
+## U13 Final pass (UI-POLISH-SPEC section 8) — main session, branch worktree-ui-polish-build
+
+Commits: 704b27d (legacy UI removal, last raw hex), 8e668a6 (page splits), then the commit after this entry.
+- **No raw hex in `.tsx`:** the last one (sidebar subtitle) is the token `gold-pale` #F1DD9A. Status pill colours stay in the one table in `utils/format.ts` (CLAUDE.md 7).
+- **Removed legacy pieces** no page used any more: `buttonClass`, `fieldClass`, `Card`, `LoadingState`, `EmptyState`, `ErrorState`, `Resource` (from `components/ui/index.tsx`), `components/ui/Pagination.tsx`, `components/feedback/ReasonForm.tsx`, their tests, and the unused client call `api.staffClearances` (the `GET /clearances` endpoint stays in the API and SPEC). The session check, the gate form and the print slip use the shared spinner / `PageError`.
+- **Page size (CLAUDE.md 10):** pure moves into `pages/staff/cases/` (ReviewFooter, DecideFooter, SanctionFooter), `appointments/` (AppointmentList, AppointmentPane), `clearance/` (StudentRoster, Requirements, ClearancePane), `students/` (StudentList, StudentRecordPane). Every staff and student page file is now at most ~310 lines.
+- **Copy audit:** every modal and toast of section 6 was copied in its slice (U5 to U12); notice removal keeps "Emails already sent cannot be taken back." as the spec asks.
+- **Left for the human / follow-ups:**
+  - `pages/public/GateReport.tsx` (441 lines) is one component with its three steps inline; splitting it into step components is a refactor, not a move, so it is left for a later task.
+  - DEPENDENCY: removing `mammoth` (only needed for DOCX, which D7 dropped) is a package change and needs your go-ahead.
+  - The three-width visual check (390 / 900 / 1280 px) and the keyboard pass could not run here: starting the Vite dev server is denied in this session. HUMAN CHECK: `npm run dev`, then walk every page at the three widths with the keyboard only (Tab / Shift+Tab / Enter / Escape / arrow keys in chip and tab groups).
+  - Independent review: the reviewer agent has not been run on this branch (U4 to U13).
+- Evidence: `npm test` 85 files / 1344 pass; lint, typecheck clean; build exit 0.
