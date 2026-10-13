@@ -37,8 +37,8 @@ describe('Sidebar (deck src 264)', () => {
     expect(html).toContain('absolute top-1.5 right-2.5');
   });
 
-  test('the templates entry is current on ?tab=templates and Violations is not', () => {
-    const html = at('/handbook?tab=templates', <Sidebar {...props} labels />);
+  test('the templates entry is current on its own page and Violations is not', () => {
+    const html = at('/sanction-templates', <Sidebar {...props} labels />);
     expect(html).toMatch(/title="Sanction templates"[^>]*bg-primary-active|bg-primary-active[^>]*title="Sanction templates"/);
     expect(html).not.toMatch(/title="Violations"[^>]*bg-primary-active/);
   });

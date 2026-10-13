@@ -122,7 +122,7 @@ function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclud
 
 function Breadcrumb({ role }: { role: 'staff' | 'student' }) {
   const location = useLocation();
-  const [portal, page] = breadcrumb(role, location.pathname, location.search);
+  const [portal, page] = breadcrumb(role, location.pathname);
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm text-muted">
       <span className="whitespace-nowrap">{portal}</span>

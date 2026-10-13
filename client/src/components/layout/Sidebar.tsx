@@ -5,16 +5,11 @@ import { badgeText } from '@/context/UnreadContext';
 import { cn } from '@/utils/cn';
 import type { NavGroup, NavItem } from '@/utils/nav';
 
-/** Is this nav entry the current page? `/handbook` and `/handbook?tab=templates` share a path. */
+/** Is this nav entry the current page? "Violations" (`/handbook`) is not current on "Add violation" (`/handbook/new`). */
 export function useIsActive() {
   const location = useLocation();
-  return (item: NavItem, routerActive: boolean): boolean => {
-    const [path, query] = item.to.split('?');
-    if (path !== '/handbook') return routerActive;
-    const onTemplates = new URLSearchParams(location.search).get('tab') === 'templates';
-    if (query === 'tab=templates') return routerActive && onTemplates;
-    return routerActive && !onTemplates && location.pathname !== '/handbook/new';
-  };
+  return (item: NavItem, routerActive: boolean): boolean =>
+    item.to === '/handbook' ? routerActive && location.pathname !== '/handbook/new' : routerActive;
 }
 
 function SideLink({ item, count, labels, onNavigate }: { item: NavItem; count: number; labels: boolean; onNavigate?: () => void }) {

@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import type { HandbookEntryView, SanctionTemplateView, Severity } from '@shared/types';
 import { TemplateFileLinks, hasTemplateContent } from '@/components/templates/TemplateDownloads';
-import { useAuth } from '@/context/AuthContext';
 import { MasterDetail } from '@/components/layout/MasterDetail';
-import { Card, EmptyState, ErrorState, Icon, LoadingState, PageHeader, StatusPill, buttonClass, fieldClass } from '@/components/ui';
+import { EmptyState, ErrorState, Icon, LoadingState, PageHeader, StatusPill, fieldClass } from '@/components/ui';
 import { api } from '@/api/client';
 import { useApi } from '@/hooks/useApi';
-import { ViolationForm, type SanctionChoice } from '@/pages/staff/HandbookAdmin';
 import { TemplatesTab } from './SanctionTemplates';
 
 /** Filter by free text (violation, section, code) and severity. Pure so it can be tested without a DOM. */
@@ -79,15 +77,7 @@ function EntryPane({ entry, templates }: { entry: HandbookEntryView; templates: 
   );
 }
 
-function EntryList({
-  entries,
-  selectedId,
-  isStaff,
-}: {
-  entries: HandbookEntryView[];
-  selectedId: number | null;
-  isStaff: boolean;
-}) {
+function EntryList({ entries, selectedId }: { entries: HandbookEntryView[]; selectedId: number | null }) {
   const [query, setQuery] = useState('');
   const [severity, setSeverity] = useState<'all' | Severity>('all');
   const shown = useMemo(() => filterEntries(entries, query, severity), [entries, query, severity]);
@@ -159,9 +149,6 @@ function EntryList({
                   <span className="block truncate text-xs text-muted">
                     Sec. {entry.section} · {entry.description}
                   </span>
-                  {isStaff && entry.usedInCases ? (
-                    <span className="text-[11px] text-muted">Used in {entry.usedInCases} case{entry.usedInCases === 1 ? '' : 's'}</span>
-                  ) : null}
                 </span>
                 <StatusPill status={entry.severity} />
               </Link>
@@ -175,12 +162,10 @@ function EntryList({
 
 type Tab = 'violations' | 'templates';
 
+/** Student Handbook (students only; staff edit it on Violations). Restyled in U11. */
 export function HandbookPage() {
-  const { state } = useAuth();
   const { id } = useParams();
-  const isStaff = state.status === 'authenticated' && state.user.role === 'staff';
   const resource = useApi(() => api.handbook(), []);
-  // Staff need the list of sanctions to pick from; everyone else skips the request.
   const sanctions = useApi(() => api.sanctionTemplates().catch(() => ({ templates: [] as SanctionTemplateView[] })), []);
   const templateBySanction = new Map((sanctions.status === 'ready' ? sanctions.data.templates : []).map((t) => [t.sanctionId, t]));
   const [params, setParams] = useSearchParams();
@@ -188,24 +173,9 @@ export function HandbookPage() {
   const setTab = (next: Tab) => setParams(next === 'templates' ? { tab: 'templates' } : {}, { replace: true });
   const selectedId = /^\d+$/.test(id ?? '') ? Number(id) : null;
 
-  const choices: SanctionChoice[] =
-    sanctions.status === 'ready'
-      ? sanctions.data.templates.map((template) => ({ sanctionId: template.sanctionId, label: `${template.sanctionCode} · ${template.type}` }))
-      : [];
-
   return (
     <>
-      <PageHeader
-        title={isStaff ? 'Handbook' : 'Student handbook'}
-        subtitle="Violations, the sanctions the handbook allows for each offense, and the sanction templates."
-        actions={
-          isStaff && tab === 'violations' ? (
-            <Link to="/handbook/new" className={`${buttonClass} min-h-11`}>
-              Add violation
-            </Link>
-          ) : undefined
-        }
-      />
+      <PageHeader title="Student handbook" subtitle="Violations, the sanctions the handbook allows for each offense, and the sanction templates." />
       <div className="mb-4 flex gap-2" role="tablist" aria-label="Handbook sections">
         {(
           [
@@ -229,7 +199,7 @@ export function HandbookPage() {
       </div>
 
       {tab === 'templates' ? (
-        <TemplatesTab isStaff={isStaff} />
+        <TemplatesTab />
       ) : resource.status === 'loading' ? (
         <LoadingState label="Loading the handbook…" />
       ) : resource.status === 'error' ? (
@@ -238,50 +208,16 @@ export function HandbookPage() {
         <MasterDetail
           ratio="handbook"
           detailKey={selectedId}
-          list={<EntryList entries={resource.data.entries} selectedId={selectedId} isStaff={isStaff} />}
+          list={<EntryList entries={resource.data.entries} selectedId={selectedId} />}
           detail={(() => {
             if (selectedId === null) return null;
             const entry = resource.data.entries.find((candidate) => candidate.id === selectedId);
             if (!entry) return <ErrorState message="That handbook entry was not found." />;
-            return isStaff ? (
-              <ViolationForm
-                key={`${entry.id}-${entry.description}-${entry.violation}-${entry.sanctions.length}`}
-                entry={entry}
-                choices={choices}
-                onCancel={() => undefined}
-                onSaved={resource.reload}
-              />
-            ) : (
-              <EntryPane entry={entry} templates={templateBySanction} />
-            );
+            return <EntryPane entry={entry} templates={templateBySanction} />;
           })()}
           emptyDetail={<EmptyState title="Select a violation" hint="Its section, wording and sanction per offense appear here." />}
-          backTo="/handbook"
-          backLabel="All violations"
         />
       )}
-    </>
-  );
-}
-
-/** Staff: add a violation on its own page (deck W46). */
-export function AddViolationPage() {
-  const navigate = useNavigate();
-  const sanctions = useApi(() => api.sanctionTemplates(), []);
-  const choices: SanctionChoice[] =
-    sanctions.status === 'ready'
-      ? sanctions.data.templates.map((template) => ({ sanctionId: template.sanctionId, label: `${template.sanctionCode} · ${template.type}` }))
-      : [];
-  return (
-    <>
-      <PageHeader title="Add violation" subtitle="A new handbook violation with the sanction allowed for each offense." />
-      {sanctions.status === 'loading' ? <LoadingState label="Loading sanctions…" cards={1} /> : null}
-      {sanctions.status === 'error' ? <ErrorState message={sanctions.error.message} onRetry={sanctions.reload} /> : null}
-      {sanctions.status === 'ready' ? (
-        <Card className="max-w-3xl p-0">
-          <ViolationForm choices={choices} onCancel={() => navigate('/handbook')} onSaved={() => navigate('/handbook')} />
-        </Card>
-      ) : null}
     </>
   );
 }

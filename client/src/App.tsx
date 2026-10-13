@@ -9,7 +9,9 @@ import ChangePassword from '@/pages/account/ChangePassword';
 import { ClearancePage, ClearanceSlipPage } from '@/pages/student/Clearance';
 import { StaffHome } from '@/pages/staff/Dashboard';
 import { StudentDashboard } from '@/pages/student/Dashboard';
-import { AddViolationPage, HandbookPage } from '@/pages/shared/Handbook';
+import { HandbookPage } from '@/pages/shared/Handbook';
+import { SanctionTemplatesPage } from '@/pages/staff/SanctionTemplates';
+import { StaffViolationsPage } from '@/pages/staff/Violations';
 import GateReportPage from '@/pages/public/GateReport';
 import Login from '@/pages/public/Login';
 import { InboxPage } from '@/pages/shared/Inbox';
@@ -66,6 +68,12 @@ function AppointmentsRoute() {
   return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffAppointmentsPage /> : <AppointmentsPage />;
 }
 
+/** Staff edit the handbook ("Violations"); students read it. */
+function HandbookRoute() {
+  const { state } = useAuth();
+  return state.status === 'authenticated' && state.user.role === 'staff' ? <StaffViolationsPage /> : <HandbookPage />;
+}
+
 /** One address, two screens: a student reads their own checklist, staff set up and mark everyone's. */
 function ClearanceRoute() {
   const { state } = useAuth();
@@ -82,8 +90,8 @@ function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<Shell />}>
           <Route index element={<Home />} />
-          <Route path="handbook" element={<HandbookPage />} />
-          <Route path="handbook/:id" element={<HandbookPage />} />
+          <Route path="handbook" element={<HandbookRoute />} />
+          <Route path="handbook/:id" element={<HandbookRoute />} />
           <Route path="inbox" element={<InboxPage />} />
           {/* Account details and Change password are dialogs (UI-POLISH-SPEC 5.10); the old addresses open them. */}
           <Route path="account" element={<Navigate to="/" replace state={{ account: 'details' }} />} />
@@ -108,7 +116,9 @@ function AppRoutes() {
             <Route path="students/:id" element={<StudentsPage />} />
             <Route path="appointments/new" element={<MakeAppointmentPage />} />
             <Route path="appointments/:id/edit" element={<EditAppointmentPage />} />
-            <Route path="handbook/new" element={<AddViolationPage />} />
+            <Route path="handbook/new" element={<StaffViolationsPage adding />} />
+            <Route path="sanction-templates" element={<SanctionTemplatesPage />} />
+            <Route path="sanction-templates/:id" element={<SanctionTemplatesPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

@@ -71,7 +71,7 @@ const STAFF_GROUPS: NavGroup[] = [
     label: 'Handbook',
     items: [
       { to: '/handbook', label: 'Violations', icon: 'menu_book' },
-      { to: '/handbook?tab=templates', label: 'Sanction templates', icon: 'folder_managed' },
+      { to: '/sanction-templates', label: 'Sanction templates', icon: 'folder_managed' },
     ],
   },
 ];
@@ -109,6 +109,7 @@ const TITLES: Array<[RegExp, string, string?]> = [
   [/^\/clearance(\/slip|\/[^/]+)?$/, 'Clearance'],
   [/^\/handbook\/new$/, 'Add violation'],
   [/^\/handbook(\/\d+)?$/, 'Violations', 'Student Handbook'],
+  [/^\/sanction-templates(\/\d+)?$/, 'Sanction templates'],
   [/^\/account\/password$/, 'Change password'],
   [/^\/account$/, 'Account details'],
   [/^\/violations(\/\d+)?$/, 'My Violations'],
@@ -116,12 +117,9 @@ const TITLES: Array<[RegExp, string, string?]> = [
 ];
 
 /** `Staff › Cases`: the portal, then the page title (deck src 315). */
-export function breadcrumb(role: AccountRole, pathname: string, search = ''): string[] {
+export function breadcrumb(role: AccountRole, pathname: string): string[] {
   const root = role === 'staff' ? 'Staff' : 'Student';
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-  if (role === 'staff' && path === '/handbook' && new URLSearchParams(search).get('tab') === 'templates') {
-    return [root, 'Sanction templates'];
-  }
   const hit = TITLES.find(([pattern]) => pattern.test(path));
   if (!hit) return [root, 'Page not found'];
   const [, staffTitle, studentTitle] = hit;

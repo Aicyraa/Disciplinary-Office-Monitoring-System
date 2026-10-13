@@ -64,7 +64,7 @@ describe('navGroups destinations', () => {
       '/appointments',
       '/clearance',
       '/handbook',
-      '/handbook?tab=templates',
+      '/sanction-templates',
     ]);
   });
 });
