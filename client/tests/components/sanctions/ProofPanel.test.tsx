@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import type { StudentSanctionView } from '@shared/types';
 import { viewedSummary } from '@/pages/staff/Sanctions';
 import { ProofPanel } from '@/components/sanctions/ProofPanel';
+import { lastFileRemovalMessage } from '@/utils/files';
 
 const base: StudentSanctionView = {
   id: 7,
@@ -86,10 +87,16 @@ describe('ProofPanel', () => {
     expect(html).not.toContain('Submit proof');
   });
 
-  test('the last file cannot be removed while pending (button disabled with the reason)', () => {
+  test('pending with files: each file row has View, Replace and a labelled remove (the last-file rule explains on click)', () => {
     const html = render({ ...base, status: 'pending_verification', canUpload: false, canChangeFiles: true, files: [file(1)] });
-    expect(html).toContain('You cannot remove the last file');
-    expect(html).toMatch(/<button[^>]*disabled[^>]*>Remove<\/button>/);
+    expect(html).toContain('>View<');
+    expect(html).toContain('>Replace<');
+    expect(html).toContain('aria-label="Remove proof-1.pdf"');
+    expect(lastFileRemovalMessage('pending_verification', 1)).toBe(
+      'Keep at least one file for the SDO to review. Use Replace to swap it for another file.',
+    );
+    expect(lastFileRemovalMessage('pending_verification', 2)).toBeNull();
+    expect(lastFileRemovalMessage('returned', 1)).toBeNull();
   });
 
   test('pending and reviewed: read-only with an explanation', () => {

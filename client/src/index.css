@@ -41,6 +41,8 @@
   --color-success-strong: #2e8b57;
   --color-success-soft: #e2f3e8;
   --color-success-line: #cde9d7;
+  /* Verify sanction before every file was opened (src 2712). */
+  --color-success-disabled: #9cc3ad;
   --color-neutral-soft: #eceef1;
   --color-neutral-ink: #4a5260;
   --color-gold-line: #ddbb4a;
@@ -53,6 +55,8 @@
   --color-scrim: rgba(16, 22, 52, 0.5);
   /* Error icon on the dark toast (src 3527). */
   --color-toast-error: #ff8a80;
+  /* Behind a file in the preview modal (src 1961). */
+  --color-preview: #e9ecf1;
   /* Upload drop zone (UI-POLISH-SPEC 4.2b): resting, hover and drag-over. */
   --color-upload-bg: #f7f8fc;
   --color-upload-hover: #eef0fa;

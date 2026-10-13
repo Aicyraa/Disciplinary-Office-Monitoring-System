@@ -10,6 +10,35 @@ export const notPdfMessage = (name: string): string => `${name} is not a PDF fil
 
 const isPdfName = (name: string): boolean => ACCEPTED_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
 
+/** The line under a file name (deck src 2438): "PDF · 242 KB · Uploaded Oct 7, 2:28 PM", Asia/Manila time. */
+export function fileMeta(file: { name: string; sizeBytes: number; dateUploaded?: string | null }, verb = 'Uploaded'): string {
+  const type = file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : (file.name.split('.').pop() ?? 'File').toUpperCase();
+  const parts = [type, formatSize(file.sizeBytes)];
+  if (file.dateUploaded) {
+    const when = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(file.dateUploaded));
+    parts.push(`${verb} ${when}`);
+  } else {
+    parts.push('Not submitted yet');
+  }
+  return parts.join(' · ');
+}
+
+/** Deck src 2473: while the SDO reviews, the last submitted file can only be replaced, not removed. */
+export function lastFileRemovalMessage(status: string, fileCount: number): string | null {
+  return status === 'pending_verification' && fileCount <= 1
+    ? 'Keep at least one file for the SDO to review. Use Replace to swap it for another file.'
+    : null;
+}
+
+/** The preview modal shows PDFs in place; an older non-PDF file can only be downloaded. */
+export const canPreview = (name: string): boolean => isPdfName(name);
+
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

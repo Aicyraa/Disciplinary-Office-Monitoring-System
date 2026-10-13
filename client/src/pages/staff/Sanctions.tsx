@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import type { StaffProofFileView, StaffSanctionView } from '@shared/types';
 import { ConfirmModal, useToast } from '@/components/feedback';
+import { FilePreview } from '@/components/feedback/FilePreview';
+import { Button } from '@/components/ui/Button';
+import { FileRow } from '@/components/ui/FileRow';
 import { Icon, Resource, StatusPill, buttonClass, fieldClass } from '@/components/ui';
 import { api, toApiError } from '@/api/client';
-import { addDays, formatSize, manilaToday } from '@/utils/files';
+import { addDays, fileMeta, manilaToday } from '@/utils/files';
 import { formatDate } from '@/utils/format';
 import { useApi } from '@/hooks/useApi';
 
@@ -20,27 +23,17 @@ export function viewedSummary(files: ReadonlyArray<Pick<StaffProofFileView, 'vie
   return { viewed, total: files.length, allViewed: files.length > 0 && viewed === files.length };
 }
 
-/** Opening a proof file as staff marks it viewed on the server, so the list is refreshed afterwards. */
-async function openProof(fileId: number): Promise<void> {
-  // Open the tab inside the click so a pop-up blocker does not stop it, then point it at the link.
-  const tab = window.open('', '_blank');
-  try {
-    const { url } = await api.fileUrl(fileId);
-    if (tab) tab.location.href = url;
-    else window.location.href = url;
-  } catch (error) {
-    tab?.close();
-    throw error;
-  }
-}
-
 function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; onChanged: () => void }) {
   const toast = useToast();
   const [form, setForm] = useState<'return' | null>(null);
+  const [previewing, setPreviewing] = useState<StaffProofFileView | null>(null);
+  const [busy, setBusy] = useState(false);
   const summary = viewedSummary(sanction.files);
+  const pending = sanction.status === 'pending_verification';
 
   const succeed = (text: string) => {
     setForm(null);
+    setPreviewing(null);
     toast.show(text, 'success');
     onChanged();
   };
@@ -50,8 +43,39 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
     onChanged();
   };
 
+  async function verify() {
+    setBusy(true);
+    try {
+      await api.verifySanction(sanction.id);
+      succeed(`${sanction.sanctionCode} verified.`);
+    } catch (error) {
+      failed(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const verifyButton = (
+    <Button
+      variant="success"
+      size="lg"
+      className="flex-[1_1_150px] disabled:bg-success-disabled disabled:text-white"
+      disabled={!summary.allViewed}
+      disabledReason="Open each file before verifying"
+      busy={busy}
+      onClick={() => void verify()}
+    >
+      Verify sanction
+    </Button>
+  );
+  const returnButton = (
+    <Button variant="danger" size="lg" className="flex-[1_1_150px]" onClick={() => setForm('return')}>
+      Return to student
+    </Button>
+  );
+
   return (
-    <li className="rounded-lg border border-line bg-white p-3">
+    <li className="rounded-xl border border-line bg-white p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="font-medium text-ink">
@@ -60,101 +84,93 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
           <div className="text-sm text-muted">
             Due {formatDate(sanction.dueDate)}
             {sanction.lateByDays > 0 ? (
-              <span className="ml-2 rounded bg-[#F7E6E6] px-1.5 py-0.5 text-xs font-semibold text-[#9B2C2C]">
-                Late by {sanction.lateByDays} day{sanction.lateByDays === 1 ? '' : 's'}
-              </span>
+              <span className="ml-2 rounded-full bg-bad-soft px-2 py-0.5 text-[11px] font-semibold text-bad-ink">Overdue</span>
             ) : null}
           </div>
         </div>
         <StatusPill status={sanction.status} kind="sanction" />
       </div>
 
-      {sanction.staffNote ? <p className="mt-2 text-sm">Instructions / note: {sanction.staffNote}</p> : null}
-      {sanction.complianceNote ? <p className="mt-1 text-sm">Compliance recorded: {sanction.complianceNote}</p> : null}
-
-      {sanction.files.length > 0 ? (
-        <div className="mt-3">
-          <div className="text-sm font-medium text-ink">
-            Submitted proof{' '}
-            <span className="font-normal text-muted">
-              ({summary.viewed} of {summary.total} viewed)
-            </span>
-          </div>
-          <ul className="mt-1 space-y-1">
-            {sanction.files.map((file) => (
-              <li key={file.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <span className="flex items-center gap-2">
-                  <Icon
-                    name={file.viewed ? 'check_circle' : 'radio_button_unchecked'}
-                    className={file.viewed ? 'text-success' : 'text-muted'}
-                  />
-                  {file.name} <span className="text-muted">({formatSize(file.sizeBytes)})</span>
-                </span>
-                <button
-                  type="button"
-                  aria-label={`Open ${file.name}`}
-                  className="inline-flex min-h-11 items-center gap-1 rounded-md border border-line-strong px-3 text-xs font-medium text-ink hover:bg-page"
-                  onClick={() => {
-                    openProof(file.id).then(onChanged, failed);
-                  }}
-                >
-                  <Icon name="visibility" className="text-base" />
-                  View
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {sanction.status === 'pending_verification' && !summary.allViewed ? (
-        <p className="mt-2 text-xs text-muted">
-          {summary.total === 0
-            ? 'No proof file is attached. Return it so the student can upload one.'
-            : `Open each file before you verify this sanction (${summary.viewed} of ${summary.total} opened).`}
+      {sanction.staffNote ? (
+        <p className="mt-3 rounded-[10px] bg-warn-soft px-3.5 py-2.5 text-[13px] text-amber-ink">
+          {sanction.status === 'returned' ? 'Returned: ' : 'Instructions: '}
+          {sanction.staffNote}
         </p>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {sanction.status === 'pending_verification' ? (
-          <>
-            <button
-              type="button"
-              className={`${buttonClass} min-h-11`}
-              disabled={!summary.allViewed}
-              title={summary.allViewed ? undefined : 'Open every file first'}
-              onClick={async () => {
-                try {
-                  await api.verifySanction(sanction.id);
-                  succeed('Verified. The sanction is completed.');
-                } catch (error) {
-                  failed(error);
-                }
-              }}
-            >
-              Verify sanction
-            </button>
-            <button
-              type="button"
-              className="inline-flex min-h-11 items-center rounded-md border border-danger px-4 text-sm font-semibold text-danger hover:bg-page"
-              onClick={() => setForm('return')}
-            >
-              Return to student
-            </button>
-          </>
-        ) : null}
+      <div className="mt-3 overflow-hidden rounded-xl border border-line">
+        <div className="flex items-center gap-2.5 border-b border-line-soft bg-surface-2 px-3.5 py-3">
+          <Icon name="attach_file" className="!text-xl text-primary" />
+          <span className="flex-1 text-sm font-bold text-ink">Submitted proof</span>
+          {summary.total > 0 ? (
+            <span className="text-xs text-muted">
+              {summary.viewed} of {summary.total} viewed
+            </span>
+          ) : null}
+        </div>
+        {sanction.files.length === 0 ? (
+          <p className="flex items-center justify-center gap-1.5 px-3.5 py-4 text-[13px] text-muted">
+            <Icon name="hourglass_top" className="!text-lg" />
+            {pending ? 'No files were uploaded.' : 'Waiting for the student to upload proof.'}
+          </p>
+        ) : (
+          <div className="flex flex-col">
+            {sanction.files.map((file) => (
+              <FileRow
+                key={file.id}
+                name={file.name}
+                meta={fileMeta(file)}
+                viewed={file.viewed}
+                onView={() => setPreviewing(file)}
+                className="rounded-none border-0 border-b border-line-soft last:border-b-0"
+              />
+            ))}
+          </div>
+        )}
       </div>
-      {sanction.status === 'assigned' || sanction.status === 'returned' ? (
-        <p className="mt-2 text-xs text-muted">Waiting for the student to upload proof. Files are the only way to complete a sanction.</p>
+
+      {pending && !summary.allViewed && summary.total > 0 ? (
+        <p className="mt-2 flex items-center gap-1.5 text-[13px] text-amber-ink">
+          <Icon name="info" className="!text-lg" />
+          Open each file before you verify this sanction.
+        </p>
+      ) : null}
+
+      {pending ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {verifyButton}
+          {returnButton}
+        </div>
+      ) : null}
+
+      {previewing ? (
+        <FilePreview
+          file={{ name: previewing.name, meta: fileMeta(previewing) }}
+          loadUrl={async () => (await api.fileUrl(previewing.id)).url}
+          onLoaded={onChanged}
+          onClose={() => setPreviewing(null)}
+          footer={
+            pending ? (
+              <>
+                <span className="min-w-0 flex-[1_1_200px] text-[13px] text-muted">
+                  {summary.allViewed ? 'All files viewed. You can verify this sanction.' : 'Open the other files before you verify.'}
+                </span>
+                {returnButton}
+                {verifyButton}
+              </>
+            ) : undefined
+          }
+        />
       ) : null}
 
       <ConfirmModal
         open={form === 'return'}
-        title="Return to student"
-        description="The student is told why and can upload proof again."
-        reasonLabel="Reason (required)"
-        confirmLabel="Return to student"
-        danger
+        tone="danger"
+        title={`Return ${sanction.sanctionCode} to the student?`}
+        description="The sanction goes back to the student. Tell them what is missing."
+        reasonLabel="What the student needs to fix"
+        reasonPlaceholder="e.g. The service log is missing the supervisor’s signature."
+        confirmLabel="Return sanction"
         onClose={() => setForm(null)}
         onConfirm={async (reason) => {
           try {
@@ -162,7 +178,7 @@ function SanctionCard({ sanction, onChanged }: { sanction: StaffSanctionView; on
           } catch (error) {
             throw new Error(msg(error));
           }
-          succeed('Returned to the student.');
+          succeed(`${sanction.sanctionCode} returned to the student.`);
         }}
       />
     </li>

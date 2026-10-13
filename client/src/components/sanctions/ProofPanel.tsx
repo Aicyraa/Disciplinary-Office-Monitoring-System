@@ -1,8 +1,11 @@
 import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import type { StudentSanctionView } from '@shared/types';
 import { api, toApiError } from '@/api/client';
-import { ACCEPT_ATTRIBUTE, MAX_FILES, checkSelection, formatSize, splitSelection, uploadButtonLabel } from '@/utils/files';
-import { Icon } from '@/components/ui';
+import { ACCEPT_ATTRIBUTE, MAX_FILES, checkSelection, fileMeta, lastFileRemovalMessage, splitSelection, uploadButtonLabel } from '@/utils/files';
+import { Icon } from '@/components/ui/Icon';
+import { FileRow } from '@/components/ui/FileRow';
+import { ConfirmModal, useToast } from '@/components/feedback';
+import { FilePreview, type PreviewFile } from '@/components/feedback/FilePreview';
 
 type Notice = { tone: 'success' | 'error'; text: string };
 
@@ -19,6 +22,9 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
   const pickRef = useRef<HTMLInputElement>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const [replaceTarget, setReplaceTarget] = useState<number | null>(null);
+  const [previewing, setPreviewing] = useState<{ file: PreviewFile; loadUrl: () => Promise<string> } | null>(null);
+  const [removing, setRemoving] = useState<{ id: number; name: string } | null>(null);
+  const toast = useToast();
 
   if (sanction.status === 'completed' && sanction.files.length === 0) return null;
 
@@ -28,7 +34,7 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
     setNotice(null);
     try {
       await work();
-      setNotice({ tone: 'success', text: success });
+      toast.show(success, 'success');
       setSelected([]);
       if (pickRef.current) pickRef.current.value = '';
       onChanged();
@@ -42,16 +48,27 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
     }
   }
 
-  async function open(fileId: number) {
-    const tab = window.open('', '_blank');
-    try {
-      const { url } = await api.fileUrl(fileId);
-      if (tab) tab.location.href = url;
-      else window.location.href = url;
-    } catch (error) {
-      tab?.close();
-      setNotice({ tone: 'error', text: toApiError(error).message });
+  /** Uploaded files open in the preview modal through the API's short-lived link; never in a new tab. */
+  function viewUploaded(file: StudentSanctionView['files'][number]) {
+    setPreviewing({ file: { name: file.name, meta: fileMeta(file) }, loadUrl: async () => (await api.fileUrl(file.id)).url });
+  }
+
+  /** A chosen file not sent yet previews from the browser's own copy. */
+  function viewChosen(file: File) {
+    setPreviewing({
+      file: { name: file.name, meta: fileMeta({ name: file.name, sizeBytes: file.size }) },
+      loadUrl: async () => URL.createObjectURL(file),
+    });
+  }
+
+  function askRemove(file: { id: number; name: string }) {
+    // Deck src 2473: the last submitted file can only be replaced.
+    const blocked = lastFileRemovalMessage(sanction.status, sanction.files.length);
+    if (blocked) {
+      setNotice({ tone: 'error', text: blocked });
+      return;
     }
+    setRemoving(file);
   }
 
   /** Picking or dropping again adds to the list (the same file twice is ignored); a wrong file is refused, the others stay. */
@@ -71,7 +88,7 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
     }
     void run(
       () => api.uploadProof(sanction.id, selected, undefined, setPercent).then(() => undefined),
-      'Proof uploaded. The office will review it.',
+      `Proof submitted for ${sanction.sanctionCode}.`,
     );
   }
 
@@ -90,7 +107,6 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
     if (!busy) addFiles(Array.from(event.dataTransfer.files));
   };
 
-  const lastFile = sanction.files.length <= 1;
   const title = sanction.status === 'returned' ? 'Upload a corrected file' : 'Upload your proof';
 
   return (
@@ -98,46 +114,25 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
       <h3 className="text-sm font-semibold text-ink">Proof of completion</h3>
 
       {sanction.files.length > 0 ? (
-        <ul className="mt-2 space-y-1">
+        <div className="mt-2 flex flex-col gap-2">
           {sanction.files.map((file) => (
-            <li key={file.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <button type="button" onClick={() => void open(file.id)} className="text-left text-primary underline">
-                {file.name}
-              </button>
-              <span className="flex items-center gap-2">
-                <span className="text-muted">{formatSize(file.sizeBytes)}</span>
-                {sanction.canChangeFiles ? (
-                  <>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      className="rounded-md border border-line-strong bg-white px-2 py-0.5 text-xs font-medium text-ink"
-                      onClick={() => {
-                        setReplaceTarget(file.id);
-                        replaceRef.current?.click();
-                      }}
-                    >
-                      Replace
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || (sanction.status === 'pending_verification' && lastFile)}
-                      title={
-                        sanction.status === 'pending_verification' && lastFile
-                          ? 'You cannot remove the last file. Replace it instead.'
-                          : undefined
-                      }
-                      className="rounded-md border border-line-strong bg-white px-2 py-0.5 text-xs font-medium text-danger disabled:opacity-50"
-                      onClick={() => void run(() => api.deleteProofFile(file.id).then(() => undefined), 'File removed.')}
-                    >
-                      Remove
-                    </button>
-                  </>
-                ) : null}
-              </span>
-            </li>
+            <FileRow
+              key={file.id}
+              name={file.name}
+              meta={fileMeta(file)}
+              onView={() => viewUploaded(file)}
+              onReplace={
+                sanction.canChangeFiles && !busy
+                  ? () => {
+                      setReplaceTarget(file.id);
+                      replaceRef.current?.click();
+                    }
+                  : undefined
+              }
+              onRemove={sanction.canChangeFiles && !busy ? () => askRemove(file) : undefined}
+            />
           ))}
-        </ul>
+        </div>
       ) : (
         <p className="mt-1 text-sm text-muted">No file uploaded yet.</p>
       )}
@@ -157,9 +152,14 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
           const problem = checkSelection([file], 0);
           if (problem) {
             setNotice({ tone: 'error', text: problem });
+            toast.show('Replacement failed. Use a PDF file.', 'error');
             return;
           }
-          void run(() => api.uploadProof(sanction.id, [file], replaceTarget, setPercent).then(() => undefined), 'File replaced.');
+          const old = sanction.files.find((f) => f.id === replaceTarget)?.name ?? 'the file';
+          void run(
+            () => api.uploadProof(sanction.id, [file], replaceTarget, setPercent).then(() => undefined),
+            `Replaced ${old} with ${file.name}.`,
+          );
         }}
       />
 
@@ -222,26 +222,17 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
             </div>
 
             {selected.length > 0 ? (
-              <ul className="mt-3 space-y-1" aria-label="Files ready to upload">
+              <div className="mt-3 flex flex-col gap-2" aria-label="Files ready to upload">
                 {selected.map((file) => (
-                  <li key={`${file.name}-${file.size}`} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <Icon name="description" className="text-base text-muted" />
-                      <span className="truncate text-ink">{file.name}</span>
-                      <span className="shrink-0 text-xs text-muted">({formatSize(file.size)})</span>
-                    </span>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-danger disabled:opacity-50"
-                      aria-label={`Do not upload ${file.name}`}
-                      onClick={() => setSelected((current) => current.filter((c) => c !== file))}
-                    >
-                      Remove
-                    </button>
-                  </li>
+                  <FileRow
+                    key={`${file.name}-${file.size}`}
+                    name={file.name}
+                    meta={fileMeta({ name: file.name, sizeBytes: file.size })}
+                    onView={() => viewChosen(file)}
+                    onRemove={busy ? undefined : () => setSelected((current) => current.filter((c) => c !== file))}
+                  />
                 ))}
-              </ul>
+              </div>
             ) : null}
 
             {busy ? (
@@ -275,6 +266,30 @@ export function ProofPanel({ sanction, onChanged }: { sanction: StudentSanctionV
       {sanction.status === 'pending_verification' && !sanction.canChangeFiles ? (
         <p className="mt-2 text-xs text-muted">The office is reviewing this proof, so it can no longer be changed.</p>
       ) : null}
+
+      {previewing ? <FilePreview file={previewing.file} loadUrl={previewing.loadUrl} onClose={() => setPreviewing(null)} /> : null}
+
+      <ConfirmModal
+        open={removing !== null}
+        tone="danger"
+        title={`Remove “${removing?.name ?? ''}”?`}
+        description={`The SDO will no longer see this file for sanction ${sanction.sanctionCode}. Your other files stay submitted.`}
+        confirmLabel="Remove file"
+        cancelLabel="Keep it"
+        onClose={() => setRemoving(null)}
+        onConfirm={async () => {
+          const target = removing;
+          if (!target) return;
+          try {
+            await api.deleteProofFile(target.id);
+          } catch (error) {
+            throw new Error(toApiError(error).message);
+          }
+          setRemoving(null);
+          toast.show(`Removed ${target.name}.`, 'success');
+          onChanged();
+        }}
+      />
 
       {notice ? (
         <p
