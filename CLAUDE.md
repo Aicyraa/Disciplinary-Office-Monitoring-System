@@ -103,11 +103,12 @@ Work one feature at a time; finish and verify it before the next.
 - API: Express 5, TypeScript 7.0.2. Client: React 19, Vite 8, TypeScript 5.9. Root lint uses TypeScript 5.9.3 with typescript-eslint 8.71.1. Do not load the API compiler into root ESLint or assume TS7-only syntax in client/shared code.
 - `api/src/app.ts` exports the app without listening; `api/src/server.ts` starts it. `GET /health` returns `{ "status": "ok" }` without a database.
 - `shared/types.ts` holds types shared by API and client; import with `import type` only, no runtime cross-package imports.
+- Code layout (layers, naming, where a new file goes): `docs/sdao-handoff/CLEANUP-SPEC.md`. API: `routes/` (one router per feature, `index.ts` mounts them), `services/`, `repositories/<feature>/`, `domain/`, `middleware/`, `config/`, `lib/`. Client: `pages/{public,account,shared,staff,student}`, `components/{ui,layout,feedback,...}`, `hooks/`, `context/`, `utils/`, `api/`, with the `@/` alias for `client/src`.
 - `neon.ts` is the existing Neon configuration (registers `hello.ts`); it does not define runtime or deployment commands.
 
 ### Commands
 - Root: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`, `npm run dev`, `npm start`. Each child has the same scripts; run with `npm --prefix api ...` / `npm --prefix client ...`.
-- Tests: Vitest 4.1.6 (root-only dependency). Smoke tests: `api/src/app.test.ts`, `client/src/App.test.tsx`. Keep them green. No browser or test database required.
+- Tests: Vitest 4.1.6 (root-only dependency). Tests live in one folder per package (`api/tests`, `client/tests`, mirroring `src/`); smoke tests: `api/tests/app.test.ts`, `client/tests/App.test.tsx`. Keep them green. No browser or test database required.
 - API dev: tsx with `--env-file-if-exists=../.env`; build emits `api/dist/api/src/server.js`; port from `SERVER_PORT` (then `PORT`, then 3000).
 - Client dev: strict loopback `CLIENT_PORT` (default 5173); `start` is Vite preview on the same `CLIENT_PORT` (local verification only), so the one browser origin stays the same. Vite reads the root `.env`; only `VITE_` keys reach the browser, so never put secrets there.
 - Root ESLint checks authored API/client/shared TS and config files with recommended non-type-aware rules. ESLint 9.39.2 end-of-support and Vite config-loader warnings are known; do not upgrade tooling without a checkpoint.
@@ -119,7 +120,7 @@ Work one feature at a time; finish and verify it before the next.
 
 ### Prisma and Neon
 - API owns Prisma CLI, client and pg adapter, all pinned to 7.10.0 (Prisma 7 format; no 8.x release candidates, no v6 syntax). Generator `prisma-client`, `output = "../generated/prisma"`; datasource block has `provider` only; connection URLs live in `api/prisma.config.ts` (`DATABASE_URL_UNPOOLED` for the CLI). Prisma 7 does not load `.env`; scripts use `node --env-file-if-exists=../.env`.
-- Runtime uses the pooled `DATABASE_URL` through the pg adapter. `api/src/prisma.ts:createPrismaClient` is a lazy initializer; health/server do not construct it.
+- Runtime uses the pooled `DATABASE_URL` through the pg adapter. `api/src/config/prisma.ts:createPrismaClient` is a lazy initializer; health/server do not construct it.
 - Scripts: `npm --prefix api run prisma:validate`, `prisma:generate`, `prisma:push` (live), `prisma:smoke` (live). Run `prisma:generate` before API typecheck/build on a fresh clone. `api/generated/prisma` is generated and ignored: never hand-edit or commit it.
 - **Live Prisma/Neon operations (`prisma:push`, `prisma:smoke`, migrations, applying SQL to Neon outside the dev branch, branch create/delete/reset, bucket changes) run only when the human explicitly asks.** Preview with `prisma migrate diff` first, and never accept data loss without confirmation. A skill suggesting a live operation is not permission. Claude Code's permission rules deny these commands for every agent; the human runs them in their own terminal. The Neon MCP exception below is the only live access agents have.
 - Neon free plan: 1 GB Postgres, 5 GB object storage, compute scales to zero after 5 minutes (expect a slow first request after idle; retry once on cold start).

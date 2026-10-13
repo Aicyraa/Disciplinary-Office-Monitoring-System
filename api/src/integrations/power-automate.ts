@@ -1,5 +1,5 @@
 import type { NotificationKind } from '@shared/types.js';
-import type { NotifyPayload } from '../notifications/render.js';
+import type { NotifyPayload } from '../services/notifications/render.js';
 
 /**
  * What one call to Power Automate came to (POWER-AUTOMATE.md section 4, rule 5):

@@ -3,38 +3,11 @@ import express from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import type { HealthResponse } from '@shared/types.js';
-import { clientOriginFrom, defaultClientOrigin } from './cors.js';
-import { createAuthRouter, type LoginRateLimitOptions } from './auth/routes.js';
-import type { AuthService } from './auth/service.js';
-import type { AppointmentQueries } from './appointments/queries.js';
-import { createAppointmentRouter } from './appointments/routes.js';
-import type { AppointmentService } from './appointments/service.js';
-import type { CaseQueries } from './cases/queries.js';
-import type { ClearanceQueries } from './clearance/queries.js';
-import { createClearanceRouter } from './clearance/routes.js';
-import type { ClearanceService } from './clearance/service.js';
-import { createCaseRouter } from './cases/routes.js';
-import type { CaseService } from './cases/service.js';
-import { createGateRouter, type GateLimits } from './gate/routes.js';
-import type { GateService } from './gate/service.js';
-import type { GateOptionsReader } from './gate/types.js';
-import type { HandbookAdminService } from './handbook/admin-service.js';
-import { createHandbookRouter } from './handbook/routes.js';
-import type { TemplateReader } from './templates/reader.js';
-import { createTemplateRouter } from './templates/routes.js';
-import type { TemplateService } from './templates/service.js';
-import type { HandbookRepo } from './handbook/repo.js';
-import { errorHandler, notFoundHandler, sendError } from './http.js';
-import { createMeRouter } from './me/routes.js';
-import { createNoticeRouter } from './notices/routes.js';
-import type { NoticeService } from './notices/service.js';
-import type { NoticeStore } from './notices/types.js';
-import { createStudentsRouter } from './students/routes.js';
-import type { InboxStore } from './notifications/inbox.js';
-import { createNotificationsRouter } from './notifications/routes.js';
-import { createSanctionRouter } from './sanctions/routes.js';
-import type { SanctionService } from './sanctions/service.js';
-import type { StudentViewRepo } from './me/repo.js';
+import { clientOriginFrom, defaultClientOrigin } from './middleware/cors.js';
+import { createAuthRouter, type LoginRateLimitOptions } from './routes/auth.routes.js';
+import type { AuthService } from './services/auth.service.js';
+import { errorHandler, notFoundHandler, sendError } from './lib/http.js';
+import { registerDataRoutes, type DataDeps } from './routes/index.js';
 
 export interface AppDeps {
   /** Omitted in the smoke test: the app then serves only /health and needs no database. */
@@ -58,31 +31,8 @@ export interface AppDeps {
    * the browser shows the real cause instead of a misleading "cannot reach the server".
    */
   unconfigured?: { clientOrigin: string; reason: string };
-  /** Read-side repositories. Routes mount only when `auth` is also given (they need the session). */
-  data?: {
-    handbook: HandbookRepo;
-    /** Staff create and edit violations (SPEC 4.9). */
-    handbookAdmin?: { service: HandbookAdminService };
-    /** The public gate form: no sign-in, protected by verifyHuman() and per-IP limits (SPEC 4.10). */
-    gate?: { service: GateService; options: GateOptionsReader; limits?: GateLimits };
-    /** Sanction templates: text and files (SPEC 6.1). */
-    templates?: { service: TemplateService; reader: TemplateReader };
-    studentViews: StudentViewRepo;
-    /** Staff case workflow: the rules (service) and the read side (queries). */
-    cases?: { service: CaseService; queries: CaseQueries };
-    /** Sanction assignment, proof files and verification. */
-    sanctions?: { service: SanctionService };
-    /** Staff appointment workflow: the rules (service) and the read side (queries). */
-    appointments?: { service: AppointmentService; queries: AppointmentQueries };
-    /** Staff clearance workflow: the rules (service) and the read side (queries). */
-    clearance?: { service: ClearanceService; queries: ClearanceQueries };
-    /** Staff notices: broadcast, edit, remove (UI-POLISH-SPEC decision 1). */
-    notices?: { service: NoticeService; store: NoticeStore; onPublished?: () => void };
-    /** The in-app inbox: a student's own, and the single shared staff inbox. */
-    notifications?: { inbox: InboxStore };
-    /** Injected so tests control "today" (Asia/Manila). */
-    now?: () => Date;
-  };
+  /** Read-side repositories and services. Routes mount only when `auth` is also given (they need the session). */
+  data?: DataDeps;
 }
 
 /** CORS for exactly one origin; any other origin gets no CORS headers. */
@@ -148,21 +98,7 @@ export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
       }),
     );
 
-    if (data) {
-      if (data.gate) {
-        app.use(createGateRouter({ ...data.gate, secret: auth.sessionSecret, now: data.now }));
-      }
-      app.use(createHandbookRouter({ repo: data.handbook, admin: data.handbookAdmin?.service }));
-      if (data.templates) app.use(createTemplateRouter(data.templates));
-      app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
-      app.use(createStudentsRouter({ repo: data.studentViews, now: data.now }));
-      if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));
-      if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
-      if (data.appointments) app.use(createAppointmentRouter({ ...data.appointments, now: data.now }));
-      if (data.clearance) app.use(createClearanceRouter(data.clearance));
-      if (data.notices) app.use(createNoticeRouter({ ...data.notices, now: data.now }));
-      if (data.notifications) app.use(createNotificationsRouter({ store: data.notifications.inbox }));
-    }
+    if (data) registerDataRoutes(app, data, auth.sessionSecret);
   }
 
   // After every router: "invalid route" (404) and "route errors" (thrown or passed to next(error)).

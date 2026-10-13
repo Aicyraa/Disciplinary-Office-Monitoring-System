@@ -805,3 +805,14 @@ SPEC CHANGE (applied with the human's authorization): notices un-parked; `notice
 
 **Review fix round 1 (dev, 2026-10-13):** finding 1 fixed (`min-w-0` on both `MasterDetail` panes, so Cases no longer scrolls sideways at 390 px); finding 2 fixed (Students list pager); finding 4 fixed (an expiry such as 2026-02-31 is refused; test added); finding 6 fixed (line breaks kept in the inbox list and the email HTML). Accepted for a demo-size system: 3 (an expired notice needs a new expiry to be edited), 5 (modal focus trap covered by the reviewer's browser check; More drawer has no trap), 7 (very large student bodies email at 20 per minute and students created after publishing do not receive the notice), 8 (HUMAN CHECK added below). 9: stop the dev server on port 5192 yourself (`pkill -f "vite.*5192"`).
 HUMAN CHECK: after `add-notices.sql`, run `SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='notifications_kind_check';` -> includes 'notice'; publish a notice with tomorrow's expiry, set `expires_on` to yesterday in SQL, and reload the student inbox -> the notice is gone and the unread badge dropped.
+
+## codebase clean-up (2026-10-13, before more UI work)
+
+**Decision:** the human found design and layout issues in the built UI and asked for the codebase to be organized first. **Building the UI continues after this clean-up**: next UI round = fix the layout issues the human listed, then the "Not done" items in `docs/sdao-handoff/UI-POLISH-SPEC.md`. Plan and rules: `docs/sdao-handoff/CLEANUP-SPEC.md`.
+
+**Built:** API moved to layers (`routes/`, `services/`, `repositories/<feature>/`, `domain/`, `middleware/`, `config/`, `lib/`, `views/`, `integrations/`, `types/`) with all tests in `api/tests`; client moved to `pages/{public,account,shared,staff,student}`, `components/*`, `hooks/`, `context/`, `utils/`, `api/` with the `@/` alias and all tests in `client/tests`. Repetition removed: `parseId` (9 copies), router wiring in `routes/index.ts`, one `Pagination` component (4 copies). 1099 tests, lint, typecheck and build green after every step. Behavior is unchanged.
+
+**Not verified:** the web search tool was unavailable, so the layout follows well-known conventions, not freshly fetched pages. The dev server (`npm run dev`) and the real database were not started.
+**Config touched (human authorized by the request):** root `package.json` lint paths, `api/package.json` and `client/package.json` test filters, `vitest.config.mjs`, `api/tsconfig.json`, `client/tsconfig.json`, `client/vite.config.ts`.
+
+### Review (reviewer fills this)
