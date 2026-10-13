@@ -35,10 +35,12 @@ export function StaffHome() {
   const [checkedAt, setCheckedAt] = useState(() => new Date());
   const [checking, setChecking] = useState(false);
 
-  // "Last checked" moves whenever the reports card has fresh data.
+  // "Last checked" moves whenever the reports card has fresh data. Depend on the data itself: `useApi` returns a
+  // new object every render, so depending on `reported` would set a new Date on every render (an endless loop).
+  const reportedData = reported.status === 'ready' ? reported.data : null;
   useEffect(() => {
-    if (reported.status === 'ready') setCheckedAt(new Date());
-  }, [reported]);
+    if (reportedData) setCheckedAt(new Date());
+  }, [reportedData]);
 
   function refreshAll() {
     setChecking(true);

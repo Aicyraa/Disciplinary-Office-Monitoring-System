@@ -31,9 +31,11 @@ export function ClearancePage() {
   const [terms, setTerms] = useState<ClearanceTermView[]>([]);
   const resource = useApi(() => api.myClearance(term ?? undefined), [term?.academicYear, term?.semester]);
 
+  // Depend on the loaded list, not on `resource` (a new object every render).
+  const loadedTerms = resource.status === 'ready' ? resource.data.terms : null;
   useEffect(() => {
-    if (resource.status === 'ready') setTerms(resource.data.terms);
-  }, [resource]);
+    if (loadedTerms) setTerms(loadedTerms);
+  }, [loadedTerms]);
 
   if (resource.status === 'loading' && terms.length === 0) {
     return (
