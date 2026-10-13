@@ -1,501 +1,418 @@
-import { useEffect, useRef, useState, type FormEvent, type MutableRefObject } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import type { StaffClearanceItemView, StaffClearanceView } from '@shared/types';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import type { ClearanceRosterRow, StaffClearanceItemView, StaffClearanceView, TermRef } from '@shared/types';
 import { ProgressBar } from '@/components/dashboard/DashboardCards';
 import { ConfirmModal, useToast } from '@/components/feedback';
-import { Pagination } from '@/components/ui/Pagination';
+import { PageError, Spinner } from '@/components/feedback/PageState';
 import { MasterDetail } from '@/components/layout/MasterDetail';
-import { Card, EmptyState, ErrorState, Icon, LoadingState, PageHeader, StatusPill, buttonClass, fieldClass } from '@/components/ui';
+import { Button } from '@/components/ui/Button';
+import { ChipGroup } from '@/components/ui/ChipGroup';
+import { EmptyBlock } from '@/components/ui/EmptyBlock';
+import { HistoryList } from '@/components/ui/HistoryList';
+import { Icon } from '@/components/ui/Icon';
+import { ListCard } from '@/components/ui/ListCard';
+import { Pager } from '@/components/ui/Pager';
+import { Pill } from '@/components/ui/Pill';
+import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
+import { Tag } from '@/components/ui/Tag';
 import { api, toApiError } from '@/api/client';
-import { defaultSchoolYear, progressLabel } from '@/utils/clearance';
-import { manilaToday } from '@/utils/files';
-import { formatDateTime, formatTerm } from '@/utils/format';
 import { useApi } from '@/hooks/useApi';
+import { ordinalYear } from '@/utils/account';
+import { clearanceCopy, clearanceHistoryItems, clearanceStatus, parseTermParam, rosterProgress, termParam } from '@/utils/clearance';
+import { cn } from '@/utils/cn';
+import { formatTerm } from '@/utils/format';
 
-const EVENT_LABEL: Record<StaffClearanceView['history'][number]['eventType'], string> = {
-  set_up: 'Set up',
-  marked_done: 'Marked done',
-  reversed: 'Reversed',
-  requirement_added: 'Requirement added',
-  requirement_removed: 'Requirement removed',
-};
+const STUDENT_ID = /^\d{4}-\d{7}$/;
+const PROGRESS_TONE = { ink: 'text-ink', done: 'text-success', muted: 'text-disabled-ink' } as const;
 
-function SetUpForm({ onCreated }: { onCreated: (studentId: string) => void }) {
-  const [studentId, setStudentId] = useState('');
-  const [year, setYear] = useState(String(defaultSchoolYear(manilaToday())));
-  const [semester, setSemester] = useState('1');
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+function StudentRoster({
+  term,
+  selectedId,
+  onFirstRow,
+  reloadRef,
+}: {
+  term: TermRef;
+  selectedId: string | null;
+  onFirstRow: (id: string | null) => void;
+  reloadRef: React.MutableRefObject<(() => void) | null>;
+}) {
+  const [page, setPage] = useState(1);
+  const roster = useApi(() => api.clearanceRoster(term.academicYear, term.semester, { page }), [term.academicYear, term.semester, page]);
+  useEffect(() => {
+    reloadRef.current = roster.reload;
+  }, [reloadRef, roster.reload]);
+  useEffect(() => setPage(1), [term.academicYear, term.semester]);
+  const firstId = roster.status === 'ready' ? (roster.data.students[0]?.studentId ?? null) : undefined;
+  useEffect(() => {
+    if (firstId !== undefined) onFirstRow(firstId);
+  }, [firstId, onFirstRow]);
+  const highlighted = selectedId ?? firstId ?? null;
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const id = studentId.trim();
-    if (!/^\d{4}-\d{7}$/.test(id)) {
-      setError('Use the student ID format 2025-1234567.');
-      return;
-    }
-    if (!/^\d{4}$/.test(year)) {
-      setError('The school year is four digits, for example 2026.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    setDone(null);
+  return (
+    <ListCard className="flex h-full flex-col">
+      <div className="sticky top-0 z-[1] border-b border-line-soft bg-white px-6 py-4">
+        <h2 className="text-[19px] font-bold text-ink">Students</h2>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {roster.status === 'loading' ? (
+          <p role="status" className="flex items-center justify-center gap-2 px-6 py-10 text-[13px] text-muted">
+            <Spinner />
+            Loading students…
+          </p>
+        ) : null}
+        {roster.status === 'error' ? <PageError page="the students" detail={roster.error.message} onRetry={roster.reload} /> : null}
+        {roster.status === 'ready' && roster.data.students.length === 0 ? (
+          <p className="px-6 py-8 text-center text-[13px] text-muted">No active students for this term.</p>
+        ) : null}
+        {roster.status === 'ready'
+          ? roster.data.students.map((row) => {
+              const progress = rosterProgress(row.clearance);
+              const selected = row.studentId === highlighted;
+              return (
+                <Link
+                  key={row.studentId}
+                  to={`/clearance/${row.studentId}?term=${termParam(term)}`}
+                  aria-current={selected ? 'true' : undefined}
+                  className={cn(
+                    'flex items-center gap-3 border-b border-line-soft px-6 py-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+                    selected ? 'bg-row-selected shadow-[inset_3px_0_0_var(--color-primary)]' : 'bg-white hover:bg-row-hover',
+                  )}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold text-ink">{row.name}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {row.studentId} · {row.program} {ordinalYear(row.yearLevel)}
+                    </span>
+                  </span>
+                  <span className={cn('text-[13px] font-bold whitespace-nowrap', PROGRESS_TONE[progress.tone])}>{progress.text}</span>
+                </Link>
+              );
+            })
+          : null}
+      </div>
+      {roster.status === 'ready' ? (
+        <Pager
+          page={roster.data.page}
+          pageCount={Math.max(1, Math.ceil(roster.data.total / roster.data.pageSize))}
+          onChange={setPage}
+          className="mt-auto border-t border-line-soft py-2.5"
+        />
+      ) : null}
+    </ListCard>
+  );
+}
+
+type Pending = { kind: 'reverse' | 'remove'; item: StaffClearanceItemView } | { kind: 'add' } | null;
+
+function Requirements({ view, name, term, onChanged }: { view: StaffClearanceView; name: string; term: string; onChanged: () => void }) {
+  const toast = useToast();
+  const [saving, setSaving] = useState<number | null>(null);
+  const [pending, setPending] = useState<Pending>(null);
+  const copy = clearanceCopy(name, term);
+  const done = view.items.filter((item) => item.status === 'completed').length;
+  const percent = view.items.length === 0 ? 0 : Math.round((done / view.items.length) * 100);
+  const finish = (text: string) => {
+    setPending(null);
+    toast.show(text, 'success');
+    onChanged();
+  };
+  const fail = (error: unknown): never => {
+    throw new Error(toApiError(error).message);
+  };
+
+  async function mark(item: StaffClearanceItemView) {
+    setSaving(item.requirementId);
     try {
-      await api.setUpClearance({ studentId: id, academicYear: Number(year), semester: Number(semester) });
-      setDone(`Standard requirements set up for ${id}, ${formatTerm(Number(year), Number(semester))}.`);
-      setStudentId('');
-      onCreated(id);
-    } catch (caught) {
-      setError(toApiError(caught).message);
+      await api.markRequirementDone(view.id, item.requirementId, '');
+      finish(copy.marked(item.label));
+    } catch (error) {
+      toast.show(toApiError(error).message, 'error');
+      onChanged();
     } finally {
-      setBusy(false);
+      setSaving(null);
     }
   }
 
   return (
-    <Card className="mb-4">
-      <h2 className="text-lg font-semibold text-ink">Set up a clearance</h2>
-      <p className="mt-1 text-sm text-muted">
-        Creates the term&apos;s checklist with the four standard requirements. You can add or remove items afterwards.
-      </p>
-      <form onSubmit={submit} noValidate className="mt-3 flex flex-wrap items-end gap-3">
-        <div>
-          <label htmlFor="clr-student" className="mb-1 block text-sm font-medium text-ink">
-            Student ID
-          </label>
-          <input
-            id="clr-student"
-            className={`${fieldClass} w-44`}
-            placeholder="2025-1234567"
-            value={studentId}
-            onChange={(event) => setStudentId(event.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="clr-year" className="mb-1 block text-sm font-medium text-ink">
-            School year (start)
-          </label>
-          <input
-            id="clr-year"
-            inputMode="numeric"
-            className={`${fieldClass} w-28`}
-            value={year}
-            onChange={(event) => setYear(event.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="clr-semester" className="mb-1 block text-sm font-medium text-ink">
-            Semester
-          </label>
-          <select id="clr-semester" className={fieldClass} value={semester} onChange={(event) => setSemester(event.target.value)}>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-          </select>
-        </div>
-        <button type="submit" disabled={busy} className={buttonClass}>
-          {busy ? 'Setting up…' : 'Set up the 4 standard requirements'}
-        </button>
-      </form>
-      {error ? (
-        <p role="alert" className="mt-2 text-sm font-medium text-danger">
-          {error}
+    <div className="flex flex-1 flex-col gap-3.5">
+      <div>
+        <p className="mb-1.5 flex justify-between text-[13px]">
+          <span className="font-semibold text-ink">
+            {done} of {view.items.length} requirements complete
+          </span>
+          <span className="text-muted">{percent}%</span>
         </p>
-      ) : null}
-      {done ? (
-        <p role="status" className="mt-2 text-sm font-medium text-success">
-          {done}
-        </p>
-      ) : null}
-    </Card>
-  );
-}
-
-type RowAction = { requirementId: number; kind: 'done' | 'reverse' | 'remove' } | null;
-
-function RequirementRow({
-  clearance,
-  item,
-  onAction,
-}: {
-  clearance: StaffClearanceView;
-  item: StaffClearanceItemView;
-  onAction: (action: NonNullable<RowAction>) => void;
-}) {
-  const completed = item.status === 'completed';
-  return (
-    <li
-      className={`flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 ${
-        completed ? 'border-[#BFE3CB] bg-[#F1FAF4]' : 'border-line bg-white'
-      }`}
-    >
-      <Icon name={completed ? 'check_circle' : 'radio_button_unchecked'} className={completed ? 'text-success' : 'text-muted'} />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-ink">
-          {item.label}
-          {item.warning ? (
-            <span
-              className="ml-2 rounded bg-[#FDECCB] px-1.5 py-0.5 text-xs font-semibold text-[#8A5A00]"
-              title="The student still has validated or for-sanction cases"
-            >
-              Open cases: {clearance.openCases}
-            </span>
-          ) : null}
-        </div>
-        <div className={`text-xs ${completed ? 'text-success' : 'text-[#7A4600]'}`}>
-          {completed
-            ? `Completed${item.dateCompleted ? ` ${formatDateTime(item.dateCompleted)}` : ''}${item.completedBy ? ` by ${item.completedBy}` : ''}`
-            : 'Remaining'}
-          {item.remarks ? <span className="text-muted"> · {item.remarks}</span> : null}
-        </div>
+        <ProgressBar percent={percent} label="Clearance progress" tone="primary" />
       </div>
-      {completed ? (
-        <button
-          type="button"
-          className="inline-flex min-h-11 items-center rounded-full border border-line-strong bg-white px-4 text-xs font-semibold text-ink hover:bg-page"
-          onClick={() => onAction({ requirementId: item.requirementId, kind: 'reverse' })}
-        >
-          Reverse…
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-xs font-semibold text-white hover:bg-primary-active"
-          onClick={() => onAction({ requirementId: item.requirementId, kind: 'done' })}
-        >
-          Record completion
-        </button>
-      )}
-      <button
-        type="button"
-        aria-label={`Remove ${item.label}`}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted hover:bg-page hover:text-danger"
-        onClick={() => onAction({ requirementId: item.requirementId, kind: 'remove' })}
-      >
-        <Icon name="delete" className="text-base" />
-      </button>
-    </li>
+      <ul className="flex flex-col gap-2">
+        {view.items.map((item) => {
+          const completed = item.status === 'completed';
+          return (
+            <li
+              key={item.requirementId}
+              className={cn(
+                'flex flex-wrap items-center gap-3 rounded-[10px] border py-2.5 pr-3 pl-3.5',
+                completed ? 'border-success-line bg-success-soft/50' : 'border-calendar-closed bg-white',
+              )}
+            >
+              <Icon name={completed ? 'check_circle' : 'radio_button_unchecked'} filled={completed} className={cn('!text-[22px]', completed ? 'text-success-strong' : 'text-disabled')} />
+              <span className="min-w-0 flex-[1_1_160px]">
+                <span className="flex flex-wrap items-center gap-2 font-medium text-ink">
+                  {item.label}
+                  {item.warning ? (
+                    <Tag className="bg-bad-soft text-bad-ink">
+                      Open cases: {view.openCases}
+                    </Tag>
+                  ) : null}
+                </span>
+                <span className={cn('block text-xs font-bold', completed ? 'text-success' : 'text-warn-ink')}>{completed ? 'Completed' : 'Remaining'}</span>
+              </span>
+              {saving === item.requirementId ? (
+                <span role="status" className="inline-flex items-center gap-2 text-[13px] text-muted">
+                  <Spinner />
+                  Saving…
+                </span>
+              ) : completed ? (
+                <button
+                  type="button"
+                  onClick={() => setPending({ kind: 'reverse', item })}
+                  className="min-h-11 rounded-full border border-line-strong bg-white px-3.5 text-[13px] font-semibold whitespace-nowrap text-body outline-none hover:border-danger hover:text-danger focus-visible:ring-[3px] focus-visible:ring-primary/25 rail:min-h-[38px]"
+                >
+                  Reverse…
+                </button>
+              ) : (
+                <Button size="sm" className="min-h-11 rail:min-h-[38px]" onClick={() => void mark(item)}>
+                  Record completion
+                </Button>
+              )}
+              <button
+                type="button"
+                aria-label={`Remove ${item.label}`}
+                title="Remove requirement"
+                onClick={() => setPending({ kind: 'remove', item })}
+                className="grid size-11 shrink-0 place-items-center rounded-full text-muted outline-none hover:bg-danger-soft hover:text-danger focus-visible:ring-[3px] focus-visible:ring-danger/25 rail:size-9"
+              >
+                <Icon name="delete" className="!text-xl" />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-auto flex justify-end border-t border-line-soft pt-4">
+        <Button variant="secondary" size="sm" className="min-h-11 rail:min-h-10" onClick={() => setPending({ kind: 'add' })}>
+          <Icon name="add" className="!text-lg" />
+          Add requirement
+        </Button>
+      </div>
+
+      <ConfirmModal
+        open={pending?.kind === 'reverse'}
+        tone="danger"
+        title={pending?.kind === 'reverse' ? `Reverse “${pending.item.label}”?` : ''}
+        description="Reversals are saved to the change log with your name and reason."
+        reasonLabel="Reason"
+        reasonPlaceholder="e.g. Sanction S-021 was reopened."
+        confirmLabel="Reverse"
+        cancelLabel="Keep it"
+        onClose={() => setPending(null)}
+        onConfirm={async (reason) => {
+          if (pending?.kind !== 'reverse') return;
+          await api.reverseRequirement(view.id, pending.item.requirementId, reason).catch(fail);
+          finish(copy.reversed(pending.item.label));
+        }}
+      />
+      <ConfirmModal
+        open={pending?.kind === 'remove'}
+        tone="danger"
+        title={pending?.kind === 'remove' ? `Remove “${pending.item.label}”?` : ''}
+        description={copy.removeBody}
+        confirmLabel="Remove"
+        cancelLabel="Keep it"
+        onClose={() => setPending(null)}
+        onConfirm={async () => {
+          if (pending?.kind !== 'remove') return;
+          await api.removeRequirement(view.id, pending.item.requirementId).catch(fail);
+          finish(copy.removed(pending.item.label));
+        }}
+      />
+      <ConfirmModal
+        open={pending?.kind === 'add'}
+        title="Add a clearance requirement"
+        description={copy.addBody}
+        reasonLabel="Requirement"
+        reasonPlaceholder="e.g. Return borrowed laboratory equipment"
+        confirmLabel="Add requirement"
+        onClose={() => setPending(null)}
+        onConfirm={async (label) => {
+          await api.addRequirement(view.id, label).catch(fail);
+          finish(copy.added);
+        }}
+      />
+    </div>
   );
 }
 
-function ClearanceRecord({ clearance, onChanged }: { clearance: StaffClearanceView; onChanged: () => void }) {
+/** The right pane: one student for one term (deck W51 to W56). */
+function ClearancePane({ studentId, term, onChanged }: { studentId: string; term: TermRef; onChanged: () => void }) {
   const toast = useToast();
-  const [tab, setTab] = useState<'requirements' | 'history'>('requirements');
-  const [action, setAction] = useState<RowAction>(null);
-  const [adding, setAdding] = useState(false);
-  const target = action ? clearance.items.find((item) => item.requirementId === action.requirementId) : undefined;
-  const done = clearance.items.filter((item) => item.status === 'completed').length;
-  const percent = clearance.items.length === 0 ? 0 : Math.round((done / clearance.items.length) * 100);
+  const [tab, setTab] = useState<'req' | 'log'>('req');
+  const [settingUp, setSettingUp] = useState(false);
+  // The student's roster row says who they are and whether this term is set up.
+  const row = useApi(async () => {
+    const roster = await api.clearanceRoster(term.academicYear, term.semester, { q: studentId });
+    return roster.students.find((r) => r.studentId === studentId) ?? null;
+  }, [studentId, term.academicYear, term.semester]);
+  const clearanceId = row.status === 'ready' ? (row.data?.clearance?.id ?? null) : null;
+  const detail = useApi(() => (clearanceId === null ? Promise.resolve(null) : api.staffClearance(clearanceId).then((r) => r.clearance)), [clearanceId]);
+  const termText = formatTerm(term.academicYear, term.semester);
 
-  const close = () => setAction(null);
-  const refresh = (message: string) => {
-    close();
-    toast.show(message, 'success');
+  if (row.status === 'loading' || (clearanceId !== null && detail.status === 'loading')) {
+    return (
+      <div role="status" className="flex min-h-40 items-center justify-center gap-2 rounded-xl border border-line bg-white text-[13px] text-muted">
+        <Spinner />
+        Loading clearance…
+      </div>
+    );
+  }
+  if (row.status === 'error' || detail.status === 'error') {
+    const failed = row.status === 'error' ? row : detail;
+    return (
+      <div className="rounded-xl border border-line bg-white">
+        <PageError page="this clearance" detail={failed.status === 'error' ? failed.error.message : undefined} onRetry={failed.reload} />
+      </div>
+    );
+  }
+  const student: ClearanceRosterRow | null = row.data;
+  if (!student) {
+    return (
+      <div className="rounded-xl border border-line bg-white">
+        <EmptyBlock icon="person_off" title="Student not found">
+          No active student has that ID.
+        </EmptyBlock>
+      </div>
+    );
+  }
+  const view = detail.status === 'ready' ? detail.data : null;
+  const status = clearanceStatus(view);
+  const reload = () => {
+    row.reload();
+    detail.reload();
     onChanged();
   };
 
+  async function setUp() {
+    setSettingUp(true);
+    try {
+      await api.setUpClearance({ studentId: student!.studentId, academicYear: term.academicYear, semester: term.semester });
+      toast.show(clearanceCopy(student!.name, termText).setUp, 'success');
+      reload();
+    } catch (error) {
+      toast.show(toApiError(error).message, 'error');
+    } finally {
+      setSettingUp(false);
+    }
+  }
+
   return (
-    <article aria-label={`Clearance, ${clearance.student.name}`} className="rounded-lg border border-line bg-white p-4">
-      <header className="flex flex-wrap items-start justify-between gap-2">
+    <article aria-label={`Clearance, ${student.name}`} className="flex min-h-full flex-col gap-5 rounded-xl border border-line bg-white p-6">
+      <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-xl font-bold text-ink">{clearance.student.name}</h2>
-          <p className="text-sm text-muted">
-            <Link to={`/students/${clearance.student.id}`} className="font-medium text-primary underline">
-              {clearance.student.id}
-            </Link>{' '}
-            · {formatTerm(clearance.academicYear, clearance.semester)}
+          <h2 className="text-xl font-bold text-ink">{student.name}</h2>
+          <p className="text-muted">
+            {student.studentId} · {termText}
           </p>
         </div>
-        <StatusPill status={clearance.status} kind="clearance" />
+        <Pill tone={status === 'Cleared' ? 'done' : status === 'In progress' ? 'pending' : 'neutral'}>{status}</Pill>
       </header>
 
-      <div className="mt-4 flex rounded-full bg-page p-1" role="tablist" aria-label="Clearance sections">
-        {(['requirements', 'history'] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            role="tab"
-            aria-selected={tab === option}
-            onClick={() => setTab(option)}
-            className={`min-h-11 flex-1 rounded-full text-sm font-medium ${tab === option ? 'bg-white text-ink shadow-sm' : 'text-muted'}`}
-          >
-            {option === 'requirements' ? 'Requirements' : 'Activity history'}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        label="Clearance sections"
+        options={[
+          { value: 'req', label: 'Requirements' },
+          { value: 'log', label: 'Activity history' },
+        ]}
+        value={tab}
+        onChange={(value) => setTab(value as 'req' | 'log')}
+        className="flex w-full [&>button]:flex-1 [&>button]:justify-center"
+      />
 
-      {tab === 'requirements' ? (
-        <>
-          <p className="mt-4 flex items-center justify-between text-xs text-muted">
-            <span>{progressLabel(clearance.items)}</span>
-            <span>{percent}%</span>
-          </p>
-          <div className="mt-1">
-            <ProgressBar percent={percent} label="Clearance progress" />
+      {tab === 'req' ? (
+        view ? (
+          <Requirements view={view} name={student.name} term={termText} onChanged={reload} />
+        ) : (
+          <div className="flex flex-col items-center gap-2 px-5 py-9 text-center text-muted">
+            <Icon name="checklist" className="!text-[32px] text-disabled" />
+            <p className="font-semibold text-body">No clearance set for this term</p>
+            <p className="mb-2 text-[13px]">Add the standard requirements to start tracking.</p>
+            <Button busy={settingUp} onClick={() => void setUp()}>
+              Set up clearance
+            </Button>
           </div>
-          <ul className="mt-3 space-y-2">
-            {clearance.items.map((item) => (
-              <RequirementRow key={item.requirementId} clearance={clearance} item={item} onAction={setAction} />
-            ))}
-          </ul>
-          <div className="mt-4 flex justify-end border-t border-line pt-3">
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary px-4 text-sm font-semibold text-primary hover:bg-page"
-            >
-              <Icon name="add" className="text-base" />
-              Add requirement
-            </button>
-          </div>
-        </>
+        )
+      ) : view && view.history.length > 0 ? (
+        <HistoryList items={clearanceHistoryItems(view)} />
       ) : (
-        <ol className="mt-4 space-y-3 border-l-2 border-line pl-4 text-sm" aria-label="Clearance history">
-          {clearance.history.length === 0 ? <li className="text-muted">No activity yet.</li> : null}
-          {[...clearance.history].reverse().map((entry, index) => (
-            <li key={index}>
-              <span className="font-medium text-ink">{EVENT_LABEL[entry.eventType]}</span>
-              {entry.requirement ? <span> · {entry.requirement}</span> : null}{' '}
-              <span className="text-muted">
-                by {entry.by} · {formatDateTime(entry.date)}
-              </span>
-              {entry.remarks ? <div className="text-muted">{entry.remarks}</div> : null}
-            </li>
-          ))}
-        </ol>
+        <p className="text-[13px] text-muted">No changes recorded for this term.</p>
       )}
-
-      <ConfirmModal
-        open={action?.kind === 'done' && target !== undefined}
-        title={`Record completion: ${target?.label ?? ''}`}
-        description="The student is notified."
-        reasonLabel="Remarks"
-        reasonOptional
-        confirmLabel="Record completion"
-        onClose={close}
-        onConfirm={async (remarks) => {
-          try {
-            const { cleared } = await api.markRequirementDone(clearance.id, target!.requirementId, remarks);
-            refresh(cleared ? 'Recorded. The clearance is now cleared.' : 'Recorded.');
-          } catch (error) {
-            throw new Error(toApiError(error).message);
-          }
-        }}
-      />
-      <ConfirmModal
-        open={action?.kind === 'reverse' && target !== undefined}
-        title={`Reverse: ${target?.label ?? ''}`}
-        description="The requirement goes back to remaining and the student is told why."
-        reasonLabel="Reason (required)"
-        confirmLabel="Reverse"
-        danger
-        onClose={close}
-        onConfirm={async (reason) => {
-          try {
-            await api.reverseRequirement(clearance.id, target!.requirementId, reason);
-            refresh('Reversed.');
-          } catch (error) {
-            throw new Error(toApiError(error).message);
-          }
-        }}
-      />
-      <ConfirmModal
-        open={action?.kind === 'remove' && target !== undefined}
-        title={`Remove "${target?.label ?? ''}"?`}
-        description="Only this student's checklist changes. A clearance always keeps at least one requirement."
-        confirmLabel="Remove"
-        danger
-        onClose={close}
-        onConfirm={async () => {
-          try {
-            await api.removeRequirement(clearance.id, target!.requirementId);
-            refresh(`Removed "${target!.label}".`);
-          } catch (error) {
-            throw new Error(toApiError(error).message);
-          }
-        }}
-      />
-      <ConfirmModal
-        open={adding}
-        title="Add requirement"
-        description="A custom requirement for this student and term."
-        reasonLabel="Requirement"
-        confirmLabel="Add requirement"
-        onClose={() => setAdding(false)}
-        onConfirm={async (label) => {
-          try {
-            await api.addRequirement(clearance.id, label);
-          } catch (error) {
-            throw new Error(toApiError(error).message);
-          }
-          setAdding(false);
-          toast.show(`Added "${label}".`, 'success');
-          onChanged();
-        }}
-      />
     </article>
   );
 }
 
-function ClearanceQueue({ selectedId, reloadRef }: { selectedId: number | null; reloadRef: MutableRefObject<(() => void) | null> }) {
-  const [status, setStatus] = useState<'' | 'pending' | 'cleared'>('');
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [q, setQ] = useState('');
-  const resource = useApi(() => api.staffClearances({ status: status || undefined, q, page }), [status, q, page]);
-
-  // The detail pane asks the list to refresh after a change.
-  useEffect(() => {
-    reloadRef.current = resource.reload;
-  }, [reloadRef, resource.reload]);
-
-  function submitSearch(event: FormEvent) {
-    event.preventDefault();
-    setPage(1);
-    setQ(search.trim());
-  }
-
-  return (
-    <section aria-label="Clearances" className="rounded-lg border border-line bg-white">
-      <div className="space-y-3 border-b border-line p-3">
-        <h2 className="text-base font-bold text-ink">Students</h2>
-        <form onSubmit={submitSearch} role="search" className="flex gap-2">
-          <label className="relative block min-w-0 flex-1">
-            <span className="sr-only">Search clearances</span>
-            <Icon name="search" className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-            <input
-              type="search"
-              placeholder="Student name or ID"
-              className={`${fieldClass} min-h-11 pl-10`}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </label>
-          <button type="submit" className={`${buttonClass} min-h-11`}>
-            Search
-          </button>
-        </form>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Status">
-          {(
-            [
-              ['', 'All'],
-              ['pending', 'Not cleared'],
-              ['cleared', 'Cleared'],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={label}
-              type="button"
-              aria-pressed={status === value}
-              onClick={() => {
-                setPage(1);
-                setStatus(value);
-              }}
-              className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
-                status === value ? 'border-primary bg-primary text-white' : 'border-line-strong bg-white text-ink'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {resource.status === 'loading' ? <LoadingState label="Loading clearances…" cards={3} /> : null}
-      {resource.status === 'error' ? <ErrorState message={resource.error.message} onRetry={resource.reload} /> : null}
-      {resource.status === 'ready' ? (
-        resource.data.clearances.length === 0 ? (
-          <div className="p-3">
-            <EmptyState title="No clearances match." hint="Set one up with the button above." />
-          </div>
-        ) : (
-          <>
-            <ul>
-              {resource.data.clearances.map((clearance) => {
-                const done = clearance.items.filter((item) => item.status === 'completed').length;
-                return (
-                  <li key={clearance.id}>
-                    <Link
-                      to={`/clearance/${clearance.id}`}
-                      aria-current={clearance.id === selectedId ? 'page' : undefined}
-                      className={`flex min-h-14 items-center justify-between gap-3 border-b border-line px-3 py-2 hover:bg-page ${
-                        clearance.id === selectedId ? 'bg-primary/10' : ''
-                      }`}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-ink">{clearance.student.name}</span>
-                        <span className="block truncate text-xs text-muted">
-                          {clearance.student.id} · {formatTerm(clearance.academicYear, clearance.semester)}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-xs font-semibold text-muted">
-                        {clearance.status === 'cleared' ? 'Cleared' : `${done} / ${clearance.items.length}`}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-            {Math.ceil(resource.data.total / resource.data.pageSize) > 1 ? (
-              <Pagination page={page} total={resource.data.total} pageSize={resource.data.pageSize} onPage={setPage} noun="clearances" />
-            ) : null}
-          </>
-        )
-      ) : null}
-    </section>
-  );
-}
-
-function SelectedClearance({ clearanceId, onChanged }: { clearanceId: number; onChanged: () => void }) {
-  const resource = useApi(() => api.staffClearance(clearanceId), [clearanceId]);
-  if (resource.status === 'loading') return <LoadingState label="Loading clearance…" cards={2} />;
-  if (resource.status === 'error') return <ErrorState message={resource.error.message} onRetry={resource.reload} />;
-  return (
-    <ClearanceRecord
-      clearance={resource.data.clearance}
-      onChanged={() => {
-        resource.reload();
-        onChanged();
-      }}
-    />
-  );
-}
-
-/** Staff Clearance (deck W50 to W56): students on the left, the selected student's requirements on the right. */
+/** Staff Clearance (deck W50 to W56): term chips, every student of the term, one student's checklist (D3, D8). */
 export function StaffClearancePage() {
   const { id } = useParams();
-  const selectedId = /^\d+$/.test(id ?? '') ? Number(id) : null;
-  const reloadQueue = useRef<(() => void) | null>(null);
-  const [setUp, setSetUp] = useState(false);
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const studentId = STUDENT_ID.test(id ?? '') ? (id as string) : null;
+  const terms = useApi(() => api.clearanceTerms(), []);
+  const [firstRow, setFirstRow] = useState<string | null>(null);
+  const rosterReload = useRef<(() => void) | null>(null);
+  const reloadRoster = () => rosterReload.current?.();
+
+  if (terms.status === 'loading') {
+    return (
+      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
+        <Spinner />
+        Loading terms…
+      </p>
+    );
+  }
+  if (terms.status === 'error') return <PageError page="Clearance" detail={terms.error.message} onRetry={terms.reload} />;
+
+  const term = parseTermParam(params.get('term')) ?? terms.data.current;
+  const options = [...terms.data.terms];
+  if (!options.some((t) => termParam(t) === termParam(term))) options.unshift(term);
+  const pickTerm = (value: string) => navigate(studentId ? `/clearance/${studentId}?term=${value}` : `/clearance?term=${value}`);
 
   return (
     <>
-      <PageHeader
-        title="Clearance"
-        subtitle="Mark each requirement by hand. Nothing is checked automatically."
-        actions={
-          <button type="button" className={`${buttonClass} min-h-11`} onClick={() => setSetUp((value) => !value)} aria-expanded={setUp}>
-            {setUp ? 'Close' : 'Set up a clearance'}
-          </button>
-        }
-      />
-      {setUp ? (
-        <SetUpForm
-          onCreated={() => {
-            setSetUp(false);
-            reloadQueue.current?.();
-          }}
+      <h1 className="sr-only">Clearance</h1>
+      <div className="mb-5 flex flex-wrap items-center gap-2.5">
+        <span className="text-[13px] font-semibold text-muted">Term</span>
+        <ChipGroup
+          label="Term"
+          options={options.map((t) => ({ value: termParam(t), label: formatTerm(t.academicYear, t.semester) }))}
+          value={termParam(term)}
+          onChange={pickTerm}
+          className="gap-1.5"
         />
-      ) : null}
+      </div>
       <MasterDetail
         ratio="clearance"
-        detailKey={selectedId}
-        list={<ClearanceQueue selectedId={selectedId} reloadRef={reloadQueue} />}
-        detail={selectedId === null ? null : <SelectedClearance key={selectedId} clearanceId={selectedId} onChanged={() => reloadQueue.current?.()} />}
-        emptyDetail={<EmptyState title="Select a student" hint="Their requirements and activity history appear here." />}
-        backTo="/clearance"
-        backLabel="All students"
+        detailKey={studentId}
+        list={<StudentRoster term={term} selectedId={studentId} onFirstRow={setFirstRow} reloadRef={rosterReload} />}
+        detail={studentId === null ? null : <ClearancePane key={`${studentId}-${termParam(term)}`} studentId={studentId} term={term} onChanged={reloadRoster} />}
+        emptyDetail={
+          firstRow === null ? (
+            <div className="rounded-xl border border-line bg-white">
+              <EmptyBlock icon="checklist" title="No student selected">
+                Pick a student to see their checklist.
+              </EmptyBlock>
+            </div>
+          ) : (
+            <ClearancePane key={`${firstRow}-${termParam(term)}`} studentId={firstRow} term={term} onChanged={reloadRoster} />
+          )
+        }
       />
     </>
   );

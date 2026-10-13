@@ -933,3 +933,14 @@ Commits: 7a00371 (API), then the client commit after this entry.
 - Evidence: `npm test` 85 files / 1329 pass (API 920); lint, typecheck clean; build exit 0.
 - Not checked live (dev server denied). HUMAN CHECK: `npm run dev` as staff at 390 / 900 / 1280 px -> Appointments filters narrow the list and the heads; Make appointment's calendar greys Sundays and days past 60, picking a day paints the window; review then "Save and assign" opens the new appointment with the toast; "Edit or reschedule" opens the form with the banner; Cancel asks for a reason.
 - HUMAN CHECK (live DB): `GET /appointments?bucket=all&range=week` on the dev branch -> windows overlapping the next 7 days; the student program/year include works on Prisma (only the memory fake is tested).
+
+## U8 Staff Clearance (UI-POLISH-SPEC 5.9, D3, D8) — main session, branch worktree-ui-polish-build
+
+Commit: the client commit after this entry (API D3 was b78703a; no new API change).
+- No header; "Term" + term chips (current term + every term with clearances, from `GET /clearances/terms`); the term lives in `?term=YYYY-S`, the student in the path: `/clearance/:studentId?term=` (the dashboard and Students links now land here). The old typed-ID set-up form and the status chips are gone.
+- List: sticky "Students" card with **every active student** of the term (D3 roster, 20 per page, numbered pager); row name + "ID · program Nth Year", right "1 / 4" (green when complete) or "Not set". With nothing selected the wide layout opens the first student.
+- Pane: name 20/700, "ID · term", pill In progress / Cleared / Not set; Requirements / Activity history; "n of m requirements complete" + % and an 8 px **primary** bar; rows green when done, filled `check_circle`, "Completed" / "Remaining"; **"Record completion" is one click** (D8) with "Saving…" and the toast "Marked “X” done for Name."; "Reverse…" (red on hover) and 36 px `delete` open the deck modals; footer "Add requirement" modal; "Open cases: N" as a red tag (SPEC 4.4 hint). Not set up: `checklist` "No clearance set for this term" + one-click "Set up clearance" ("Clearance set up for Name."). History sentences per the deck; empty "No changes recorded for this term."
+- `formatTerm` now uses the deck's en dash ("1st Term 2026–2027") everywhere.
+- Evidence: `npm test` 85 files / 1330 pass; lint, typecheck clean; build exit 0.
+- Not checked live (dev server denied). HUMAN CHECK: `npm run dev` as staff -> Clearance shows the term chips; a "Not set" student offers "Set up clearance" and turns into "0 / 4"; "Record completion" marks the row without a dialog and the list shows "1 / 4"; the dashboard's Clearance "Open" lands on that student.
+- Note for U13: `api.staffClearances` / `GET /clearances` list is no longer used by the client.

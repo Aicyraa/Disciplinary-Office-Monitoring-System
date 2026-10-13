@@ -31,10 +31,10 @@ export function formatDate(value: string): string {
 
 const TERM_ORDINALS = ['1st', '2nd', '3rd'] as const;
 
-/** A term is one of three fixed terms of a school year: "1st Term 2026-2027" (design deck, UI-POLISH-SPEC 5). */
+/** A term is one of three fixed terms of a school year: "1st Term 2026–2027" (en dash, as the deck). */
 export function formatTerm(academicYear: number, semester: number): string {
   const ordinal = TERM_ORDINALS[semester - 1] ?? `${semester}th`;
-  return `${ordinal} Term ${academicYear}-${academicYear + 1}`;
+  return `${ordinal} Term ${academicYear}–${academicYear + 1}`;
 }
 
 export type PillTone = { bg: string; fg: string };

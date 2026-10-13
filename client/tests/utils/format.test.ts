@@ -113,9 +113,9 @@ describe('dates (Asia/Manila)', () => {
   });
 
   test('formatTerm names the term and the school year (a fixed list of three terms)', () => {
-    expect(formatTerm(2026, 1)).toBe('1st Term 2026-2027');
-    expect(formatTerm(2026, 2)).toBe('2nd Term 2026-2027');
-    expect(formatTerm(2025, 3)).toBe('3rd Term 2025-2026');
+    expect(formatTerm(2026, 1)).toBe('1st Term 2026–2027');
+    expect(formatTerm(2026, 2)).toBe('2nd Term 2026–2027');
+    expect(formatTerm(2025, 3)).toBe('3rd Term 2025–2026');
   });
 });
 
