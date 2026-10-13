@@ -517,6 +517,9 @@ export type StaffCaseRow = {
   isEscalated: boolean;
   /** Set on a converted Major case: the violation it was reported as. */
   convertedFrom: string | null;
+  /** The case's latest sanction, for the queue row's third line ("S-019 · Pending verification"). */
+  sanction: { code: string; status: CaseSanctionStatus } | null;
+  dateResolved: string | null;
 };
 
 export type StaffCaseListResponse = {

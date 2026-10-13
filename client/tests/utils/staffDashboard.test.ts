@@ -27,6 +27,8 @@ const row = (over: Partial<StaffCaseRow>): StaffCaseRow => ({
   submissionCode: 'GI-1042',
   isEscalated: false,
   convertedFrom: null,
+  sanction: null,
+  dateResolved: null,
   ...over,
 });
 

@@ -47,7 +47,15 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
   router.use(['/cases', '/submissions', '/case-sanctions'], ...requireStaff);
 
   router.get('/cases', async (request, response) => {
-    const { status, class: severity, q, sort, page } = request.query;
+    const { status, class: severity, q, sort, page, group, focus } = request.query;
+    if (group !== undefined && group !== 'status') {
+      sendError(response, 400, 'invalid_input', 'group must be status.');
+      return;
+    }
+    if (focus !== undefined && !(typeof focus === 'string' && /^[1-9]\d{0,9}$/.test(focus))) {
+      sendError(response, 400, 'invalid_input', 'focus must be a case id.');
+      return;
+    }
     if (status !== undefined && !STATUSES.includes(status as CaseStatus)) {
       sendError(response, 400, 'invalid_input', 'Unknown status.');
       return;
@@ -66,14 +74,16 @@ export function createCaseRouter({ service, queries, now = () => new Date() }: C
     }
     const text = typeof q === 'string' ? q.slice(0, 100) : undefined;
     const pageNumber = page === undefined ? 1 : Number(page);
-    const { rows, total, statusCounts } = await queries.list({
+    const { rows, total, statusCounts, page: answered } = await queries.list({
       status: status as CaseStatus | undefined,
       severity: severity as Severity | undefined,
       q: text,
       sort: sort === 'oldest' ? 'oldest' : 'newest',
+      group: group === 'status' ? 'status' : undefined,
       page: pageNumber,
+      focus: focus === undefined ? undefined : Number(focus),
     });
-    sendOk(response, { cases: rows, total, statusCounts, page: pageNumber, pageSize: CASE_PAGE_SIZE });
+    sendOk(response, { cases: rows, total, statusCounts, page: answered, pageSize: CASE_PAGE_SIZE });
   });
 
   router.get('/cases/:id', async (request, response) => {

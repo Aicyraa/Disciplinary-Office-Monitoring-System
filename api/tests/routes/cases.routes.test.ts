@@ -272,7 +272,55 @@ describe('GET /cases', () => {
     expect((await agent.get('/cases?q=nobody')).body.data.total).toBe(0);
   });
 
-  test.each(['status=bogus', 'class=Medium', 'sort=random', 'page=0', 'page=abc', 'page=1.5'])('rejects %s with 400', async (query) => {
+  test('group=status orders by stage (Needs review first), newest first inside a stage (UI-POLISH-SPEC 5.5)', async () => {
+    seedCase({ caseId: 9, status: 'resolved', dateResolved: new Date('2026-10-09T02:00:00Z') });
+    seedCase({ caseId: 10, status: 'rejected' });
+    seedCase({ caseId: 11, status: 'for_sanction' });
+    const agent = await staff();
+    const first = await agent.get('/cases').query({ group: 'status' });
+    expect(first.body.data.cases.map((c: { id: number }) => c.id)).toEqual([7, 5, 3, 1, 8, 6]);
+    const second = await agent.get('/cases').query({ group: 'status', page: 2 });
+    expect(second.body.data.cases.map((c: { id: number }) => c.id)).toEqual([4, 2, 11, 9, 10]);
+  });
+
+  test('focus answers the page that holds that case (dashboard deep links, 5.4b)', async () => {
+    const agent = await staff();
+    const held = await agent.get('/cases').query({ focus: 2 });
+    expect(held.body.data.page).toBe(2);
+    expect(held.body.data.cases.map((c: { id: number }) => c.id)).toEqual([2, 1]);
+    const filtered = await agent.get('/cases').query({ status: 'validated', focus: 2 });
+    expect(filtered.body.data.page).toBe(1);
+    const missing = await agent.get('/cases').query({ status: 'validated', focus: 3, page: 1 });
+    expect(missing.body.data.page).toBe(1);
+    expect(missing.body.data.cases.map((c: { id: number }) => c.id)).toEqual([8, 6, 4, 2]);
+  });
+
+  test('each row carries its latest sanction (code and status) and the resolve date', async () => {
+    seedCase({ caseId: 9, status: 'for_sanction' });
+    seedCase({ caseId: 10, status: 'resolved', dateResolved: new Date('2026-10-09T02:00:00Z') });
+    const base = {
+      caseId: 9,
+      studentId: S1,
+      caseStatus: 'for_sanction' as const,
+      sanctionType: 'Community service',
+      dueDate: '2026-10-20',
+      dateAssigned: new Date('2026-10-01T02:00:00Z'),
+      dateSubmitted: null,
+      dateCompleted: null,
+      staffNote: null,
+      complianceNote: null,
+      files: [],
+    };
+    store.state.caseSanctions.push(
+      { ...base, caseSanctionId: 1, sanctionId: 2, status: 'returned' },
+      { ...base, caseSanctionId: 2, sanctionId: 19, status: 'pending_verification' },
+    );
+    const rows = (await (await staff()).get('/cases').query({ q: 'ana', page: 1 })).body.data.cases as Array<Record<string, unknown>>;
+    expect(rows.find((r) => r.id === 9)).toMatchObject({ sanction: { code: 'S-019', status: 'pending_verification' }, dateResolved: null });
+    expect(rows.find((r) => r.id === 10)).toMatchObject({ sanction: null, dateResolved: '2026-10-09T02:00:00.000Z' });
+  });
+
+  test.each(['status=bogus', 'class=Medium', 'sort=random', 'page=0', 'page=abc', 'page=1.5', 'group=class', 'focus=abc', 'focus=0'])('rejects %s with 400', async (query) => {
     const agent = await staff();
     expect((await agent.get(`/cases?${query}`)).status).toBe(400);
   });
