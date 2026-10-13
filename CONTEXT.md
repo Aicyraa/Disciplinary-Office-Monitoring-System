@@ -1002,3 +1002,9 @@ Commits: 704b27d (legacy UI removal, last raw hex), 8e668a6 (page splits), then 
   - The three-width visual check (390 / 900 / 1280 px) and the keyboard pass could not run here: starting the Vite dev server is denied in this session. HUMAN CHECK: `npm run dev`, then walk every page at the three widths with the keyboard only (Tab / Shift+Tab / Enter / Escape / arrow keys in chip and tab groups).
   - Independent review: the reviewer agent has not been run on this branch (U4 to U13).
 - Evidence: `npm test` 85 files / 1344 pass; lint, typecheck clean; build exit 0.
+
+## Fix: staff side frozen after sign-in (reported by the human, 2026-10-14)
+
+Commit: d6b8a7a. Cause: the staff dashboard's "Last checked" effect (U4) listed the whole `useApi` result as its dependency; `useApi` returns a new object every render and the effect set a new `Date`, so React re-rendered forever ("Maximum update depth exceeded", clicks stopped working). It now depends on the loaded data only. The student Clearance term list had the same pattern (harmless there, but guarded too). Every other effect and `useApi` call was checked: their dependencies are plain values or stable callbacks.
+- Not caught by tests: client tests render to static markup, so effects never run. A DOM test environment (jsdom) would be a new dependency (checkpoint).
+- HUMAN CHECK: `npm run dev`, sign in as staff -> no "Maximum update depth" errors in the console; the dashboard, sidebar and every staff page respond to clicks.
