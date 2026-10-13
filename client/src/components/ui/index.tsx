@@ -3,6 +3,8 @@ import { pillTone, statusLabel, type StatusKind } from '@/utils/format';
 import type { ApiResource } from '@/hooks/useApi';
 
 export { Icon } from './Icon';
+import { EmptyBlock } from './EmptyBlock';
+import { PageError, Spinner } from '@/components/feedback/PageState';
 
 export function StatusPill({ status, label, kind }: { status: string; label?: string; kind?: StatusKind }) {
   const tone = pillTone(status);
@@ -32,46 +34,35 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
   return <section className={`rounded-lg border border-line bg-white p-4 ${className}`}>{children}</section>;
 }
 
-/** Placeholder cards while data loads. The label stays in the DOM (hidden) so screen readers announce it. */
+/** Inside a pane: the spinner line and a few grey bars. The label stays readable for screen readers. */
 export function LoadingState({ label = 'Loading…', cards = 3 }: { label?: string; cards?: number }) {
   return (
-    <div role="status" aria-busy="true" className="space-y-3 py-2">
-      <span className="sr-only">{label}</span>
+    <div role="status" aria-busy="true" className="flex flex-col gap-3 py-2">
+      <span className="flex items-center gap-2.5 text-sm text-muted">
+        <Spinner />
+        {label}
+      </span>
       {Array.from({ length: cards }, (_, index) => (
-        <div key={index} aria-hidden="true" className="animate-pulse rounded-lg border border-line bg-white p-4 motion-reduce:animate-none">
-          <div className="h-4 w-1/3 rounded bg-line" />
-          <div className="mt-3 h-3 w-2/3 rounded bg-line" />
-          <div className="mt-2 h-3 w-1/2 rounded bg-line" />
-        </div>
+        <div key={index} aria-hidden="true" className="h-16 rounded-xl bg-skeleton" />
       ))}
     </div>
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+/** "Nothing here" inside a pane (deck src 594): icon, title, one line of help, on a white card. */
+export function EmptyState({ title, hint, icon = 'inbox' }: { title: string; hint?: string; icon?: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-line-strong bg-white px-4 py-10 text-center">
-      <p className="font-semibold text-ink">{title}</p>
-      {hint ? <p className="mt-1 text-sm text-muted">{hint}</p> : null}
+    <div className="rounded-xl border border-line bg-white">
+      <EmptyBlock icon={icon} title={title}>
+        {hint}
+      </EmptyBlock>
     </div>
   );
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
-  return (
-    <div role="alert" className="rounded-lg border border-danger/30 bg-white px-4 py-6 text-center">
-      <p className="font-semibold text-danger">{message}</p>
-      {onRetry ? (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-3 min-h-11 rounded-md border border-line-strong px-4 text-sm font-medium text-ink hover:bg-page"
-        >
-          Try again
-        </button>
-      ) : null}
-    </div>
-  );
+/** A failed load in a pane or page: the deck error card, with the API's message as the detail line. */
+export function ErrorState({ message, onRetry, page }: { message: string; onRetry?: () => void; page?: string }) {
+  return <PageError page={page} detail={message} onRetry={onRetry} />;
 }
 
 /** Renders loading and error states, then calls `children` with the data. */

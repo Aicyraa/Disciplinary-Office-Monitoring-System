@@ -6,6 +6,7 @@ import { breadcrumb, initials, navGroups, phoneTabs, type NavGroup, type NavItem
 import { UnreadProvider, badgeText, useUnread } from '@/context/UnreadContext';
 import { useNavBadges } from '@/hooks/useNavBadges';
 import { Icon } from '@/components/ui';
+import { NudgeCard } from '@/components/feedback/PageState';
 
 // The sidebar is dark, so its focus ring is white (the default primary ring would be invisible on it).
 const linkBase =
@@ -185,22 +186,13 @@ function AccountMenu() {
 }
 
 /** "You have N unread" after sign-in. A status message, so screen readers announce it without taking focus. */
-function UnreadToast() {
+/** The unread nudge after sign-in (src 2074): students only, top right under the header, 7 s. */
+function UnreadNudge({ role }: { role: 'staff' | 'student' }) {
   const { toast, dismissToast } = useUnread();
-  if (toast === null) return null;
+  if (toast === null || role !== 'student') return null;
   return (
-    <div
-      role="status"
-      className="fixed right-3 bottom-20 left-3 z-20 flex max-w-sm items-center gap-3 rounded-lg border border-line-strong bg-white px-4 py-3 text-sm shadow-lg rail:bottom-6 rail:left-auto"
-    >
-      <Icon name="notifications" className="text-primary" />
-      <span className="text-ink">{toast}</span>
-      <Link to="/inbox" onClick={dismissToast} className="inline-flex min-h-11 items-center px-1 font-medium text-primary underline">
-        View
-      </Link>
-      <button type="button" onClick={dismissToast} aria-label="Dismiss" className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted hover:text-ink">
-        <Icon name="close" />
-      </button>
+    <div className="fixed top-[68px] right-4 left-4 z-[70] flex justify-end rail:top-[76px] rail:left-auto rail:right-5 print:hidden">
+      <NudgeCard text={toast} onDismiss={dismissToast} />
     </div>
   );
 }
@@ -374,7 +366,7 @@ function ShellFrame() {
             <AccountMenu />
           </div>
         </div>
-        <UnreadToast />
+        <UnreadNudge role={user.role} />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-24 rail:pb-6">
           <Outlet />
         </main>

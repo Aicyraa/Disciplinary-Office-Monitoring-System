@@ -1,31 +1,24 @@
 import { Link } from 'react-router-dom';
-import { PageHeader } from '@/components/ui';
+import { PageNoAccess } from '@/components/feedback/PageState';
+import { EmptyBlock } from '@/components/ui/EmptyBlock';
+import { buttonVariants } from '@/components/ui/Button';
 
-/** Shown instead of a redirect when a signed-in user opens a page that belongs to the other role. */
+/** Shown instead of a redirect when a signed-in user opens a page that belongs to the other role (deck W89). */
 export function NoAccessPage() {
-  return (
-    <>
-      <PageHeader title="You do not have access to this page" subtitle="This page is for a different kind of account." />
-      <p className="text-sm">
-        <Link to="/" className="font-medium text-primary underline">
-          Go to the dashboard
-        </Link>
-      </p>
-    </>
-  );
+  return <PageNoAccess />;
 }
 
 export function NotFoundPage() {
   return (
-    <>
-      <PageHeader title="Page not found" />
-      <p className="text-sm">
-        That page does not exist.{' '}
-        <Link to="/" className="font-medium text-primary underline">
-          Go to the dashboard
+    <section className="rounded-xl border border-line bg-white">
+      <EmptyBlock icon="search_off" title="Page not found" className="py-16">
+        That page does not exist.
+      </EmptyBlock>
+      <div className="flex justify-center pb-12">
+        <Link to="/" className={buttonVariants({ variant: 'secondary', size: 'lg' })}>
+          Go to dashboard
         </Link>
-        .
-      </p>
-    </>
+      </div>
+    </section>
   );
 }
