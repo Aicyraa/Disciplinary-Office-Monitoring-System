@@ -13,11 +13,11 @@ export function StatTile({
   className?: string;
 }) {
   return (
-    <div className={cn('rounded-[10px] border border-line-soft bg-surface-2 px-3.5 py-3', className)}>
-      <p className={cn('text-[22px] leading-7 font-extrabold', tone === 'danger' ? 'text-danger' : 'text-ink')}>
+    <div className={cn('@container min-w-0 rounded-[10px] border border-line-soft bg-surface-2 px-3 py-2.5', className)}>
+      <p className={cn('text-[clamp(22px,22cqi,32px)] leading-none font-extrabold tracking-[-0.02em]', tone === 'danger' ? 'text-bad-ink' : 'text-ink')}>
         {value}
       </p>
-      <p className="text-xs text-disabled-ink">{label}</p>
+      <p className="mt-0.5 text-xs leading-snug font-medium text-pretty text-disabled-ink">{label}</p>
     </div>
   );
 }

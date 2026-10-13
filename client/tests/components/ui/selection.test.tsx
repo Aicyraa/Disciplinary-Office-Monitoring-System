@@ -73,8 +73,8 @@ test('StatTile shows value and label; danger tone turns the value red', () => {
   expect(out).toContain('bg-surface-2');
   expect(out).toContain('>3<');
   expect(out).toContain('Overdue');
-  expect(out).toContain('text-danger');
-  expect(html(createElement(StatTile, { label: 'Open', value: 0 }))).not.toContain('text-danger');
+  expect(out).toContain('text-bad-ink');
+  expect(html(createElement(StatTile, { label: 'Open', value: 0 }))).not.toContain('text-bad-ink');
 });
 
 test('ClassTile is a toggle button with a class colour', () => {
