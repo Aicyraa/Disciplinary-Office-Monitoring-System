@@ -82,6 +82,7 @@ describe('breadcrumb: the role, then the page title (deck src 315)', () => {
     expect(breadcrumb('staff', '/students/2025-1030808')).toEqual(['Staff', 'Students']);
     expect(breadcrumb('staff', '/appointments/4')).toEqual(['Staff', 'Appointments']);
     expect(breadcrumb('staff', '/appointments/new')).toEqual(['Staff', 'Make appointment']);
+    expect(breadcrumb('staff', '/appointments/12/edit')).toEqual(['Staff', 'Edit appointment']);
     expect(breadcrumb('staff', '/handbook/new')).toEqual(['Staff', 'Add violation']);
     expect(breadcrumb('staff', '/notices')).toEqual(['Staff', 'Notices']);
     expect(breadcrumb('staff', '/handbook/12')).toEqual(['Staff', 'Violations']);

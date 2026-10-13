@@ -63,6 +63,9 @@
   --color-upload-bg: #f7f8fc;
   --color-upload-hover: #eef0fa;
   --color-upload-line: #aeb6e3;
+  /* Start-date calendar (src 3240): available day border, unavailable day border. */
+  --color-calendar-open: #8fd0a8;
+  --color-calendar-closed: #e3e8ec;
   /* Selected option of a segmented control. */
   --shadow-tab: 0 1px 2px rgba(28, 36, 69, 0.12);
 

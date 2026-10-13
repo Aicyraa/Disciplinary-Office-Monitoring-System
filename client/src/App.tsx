@@ -18,7 +18,7 @@ import { RecordViolationPage } from '@/pages/staff/RecordViolation';
 import { StaffClearancePage } from '@/pages/staff/Clearance';
 import { NoticesPage } from '@/pages/staff/Notices';
 import { StudentsPage } from '@/pages/staff/Students';
-import { MakeAppointmentPage, StaffAppointmentsPage } from '@/pages/staff/Appointments';
+import { EditAppointmentPage, MakeAppointmentPage, StaffAppointmentsPage } from '@/pages/staff/Appointments';
 import { CasesPage } from '@/pages/staff/Cases';
 import { SanctionsPage } from '@/pages/student/Sanctions';
 import { ViolationsPage } from '@/pages/student/Violations';
@@ -107,6 +107,7 @@ function AppRoutes() {
             <Route path="students" element={<StudentsPage />} />
             <Route path="students/:id" element={<StudentsPage />} />
             <Route path="appointments/new" element={<MakeAppointmentPage />} />
+            <Route path="appointments/:id/edit" element={<EditAppointmentPage />} />
             <Route path="handbook/new" element={<AddViolationPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />

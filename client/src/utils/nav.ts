@@ -101,6 +101,7 @@ const TITLES: Array<[RegExp, string, string?]> = [
   [/^\/inbox$/, 'Inbox'],
   [/^\/record$/, 'Record violation'],
   [/^\/appointments\/new$/, 'Make appointment'],
+  [/^\/appointments\/\d+\/edit$/, 'Edit appointment'],
   [/^\/cases(\/\d+)?$/, 'Cases'],
   [/^\/students(\/[^/]+)?$/, 'Students'],
   [/^\/appointments(\/\d+)?$/, 'Appointments'],

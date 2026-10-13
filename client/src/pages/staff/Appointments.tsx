@@ -1,683 +1,447 @@
-import { useEffect, useRef, useState, type FormEvent, type MutableRefObject } from 'react';
-import { useForm } from 'react-hook-form';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import type { StaffAppointmentView } from '@shared/types';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import type { AppointmentStatus } from '@shared/types';
 import { ConfirmModal, useToast } from '@/components/feedback';
+import { PageError, Spinner } from '@/components/feedback/PageState';
 import { MasterDetail } from '@/components/layout/MasterDetail';
-import { Card, EmptyState, ErrorState, Icon, LoadingState, PageHeader, StatusPill, buttonClass, fieldClass } from '@/components/ui';
-import { api, ApiError, toApiError } from '@/api/client';
-import { manilaToday } from '@/utils/files';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { StatusPill } from '@/components/ui';
+import { Button } from '@/components/ui/Button';
+import { DetailTable } from '@/components/ui/DetailTable';
+import { EmptyBlock } from '@/components/ui/EmptyBlock';
+import { controlVariants } from '@/components/ui/FieldShell';
+import { GroupHead } from '@/components/ui/GroupHead';
+import { HistoryList } from '@/components/ui/HistoryList';
+import { Icon } from '@/components/ui/Icon';
+import { ListCard } from '@/components/ui/ListCard';
+import { Pager } from '@/components/ui/Pager';
+import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
+import { api, toApiError } from '@/api/client';
 import { useApi } from '@/hooks/useApi';
-import { appointmentEndDate, startDateProblem } from '@/utils/workingDays';
+import {
+  appointmentHistory,
+  appointmentToasts,
+  groupHeadsFor,
+  lastUpdated,
+  RANGE_OPTIONS,
+  statusOptions,
+  studentMeta,
+  whenText,
+} from '@/utils/appointments';
+import { cn } from '@/utils/cn';
+import { formatDate } from '@/utils/format';
+import { dayRange } from '@/utils/staffDashboard';
 
-const HOURS_NOTE = 'Mon to Sat, 7:00 AM to 5:00 PM';
+export { EditAppointmentPage, MakeAppointmentPage } from './AppointmentForm';
 
-const EVENT_LABEL: Record<StaffAppointmentView['history'][number]['eventType'], string> = {
-  assigned: 'Assigned',
-  rescheduled: 'Rescheduled',
-  remarks_updated: 'Details changed',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-};
+/** Links inside the list carry this, so arriving from elsewhere (dashboard, bell) is told apart (5.4b). */
+const FROM_LIST = { fromList: true } as const;
 
-/** Date window as one phrase, e.g. "Oct 13, 2026 to Oct 19, 2026". */
-export const windowLabel = (appointment: Pick<StaffAppointmentView, 'startDate' | 'endDate'>): string =>
-  `${formatDate(appointment.startDate)} to ${formatDate(appointment.endDate)}`;
+function FilterSelect({ label, aria, value, onChange, children }: { label: string; aria: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+  return (
+    <label className="flex min-w-0 items-center gap-2">
+      <span className="w-11 shrink-0 text-xs font-semibold whitespace-nowrap text-muted">{label}</span>
+      <span className="relative block min-w-0 flex-1">
+        <select
+          aria-label={aria}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={cn(controlVariants(), 'min-h-11 cursor-pointer appearance-none pr-9 font-medium rail:min-h-10')}
+        >
+          {children}
+        </select>
+        <Icon name="expand_more" className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-muted" />
+      </span>
+    </label>
+  );
+}
 
-const isLive = (appointment: Pick<StaffAppointmentView, 'status'>): boolean =>
-  appointment.status === 'scheduled' || appointment.status === 'rescheduled';
-
-type Action = 'reschedule' | 'edit' | 'cancel' | null;
-
-function RescheduleForm({
-  appointment,
-  today,
-  onDone,
-  onCancel,
+function AppointmentList({
+  selectedId,
+  reloadRef,
+  onFirstRow,
 }: {
-  appointment: StaffAppointmentView;
-  today: string;
-  onDone: () => void;
-  onCancel: () => void;
+  selectedId: number | null;
+  reloadRef: React.MutableRefObject<(() => void) | null>;
+  onFirstRow: (id: number | null) => void;
 }) {
-  const [start, setStart] = useState(appointment.startDate);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const end = appointmentEndDate(start);
+  const location = useLocation();
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState<AppointmentStatus | ''>('');
+  const [range, setRange] = useState('');
+  const [on, setOn] = useState('');
+  // null: open the page that holds the selected appointment (a deep link); a number once the officer pages.
+  const [page, setPage] = useState<number | null>(null);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const problem = startDateProblem(start, today);
-    if (problem) {
-      setError(problem);
-      return;
-    }
-    if (start === appointment.startDate) {
-      setError('That is already the start date.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await api.updateAppointment(appointment.id, { startDate: start });
-      onDone();
-    } catch (caught) {
-      setError(toApiError(caught).message);
-      setBusy(false);
-    }
-  }
+  // Arriving from outside the list resets every filter that could hide the appointment (5.4b).
+  const arrivedFromOutside = !(location.state as { fromList?: boolean } | null)?.fromList;
+  useEffect(() => {
+    if (!arrivedFromOutside) return;
+    setSearch('');
+    setQ('');
+    setStatus('');
+    setRange('');
+    setOn('');
+    setPage(null);
+  }, [location.key, arrivedFromOutside]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQ((current) => {
+        if (current !== search.trim()) setPage(1);
+        return search.trim();
+      });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const resource = useApi(
+    () =>
+      api.staffAppointments({
+        bucket: 'all',
+        q,
+        status,
+        range,
+        on,
+        page: page ?? 1,
+        focus: page === null && selectedId !== null ? selectedId : undefined,
+      }),
+    [q, status, range, on, page, page === null ? selectedId : null],
+  );
+  useEffect(() => {
+    reloadRef.current = resource.reload;
+  }, [reloadRef, resource.reload]);
+
+  const firstId = resource.status === 'ready' ? (resource.data.appointments[0]?.id ?? null) : undefined;
+  useEffect(() => {
+    if (firstId !== undefined) onFirstRow(firstId);
+  }, [firstId, onFirstRow]);
+
+  const heads = resource.status === 'ready' ? groupHeadsFor(resource.data.appointments, resource.data.counts) : new Map();
+  const highlighted = selectedId ?? (firstId === undefined ? null : firstId);
+  const filterChanged = () => setPage(1);
 
   return (
-    <form onSubmit={submit} noValidate className="mt-3 rounded-md border border-line-strong bg-page p-3">
-      <h3 className="text-sm font-semibold text-ink">Reschedule</h3>
-      <label htmlFor={`start-${appointment.id}`} className="mt-2 block text-sm font-medium text-ink">
-        New start date
-      </label>
-      <input
-        id={`start-${appointment.id}`}
-        type="date"
-        className={`${fieldClass} mt-1 max-w-48`}
-        value={start}
-        min={today}
-        onChange={(event) => setStart(event.target.value)}
-      />
-      {end ? (
-        <p className="mt-1 text-xs text-muted">
-          Window: {formatDate(start)} to {formatDate(end)} ({HOURS_NOTE}).
-        </p>
-      ) : null}
-      {error ? (
-        <p role="alert" className="mt-1 text-sm font-medium text-danger">
-          {error}
-        </p>
-      ) : null}
-      <div className="mt-3 flex gap-2">
-        <button type="submit" disabled={busy} className={buttonClass}>
-          {busy ? 'Saving…' : 'Reschedule'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={busy}
-          className="rounded-md border border-line-strong bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-page"
-        >
-          Close
-        </button>
+    <ListCard className="flex h-full flex-col">
+      <div className="flex flex-col gap-3 border-b border-line-soft px-6 py-[18px]">
+        <label className="relative block">
+          <span className="sr-only">Search appointments</span>
+          <Icon name="search" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 !text-xl text-muted-2" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Student name, student ID or appointment ID"
+            className={cn(controlVariants(), 'pl-10')}
+          />
+        </label>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,170px),1fr))] gap-2.5">
+          <FilterSelect
+            label="Status"
+            aria="Filter by status"
+            value={status}
+            onChange={(value) => {
+              setStatus(value as AppointmentStatus | '');
+              filterChanged();
+            }}
+          >
+            {statusOptions(resource.status === 'ready' ? resource.data.statusCounts : null).map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </FilterSelect>
+          <FilterSelect
+            label="Dates"
+            aria="Filter by date range"
+            value={range}
+            onChange={(value) => {
+              setRange(value);
+              filterChanged();
+            }}
+          >
+            {RANGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </FilterSelect>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="w-11 shrink-0 text-xs font-semibold text-muted">On</span>
+            <input
+              type="date"
+              aria-label="Filter by a specific date"
+              value={on}
+              onChange={(event) => {
+                setOn(event.target.value);
+                filterChanged();
+              }}
+              className={cn(controlVariants(), 'min-h-11 min-w-0 flex-1 cursor-pointer px-2.5 text-[13px] font-medium rail:min-h-9')}
+            />
+            {on ? (
+              <button
+                type="button"
+                aria-label="Clear date filter"
+                onClick={() => {
+                  setOn('');
+                  filterChanged();
+                }}
+                className="grid size-11 shrink-0 place-items-center rounded-full text-muted outline-none hover:bg-primary-tint hover:text-primary focus-visible:ring-[3px] focus-visible:ring-primary/25 rail:size-8"
+              >
+                <Icon name="close" className="!text-lg" />
+              </button>
+            ) : null}
+          </div>
+        </div>
       </div>
-    </form>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {resource.status === 'loading' ? (
+          <p role="status" className="flex items-center justify-center gap-2 px-6 py-10 text-[13px] text-muted">
+            <Spinner />
+            Loading appointments…
+          </p>
+        ) : null}
+        {resource.status === 'error' ? <PageError page="the appointments" detail={resource.error.message} onRetry={resource.reload} /> : null}
+        {resource.status === 'ready' && resource.data.appointments.length === 0 ? (
+          <EmptyBlock icon="event_busy" title="No appointments match">
+            Try another status, date or search.
+          </EmptyBlock>
+        ) : null}
+        {resource.status === 'ready'
+          ? resource.data.appointments.map((row) => {
+              const head = heads.get(row.id);
+              const selected = row.id === highlighted;
+              return (
+                <div key={row.id}>
+                  {head ? <GroupHead tone={head.tone} label={head.label} count={head.count} /> : null}
+                  <Link
+                    to={`/appointments/${row.id}`}
+                    state={FROM_LIST}
+                    aria-current={selected ? 'true' : undefined}
+                    className={cn(
+                      'flex min-h-[76px] items-center gap-3.5 border-b border-line-soft px-6 py-2.5 outline-none transition-colors',
+                      'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+                      selected ? 'bg-row-selected shadow-[inset_3px_0_0_var(--color-primary)]' : 'bg-white hover:bg-row-hover',
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 leading-snug">
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <span className="truncate text-[15px] font-bold text-ink">{row.student.name}</span>
+                        <span className="shrink-0 text-[13px] font-medium text-muted">{row.student.id}</span>
+                      </span>
+                      <span className="mt-1 flex items-center gap-1.5 text-[13px] font-medium text-body">
+                        <Icon name="schedule" className="!text-base text-muted" />
+                        {dayRange(row.startDate, row.endDate)}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[13px] text-muted">
+                        {row.code} · {row.purpose}
+                      </span>
+                    </span>
+                    <span className="mt-0.5 shrink-0 self-start">
+                      <StatusPill status={row.status} kind="appointment" />
+                    </span>
+                  </Link>
+                </div>
+              );
+            })
+          : null}
+      </div>
+      {resource.status === 'ready' ? (
+        <Pager
+          page={resource.data.page}
+          pageCount={Math.max(1, Math.ceil(resource.data.total / resource.data.pageSize))}
+          onChange={setPage}
+          className="mt-auto border-t border-line-soft py-2.5"
+        />
+      ) : null}
+    </ListCard>
   );
 }
 
-function EditForm({ appointment, onDone, onCancel }: { appointment: StaffAppointmentView; onDone: () => void; onCancel: () => void }) {
-  const [purpose, setPurpose] = useState(appointment.purpose);
-  const [notes, setNotes] = useState(appointment.notes ?? '');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (purpose.trim() === '') {
-      setError('Enter a purpose.');
-      return;
-    }
-    const input: { purpose?: string; notes?: string } = {};
-    if (purpose.trim() !== appointment.purpose) input.purpose = purpose.trim();
-    if (notes.trim() !== (appointment.notes ?? '')) input.notes = notes.trim();
-    if (Object.keys(input).length === 0) {
-      setError('Nothing was changed.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await api.updateAppointment(appointment.id, input);
-      onDone();
-    } catch (caught) {
-      setError(toApiError(caught).message);
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form onSubmit={submit} noValidate className="mt-3 rounded-md border border-line-strong bg-page p-3">
-      <h3 className="text-sm font-semibold text-ink">Edit purpose and notes</h3>
-      <label htmlFor={`purpose-${appointment.id}`} className="mt-2 block text-sm font-medium text-ink">
-        Purpose
-      </label>
-      <input
-        id={`purpose-${appointment.id}`}
-        className={`${fieldClass} mt-1`}
-        value={purpose}
-        maxLength={1000}
-        onChange={(event) => setPurpose(event.target.value)}
-      />
-      <label htmlFor={`notes-${appointment.id}`} className="mt-2 block text-sm font-medium text-ink">
-        Notes (optional)
-      </label>
-      <textarea
-        id={`notes-${appointment.id}`}
-        className={`${fieldClass} mt-1 min-h-16`}
-        value={notes}
-        maxLength={1000}
-        onChange={(event) => setNotes(event.target.value)}
-      />
-      {error ? (
-        <p role="alert" className="mt-1 text-sm font-medium text-danger">
-          {error}
-        </p>
-      ) : null}
-      <div className="mt-3 flex gap-2">
-        <button type="submit" disabled={busy} className={buttonClass}>
-          {busy ? 'Saving…' : 'Save'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={busy}
-          className="rounded-md border border-line-strong bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-page"
-        >
-          Close
-        </button>
-      </div>
-    </form>
-  );
-}
-
-type Tab = 'details' | 'history';
-
-function AppointmentDetail({ appointment, today, onChanged }: { appointment: StaffAppointmentView; today: string; onChanged: () => void }) {
+/** The right pane (deck W36, W37): window as the title, Details / History, the update footer. */
+function AppointmentPane({ appointmentId, onChanged }: { appointmentId: number; onChanged: () => void }) {
   const toast = useToast();
-  const [action, setAction] = useState<Action | 'complete'>(null);
-  const [tab, setTab] = useState<Tab>('details');
-  const live = isLive(appointment);
+  const navigate = useNavigate();
+  const resource = useApi(() => api.staffAppointment(appointmentId), [appointmentId]);
+  const [tab, setTab] = useState<'details' | 'history'>('details');
+  const [modal, setModal] = useState<'complete' | 'cancel' | null>(null);
 
-  const done = (text: string) => {
-    setAction(null);
+  if (resource.status === 'loading') {
+    return (
+      <div role="status" className="flex min-h-40 items-center justify-center gap-2 rounded-xl border border-line bg-white text-[13px] text-muted">
+        <Spinner />
+        Loading appointment…
+      </div>
+    );
+  }
+  if (resource.status === 'error') {
+    return (
+      <div className="rounded-xl border border-line bg-white">
+        <PageError page="this appointment" detail={resource.error.message} onRetry={resource.reload} />
+      </div>
+    );
+  }
+  const a = resource.data.appointment;
+  const live = a.status === 'scheduled' || a.status === 'rescheduled';
+  const toasts = appointmentToasts(a.code, a.student.name);
+  const meta = studentMeta(a);
+  const finish = (text: string) => {
+    setModal(null);
     toast.show(text, 'success');
+    resource.reload();
     onChanged();
   };
 
-  const rows: Array<[string, string]> = [
-    ['Student', `${appointment.student.name} · ${appointment.student.id}`],
-    ['Reason', appointment.purpose],
-    ['Remarks for the student', appointment.notes ?? 'None'],
-    ['Appointment ID', appointment.code],
-    ['Created', formatDate(appointment.dateCreated)],
-    ['Assigned by', appointment.assignedBy],
-  ];
-  if (appointment.cancelReason) rows.push(['Reason for cancelling', appointment.cancelReason]);
-
   return (
-    <article aria-label={`Appointment ${appointment.code}`} className="rounded-lg border border-line bg-white">
-      <div className="space-y-4 p-4">
-        <header className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold text-ink">{windowLabel(appointment)}</h2>
-            <p className="text-sm text-muted">
-              <Link to={`/students/${appointment.student.id}`} className="font-medium text-primary underline">
-                {appointment.student.name}
-              </Link>{' '}
-              · {appointment.student.id}
-            </p>
-          </div>
-          <StatusPill status={appointment.status} kind="appointment" />
-        </header>
-
-        <div className="flex rounded-full bg-page p-1" role="tablist" aria-label="Appointment sections">
-          {(['details', 'history'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="tab"
-              aria-selected={tab === option}
-              onClick={() => setTab(option)}
-              className={`min-h-11 flex-1 rounded-full text-sm font-medium ${tab === option ? 'bg-white text-ink shadow-sm' : 'text-muted'}`}
-            >
-              {option === 'details' ? 'Details' : 'History'}
-            </button>
-          ))}
+    <article aria-label={`Appointment ${a.code}`} className="flex min-h-full flex-col gap-5 rounded-xl border border-line bg-white p-6">
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[22px] leading-tight font-bold text-pretty text-ink">{dayRange(a.startDate, a.endDate)}</h2>
+          <p className="mt-1.5 text-sm text-body">
+            <span className="font-semibold">{a.student.name}</span>
+            <span className="text-muted"> · {a.student.id}</span>
+          </p>
         </div>
+        <StatusPill status={a.status} kind="appointment" />
+      </header>
 
-        {tab === 'details' ? (
-          <dl className="rounded-lg border border-line">
-            {rows.map(([label, value]) => (
-              <div key={label} className="grid grid-cols-[8rem_1fr] gap-2 border-b border-line px-3 py-2 last:border-0">
-                <dt className="text-xs font-semibold tracking-wide text-muted uppercase">{label}</dt>
-                <dd className="text-sm text-ink">{value}</dd>
+      <SegmentedTabs
+        label="Appointment sections"
+        options={[
+          { value: 'details', label: 'Details' },
+          { value: 'history', label: 'History', count: a.history.length },
+        ]}
+        value={tab}
+        onChange={(value) => setTab(value as 'details' | 'history')}
+        className="flex w-full [&>button]:flex-1 [&>button]:justify-center"
+      />
+
+      {tab === 'details' ? (
+        <DetailTable
+          rows={[
+            {
+              label: 'Student',
+              value: (
+                <>
+                  {a.student.name}
+                  {meta ? <span className="block text-[13px] text-muted">{meta}</span> : null}
+                </>
+              ),
+            },
+            { label: 'Reason', value: a.purpose },
+            { label: 'Remarks for the student', value: a.notes || 'None' },
+            ...(a.cancelReason ? [{ label: 'Reason for cancelling', value: a.cancelReason }] : []),
+            { label: 'Appointment ID', value: a.code },
+            { label: 'Created', value: formatDate(a.dateCreated) },
+            { label: 'Last updated', value: lastUpdated(a) },
+          ]}
+        />
+      ) : (
+        <HistoryList items={appointmentHistory(a)} />
+      )}
+
+      {tab === 'details' ? (
+        <div className="-mx-6 mt-auto -mb-6 flex flex-col gap-3 rounded-b-xl border-t border-line-soft bg-surface-2 px-6 pt-4 pb-5">
+          {live ? (
+            <>
+              <p className="text-sm font-semibold text-ink">Update this appointment</p>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="success" size="xl" className="flex-[1_1_200px]" onClick={() => setModal('complete')}>
+                  <Icon name="event_available" className="!text-xl" />
+                  Mark completed
+                </Button>
+                <Button variant="secondary" size="xl" className="flex-[1_1_200px]" onClick={() => navigate(`/appointments/${a.id}/edit`)}>
+                  <Icon name="edit_calendar" className="!text-xl" />
+                  Edit or reschedule
+                </Button>
               </div>
-            ))}
-          </dl>
-        ) : (
-          <ol className="space-y-2 border-l-2 border-line pl-4 text-sm" aria-label="Appointment history">
-            {[...appointment.history].reverse().map((entry, index) => (
-              <li key={index}>
-                <span className="font-medium text-ink">{EVENT_LABEL[entry.eventType]}</span>{' '}
-                <span className="text-muted">
-                  by {entry.by} · {formatDateTime(entry.date)}
-                </span>
-                {entry.remarks ? <div className="text-muted">{entry.remarks}</div> : null}
-              </li>
-            ))}
-          </ol>
-        )}
-
-        {action === 'reschedule' ? (
-          <RescheduleForm appointment={appointment} today={today} onDone={() => done('Rescheduled. The student was notified.')} onCancel={() => setAction(null)} />
-        ) : null}
-        {action === 'edit' ? (
-          <EditForm appointment={appointment} onDone={() => done('Saved. The student was notified.')} onCancel={() => setAction(null)} />
-        ) : null}
-      </div>
-
-      {live ? (
-        <div className="space-y-2 border-t border-line bg-page/60 p-4">
-          <p className="text-xs font-semibold text-ink">Update this appointment</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="inline-flex min-h-11 items-center gap-2 rounded-md bg-success px-4 text-sm font-semibold text-white hover:brightness-95"
-              onClick={() => setAction('complete')}
-            >
-              <Icon name="event_available" className="text-base" />
-              Mark completed
-            </button>
-            <button
-              type="button"
-              className="inline-flex min-h-11 items-center gap-2 rounded-md border border-primary px-4 text-sm font-semibold text-primary hover:bg-white"
-              onClick={() => setAction(action === 'reschedule' ? null : 'reschedule')}
-            >
-              <Icon name="edit_calendar" className="text-base" />
-              Reschedule
-            </button>
-            <button
-              type="button"
-              className="inline-flex min-h-11 items-center rounded-md border border-line-strong bg-white px-4 text-sm font-semibold text-ink hover:bg-page"
-              onClick={() => setAction(action === 'edit' ? null : 'edit')}
-            >
-              Edit details
-            </button>
-            <button
-              type="button"
-              className="inline-flex min-h-11 items-center gap-1 px-2 text-sm font-semibold text-danger underline"
-              onClick={() => setAction('cancel')}
-            >
-              Cancel this appointment
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => setModal('cancel')}
+                className="inline-flex min-h-11 items-center gap-1.5 self-center rounded-full px-3 text-[13px] font-semibold text-danger outline-none hover:bg-danger-soft focus-visible:ring-[3px] focus-visible:ring-danger/25 rail:min-h-9"
+              >
+                <Icon name="event_busy" className="!text-lg" />
+                Cancel this appointment
+              </button>
+            </>
+          ) : (
+            <p role="status" className={cn('flex items-center gap-2 text-sm font-semibold', a.status === 'completed' ? 'text-success' : 'text-neutral-ink')}>
+              <Icon name={a.status === 'completed' ? 'check_circle' : 'event_busy'} className="!text-xl" />
+              {a.status === 'completed'
+                ? `Completed on ${lastUpdated(a)}. Kept on file for history.`
+                : `Cancelled on ${lastUpdated(a)}. The slot is open again.`}
+            </p>
+          )}
         </div>
       ) : null}
 
       <ConfirmModal
-        open={action === 'complete'}
-        title="Mark as completed?"
-        description={`${appointment.student.name} is notified that the visit was completed.`}
+        open={modal === 'complete'}
+        tone="ok"
+        title={`Mark ${a.code} as completed?`}
+        description={`${a.student.name} attended the appointment on ${whenText(a)}. The student is notified.`}
         confirmLabel="Mark completed"
-        onClose={() => setAction(null)}
+        onClose={() => setModal(null)}
         onConfirm={async () => {
           try {
-            await api.completeAppointment(appointment.id);
+            await api.completeAppointment(a.id);
           } catch (error) {
             throw new Error(toApiError(error).message);
           }
-          done('Marked as completed.');
+          finish(toasts.completed);
         }}
       />
       <ConfirmModal
-        open={action === 'cancel'}
-        title="Cancel this appointment"
-        description="The student is told why."
-        reasonLabel="Reason (required)"
+        open={modal === 'cancel'}
+        tone="danger"
+        title={`Cancel ${a.code}?`}
+        description={`The appointment with ${a.student.name} on ${whenText(a)} is cancelled and the slot opens up again. The student is notified.`}
+        reasonLabel="Reason for cancelling (shown to the student)"
+        reasonPlaceholder="e.g. The officer is out of the office that day."
         confirmLabel="Cancel appointment"
-        danger
-        onClose={() => setAction(null)}
+        cancelLabel="Keep appointment"
+        onClose={() => setModal(null)}
         onConfirm={async (reason) => {
           try {
-            await api.cancelAppointment(appointment.id, reason);
+            await api.cancelAppointment(a.id, reason);
           } catch (error) {
             throw new Error(toApiError(error).message);
           }
-          done('Cancelled. The student was notified.');
+          finish(toasts.cancelled);
         }}
       />
     </article>
   );
 }
 
-function AppointmentGroup({ title, total, rows, selectedId }: { title: string; total: number; rows: StaffAppointmentView[]; selectedId: number | null }) {
-  if (rows.length === 0) return null;
-  return (
-    <div>
-      <p className="flex items-center gap-2 bg-page px-3 py-1.5 text-[11px] font-bold tracking-wide text-muted uppercase">
-        {title}
-        <span className="font-normal normal-case">{total}</span>
-      </p>
-      <ul>
-        {rows.map((row) => (
-          <li key={row.id}>
-            <Link
-              to={`/appointments/${row.id}`}
-              aria-current={row.id === selectedId ? 'page' : undefined}
-              className={`block min-h-16 border-b border-line px-3 py-2 hover:bg-page ${row.id === selectedId ? 'bg-primary/10' : ''}`}
-            >
-              <span className="flex items-start justify-between gap-2">
-                <span className="min-w-0 text-sm font-semibold text-ink">
-                  {row.student.name} <span className="font-normal text-muted">{row.student.id}</span>
-                </span>
-                <StatusPill status={row.status} kind="appointment" />
-              </span>
-              <span className="mt-0.5 flex items-center gap-1 text-xs text-muted">
-                <Icon name="schedule" className="text-sm" />
-                {windowLabel(row)}
-              </span>
-              <span className="block truncate text-xs text-muted">
-                {row.code} · {row.purpose}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function AppointmentQueue({ selectedId, reloadRef }: { selectedId: number | null; reloadRef: MutableRefObject<(() => void) | null> }) {
-  const [search, setSearch] = useState('');
-  const [q, setQ] = useState('');
-  const upcoming = useApi(() => api.staffAppointments({ bucket: 'upcoming', q }), [q]);
-  const past = useApi(() => api.staffAppointments({ bucket: 'history', q }), [q]);
-
-  useEffect(() => {
-    reloadRef.current = () => {
-      upcoming.reload();
-      past.reload();
-    };
-  });
-
-  function submitSearch(event: FormEvent) {
-    event.preventDefault();
-    setQ(search.trim());
-  }
-
-  const loading = upcoming.status === 'loading' || past.status === 'loading';
-  const failed = upcoming.status === 'error' ? upcoming : past.status === 'error' ? past : null;
-  const up = upcoming.status === 'ready' ? upcoming.data : null;
-  const old = past.status === 'ready' ? past.data : null;
-
-  return (
-    <section aria-label="Appointments" className="rounded-lg border border-line bg-white">
-      <form onSubmit={submitSearch} role="search" className="flex gap-2 border-b border-line p-3">
-        <label className="relative block min-w-0 flex-1">
-          <span className="sr-only">Search appointments</span>
-          <Icon name="search" className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-          <input
-            type="search"
-            placeholder="Student name, ID or purpose"
-            className={`${fieldClass} min-h-11 pl-10`}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </label>
-        <button type="submit" className={`${buttonClass} min-h-11`}>
-          Search
-        </button>
-      </form>
-      {loading ? <LoadingState label="Loading appointments…" cards={3} /> : null}
-      {failed && failed.status === 'error' ? (
-        <ErrorState
-          message={failed.error.message}
-          onRetry={() => {
-            upcoming.reload();
-            past.reload();
-          }}
-        />
-      ) : null}
-      {up && old ? (
-        up.appointments.length === 0 && old.appointments.length === 0 ? (
-          <div className="p-3">
-            <EmptyState title="No appointments match." hint="Make an appointment to give a student a visit window." />
-          </div>
-        ) : (
-          <>
-            <AppointmentGroup title="Upcoming" total={up.total} rows={up.appointments} selectedId={selectedId} />
-            <AppointmentGroup title="Past and closed" total={old.total} rows={old.appointments} selectedId={selectedId} />
-            {up.total > up.appointments.length || old.total > old.appointments.length ? (
-              <p className="px-3 py-2 text-xs text-muted">Showing the newest. Search to find an older appointment.</p>
-            ) : null}
-          </>
-        )
-      ) : null}
-    </section>
-  );
-}
-
-function SelectedAppointment({ appointmentId, onChanged }: { appointmentId: number; onChanged: () => void }) {
-  const today = manilaToday();
-  const resource = useApi(() => api.staffAppointment(appointmentId), [appointmentId]);
-  if (resource.status === 'loading') return <LoadingState label="Loading appointment…" cards={2} />;
-  if (resource.status === 'error') return <ErrorState message={resource.error.message} onRetry={resource.reload} />;
-  return (
-    <AppointmentDetail
-      appointment={resource.data.appointment}
-      today={today}
-      onChanged={() => {
-        resource.reload();
-        onChanged();
-      }}
-    />
-  );
-}
-
-/** Staff Appointments (deck W36 to W39): grouped list on the left, the selected appointment on the right. */
+/** Staff Appointments (deck W36, W37): filtered list on the left, the selected appointment on the right. */
 export function StaffAppointmentsPage() {
   const { id } = useParams();
-  const selectedId = /^\d+$/.test(id ?? '') ? Number(id) : null;
-  const reloadQueue = useRef<(() => void) | null>(null);
+  const appointmentId = /^\d+$/.test(id ?? '') ? Number(id) : null;
+  const reloadList = useRef<(() => void) | null>(null);
+  const [firstRow, setFirstRow] = useState<number | null>(null);
 
   return (
     <>
-      <PageHeader
-        title="Appointments"
-        subtitle={`Each appointment is a 6-working-day window (${HOURS_NOTE}).`}
-        actions={
-          <Link to="/appointments/new" className={`${buttonClass} min-h-11`}>
-            Make appointment
-          </Link>
-        }
-      />
+      <h1 className="sr-only">Appointments</h1>
       <MasterDetail
         ratio="appointments"
-        detailKey={selectedId}
-        list={<AppointmentQueue selectedId={selectedId} reloadRef={reloadQueue} />}
-        detail={selectedId === null ? null : <SelectedAppointment key={selectedId} appointmentId={selectedId} onChanged={() => reloadQueue.current?.()} />}
-        emptyDetail={<EmptyState title="Select an appointment" hint="Complete, reschedule or cancel it here." />}
-        backTo="/appointments"
-        backLabel="All appointments"
+        detailKey={appointmentId}
+        list={<AppointmentList selectedId={appointmentId} reloadRef={reloadList} onFirstRow={setFirstRow} />}
+        detail={appointmentId === null ? null : <AppointmentPane key={appointmentId} appointmentId={appointmentId} onChanged={() => reloadList.current?.()} />}
+        emptyDetail={
+          firstRow === null ? (
+            <div className="grid min-h-full place-items-center rounded-xl border border-line bg-white">
+              <EmptyBlock icon="calendar_month" title="No appointment selected">
+                Pick one from the list.
+              </EmptyBlock>
+            </div>
+          ) : (
+            <AppointmentPane key={firstRow} appointmentId={firstRow} onChanged={() => reloadList.current?.()} />
+          )
+        }
       />
-    </>
-  );
-}
-
-interface MakeFields {
-  studentId: string;
-  startDate: string;
-  purpose: string;
-  notes: string;
-}
-
-const EMPTY_FIELDS: MakeFields = { studentId: '', startDate: '', purpose: '', notes: '' };
-
-/** Make appointment: fill the form, review the summary, then save and assign (deck W40 to W43). */
-export function MakeAppointmentPage() {
-  const today = manilaToday();
-  const navigate = useNavigate();
-  const toast = useToast();
-  const [step, setStep] = useState<'edit' | 'review'>('edit');
-  const [fields, setFields] = useState<MakeFields>(EMPTY_FIELDS);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [studentName, setStudentName] = useState<string | null>(null);
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setError,
-    formState: { errors, isSubmitting },
-  } = useForm<MakeFields>({ defaultValues: EMPTY_FIELDS });
-  const start = watch('startDate');
-  const end = appointmentEndDate(start);
-
-  // Review needs the student's name; an unknown ID is caught here, before the officer presses save.
-  const onReview = handleSubmit(async (values) => {
-    setFormError(null);
-    const studentId = values.studentId.trim();
-    try {
-      const record = await api.student(studentId);
-      setStudentName(`${record.profile.firstName} ${record.profile.lastName}`);
-      setFields({ ...values, studentId, purpose: values.purpose.trim(), notes: values.notes.trim() });
-      setStep('review');
-    } catch (error) {
-      const message = error instanceof ApiError && error.status === 404 ? 'No student has that ID.' : toApiError(error).message;
-      setError('studentId', { message });
-    }
-  });
-
-  async function save() {
-    setSaving(true);
-    setFormError(null);
-    try {
-      await api.createAppointment({
-        studentId: fields.studentId,
-        startDate: fields.startDate,
-        purpose: fields.purpose,
-        notes: fields.notes,
-      });
-      toast.show(`Appointment assigned to ${studentName ?? fields.studentId}. They were notified.`, 'success');
-      navigate('/appointments');
-    } catch (error) {
-      setFormError(error instanceof ApiError ? error.message : 'Something went wrong. Try again.');
-      setSaving(false);
-    }
-  }
-
-  if (step === 'review') {
-    const finish = appointmentEndDate(fields.startDate);
-    const rows: Array<[string, string]> = [
-      ['Student', studentName ?? fields.studentId],
-      ['Student ID', fields.studentId],
-      ['Dates', finish ? `${formatDate(fields.startDate)} to ${formatDate(finish)}` : formatDate(fields.startDate)],
-      ['Time', `Any time during office hours, ${HOURS_NOTE}`],
-      ['Reason', fields.purpose],
-      ['Remarks', fields.notes || 'None'],
-      ['Status', 'Scheduled'],
-    ];
-    return (
-      <>
-        <PageHeader title="Make appointment" subtitle="Review the appointment before it is assigned." />
-        <Card>
-          <h2 className="mb-3 text-xs font-bold tracking-wide text-muted uppercase">Review before saving</h2>
-          <dl className="rounded-lg border border-line">
-            {rows.map(([label, value]) => (
-              <div key={label} className="grid grid-cols-[7rem_1fr] gap-2 border-b border-line px-3 py-2 last:border-0">
-                <dt className="text-sm text-muted">{label}</dt>
-                <dd className="text-sm text-ink">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-3 text-xs text-muted">
-            Saving assigns this appointment to {studentName ?? fields.studentId}. They get a portal notification and an email.
-          </p>
-          {formError ? (
-            <p role="alert" className="mt-2 text-sm font-medium text-danger">
-              {formError}
-            </p>
-          ) : null}
-          <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-line pt-4">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => setStep('edit')}
-              className="inline-flex min-h-11 items-center rounded-md border border-primary px-4 text-sm font-semibold text-primary hover:bg-page disabled:opacity-60"
-            >
-              Back to edit
-            </button>
-            <button type="button" disabled={saving} onClick={() => void save()} className={`${buttonClass} min-h-11`}>
-              {saving ? 'Saving…' : 'Save and assign'}
-            </button>
-          </div>
-        </Card>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <PageHeader title="Make appointment" subtitle="Give a student a 6-working-day window to visit the SDO office." />
-      <Card>
-        <form onSubmit={onReview} className="space-y-4" noValidate>
-          <div>
-            <label htmlFor="appt-student" className="mb-1 block text-sm font-medium text-ink">
-              Student ID
-            </label>
-            <input
-              id="appt-student"
-              className={`${fieldClass} max-w-xs`}
-              placeholder="2025-1234567"
-              {...register('studentId', {
-                required: 'Enter the student ID.',
-                pattern: { value: /^\d{4}-\d{7}$/, message: 'Use the format 2025-1234567.' },
-              })}
-            />
-            {errors.studentId ? <p className="mt-1 text-sm text-danger">{errors.studentId.message}</p> : null}
-          </div>
-          <div>
-            <label htmlFor="appt-start" className="mb-1 block text-sm font-medium text-ink">
-              Start date
-            </label>
-            <input
-              id="appt-start"
-              type="date"
-              min={today}
-              className={`${fieldClass} max-w-48`}
-              {...register('startDate', { validate: (value) => startDateProblem(value, today) ?? true })}
-            />
-            {errors.startDate ? <p className="mt-1 text-sm text-danger">{errors.startDate.message}</p> : null}
-            {end ? (
-              <p className="mt-1 text-sm text-muted">
-                The student can visit from {formatDate(start)} to {formatDate(end)} ({HOURS_NOTE}). Sundays are skipped.
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-muted">Today up to 60 days ahead, not a Sunday.</p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="appt-purpose" className="mb-1 block text-sm font-medium text-ink">
-              Reason
-            </label>
-            <input
-              id="appt-purpose"
-              className={fieldClass}
-              maxLength={1000}
-              {...register('purpose', { required: 'Enter the reason for the visit.' })}
-            />
-            {errors.purpose ? <p className="mt-1 text-sm text-danger">{errors.purpose.message}</p> : null}
-          </div>
-          <div>
-            <label htmlFor="appt-notes" className="mb-1 block text-sm font-medium text-ink">
-              Remarks for the student (optional)
-            </label>
-            <textarea id="appt-notes" className={`${fieldClass} min-h-20`} maxLength={1000} {...register('notes')} />
-          </div>
-          {formError ? (
-            <p role="alert" className="text-sm font-medium text-danger">
-              {formError}
-            </p>
-          ) : null}
-          <button type="submit" disabled={isSubmitting} className={`${buttonClass} min-h-11`}>
-            {isSubmitting ? 'Checking…' : 'Review'}
-          </button>
-        </form>
-      </Card>
     </>
   );
 }

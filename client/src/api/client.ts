@@ -257,11 +257,19 @@ export const api = {
   fileUrl: (fileId: number) => get<{ url: string; expiresInSeconds: number }>(`/files/${fileId}/url`),
 
   // Staff appointments (SPEC 4.5, 7)
-  staffAppointments: (query: { bucket?: 'upcoming' | 'history'; q?: string; page?: number }) => {
+  staffAppointments: (query: {
+    bucket?: 'upcoming' | 'history' | 'all';
+    q?: string;
+    status?: string;
+    range?: string;
+    on?: string;
+    page?: number;
+    focus?: number;
+  }) => {
     const params: Record<string, string | number> = {};
-    if (query.bucket) params.bucket = query.bucket;
-    if (query.q) params.q = query.q;
-    if (query.page && query.page > 1) params.page = query.page;
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== '' && !(key === 'page' && value === 1)) params[key] = value;
+    }
     return get<StaffAppointmentListResponse>('/appointments', params);
   },
   // Notices (staff): broadcast, edit, remove
