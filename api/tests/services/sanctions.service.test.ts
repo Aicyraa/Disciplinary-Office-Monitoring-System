@@ -196,6 +196,14 @@ describe('uploadProof', () => {
     expect(store.state.sanctionNotifications.at(-1)).toMatchObject({ recipient: 'staff', studentId: null });
   });
 
+  test('PDF only (D7): a DOCX among the files refuses the whole submission and stores nothing', async () => {
+    const id = await assigned();
+    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), docx('letter.docx')] });
+    expect(result).toMatchObject({ ok: false, code: 'unsupported_type', message: 'letter.docx is not a PDF file.' });
+    expect(storage.objects.size).toBe(0);
+    expect(sanction(id).files).toHaveLength(0);
+  });
+
   test('accepts up to five files in one submission', async () => {
     const id = await assigned();
     const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf'), pdf('d.pdf'), pdf('e.pdf')] });

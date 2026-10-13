@@ -51,6 +51,8 @@
   --color-disabled-ink: #6b7480;
   --color-skeleton: #e6eaee;
   --color-scrim: rgba(16, 22, 52, 0.5);
+  /* Error icon on the dark toast (src 3527). */
+  --color-toast-error: #ff8a80;
   /* Upload drop zone (UI-POLISH-SPEC 4.2b): resting, hover and drag-over. */
   --color-upload-bg: #f7f8fc;
   --color-upload-hover: #eef0fa;

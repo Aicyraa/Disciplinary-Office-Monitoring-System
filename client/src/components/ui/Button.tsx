@@ -17,6 +17,7 @@ export const buttonVariants = cva(
         secondary: 'border-primary bg-white text-primary hover:bg-primary-tint',
         neutral: 'border-line-strong bg-white text-ink hover:bg-page',
         danger: 'border-danger-strong bg-white text-danger-strong hover:bg-danger-soft',
+        dangerSolid: 'border-transparent bg-danger text-white hover:brightness-95 aria-busy:bg-danger aria-busy:text-white',
         success: 'border-transparent bg-success-strong text-white hover:brightness-95 aria-busy:bg-success-strong aria-busy:text-white',
         gold: 'border-gold-line bg-gold text-ink hover:bg-gold-hover',
         text: 'border-transparent bg-transparent text-primary hover:bg-info-soft',

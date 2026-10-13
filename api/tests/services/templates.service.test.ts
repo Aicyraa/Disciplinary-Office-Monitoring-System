@@ -92,6 +92,15 @@ describe('uploadFiles', () => {
     expect(store.state.files).toHaveLength(0);
   });
 
+  test('PDF only (D7): a DOCX template is refused with "is not a PDF file." and nothing is stored', async () => {
+    expect(await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [docx()] })).toMatchObject({
+      ok: false,
+      code: 'unsupported_type',
+      message: 'form.docx is not a PDF file.',
+    });
+    expect(storage.objects.size).toBe(0);
+  });
+
   test('a second file in one request is refused and nothing is stored', async () => {
     expect(await service.uploadFiles({ employeeId: STAFF, sanctionId: 1, files: [pdf('1.pdf'), pdf('2.pdf')] })).toMatchObject({
       ok: false,

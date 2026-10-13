@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { pillTone, statusLabel, type StatusKind } from '@/utils/format';
 import type { ApiResource } from '@/hooks/useApi';
-import { Icon } from './Icon';
 
 export { Icon } from './Icon';
 
