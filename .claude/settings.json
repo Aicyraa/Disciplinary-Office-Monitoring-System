@@ -54,6 +54,7 @@
       "Bash(npm --prefix client run typecheck)",
       "Bash(npm --prefix client run build)",
       "Bash(npm --prefix client run dev)",
+      "Bash(python3 -I *)",
       "Skill",
       "Agent(scout)",
       "Agent(reviewer)",

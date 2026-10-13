@@ -47,7 +47,8 @@
         "npm --prefix api run prisma:validate",
         "npm test( .*)?",
         "npm run (lint|typecheck|build)( .*)?",
-        "npm --prefix (api|client) (test|run (lint|typecheck|build))( .*)?"
+        "npm --prefix (api|client) (test|run (lint|typecheck|build))( .*)?",
+        "python3 -I [^ ]+( .*)?"
       ],
       "branchGated": ["add", "commit"],
       "commitBranchPrefix": "worktree-"
@@ -65,7 +66,8 @@
         "npm --prefix api run prisma:validate",
         "npm test( .*)?",
         "npm run (lint|typecheck|build|dev)( .*)?",
-        "npm --prefix (api|client) (test|run (lint|typecheck|build|dev))( .*)?"
+        "npm --prefix (api|client) (test|run (lint|typecheck|build|dev))( .*)?",
+        "python3 -I [^ ]+( .*)?"
       ],
       "branchGated": [],
       "commitBranchPrefix": null
