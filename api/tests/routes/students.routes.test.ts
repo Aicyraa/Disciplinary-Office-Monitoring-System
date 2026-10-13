@@ -64,6 +64,7 @@ const studentViews = createMemoryStudentViewRepo({
       dateCompleted: null,
       staffNote: null,
       complianceNote: null,
+      assignedBy: 'Officer One',
       history: [],
       files: [],
     },

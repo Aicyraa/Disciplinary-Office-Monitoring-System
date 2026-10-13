@@ -31,6 +31,7 @@ const sanctionBase: CaseSanctionRecord = {
   dateCompleted: null,
   staffNote: 'Bring a signed slip.',
   complianceNote: null,
+  assignedBy: 'Officer One',
   history: [{ eventType: 'assigned', remarks: null, byStaff: true, date: new Date('2026-09-02T02:00:00Z') }],
   files: [],
 };
@@ -192,6 +193,13 @@ describe('GET /me/sanctions', () => {
       date: '2026-09-02T02:00:00.000Z',
     });
     expect(JSON.stringify(response.body)).not.toContain('B only');
+  });
+
+  test('names the officer who assigned the sanction, never their id (UI-POLISH-SPEC D15)', async () => {
+    const agent = await signedInAgent(built(), STUDENT_A.email);
+    const sanction = (await agent.get('/me/sanctions')).body.data.sanctions[0];
+    expect(sanction.assignedBy).toBe('Officer One');
+    expect(JSON.stringify(sanction)).not.toMatch(/employee/i);
   });
 
   test('a student with no data gets empty lists, not an error', async () => {

@@ -44,6 +44,8 @@ export interface CaseSanctionRecord {
   dateCompleted: Date | null;
   staffNote: string | null;
   complianceNote: string | null;
+  /** Name of the staff member who assigned it (D15); never the employee id. */
+  assignedBy: string;
   history: Array<{ eventType: string; remarks: string | null; byStaff: boolean; date: Date }>;
   /** Proof files; `dateViewed` is only used to decide whether the student can still change them. */
   files: Array<{

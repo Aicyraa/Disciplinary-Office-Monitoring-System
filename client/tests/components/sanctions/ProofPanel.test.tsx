@@ -20,6 +20,7 @@ const base: StudentSanctionView = {
   dateCompleted: null,
   staffNote: null,
   complianceNote: null,
+  assignedBy: 'Officer One',
   history: [],
   files: [],
   lateByDays: 0,

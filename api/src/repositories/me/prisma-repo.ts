@@ -121,6 +121,8 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
           disciplinary_cases: { include: { [CURRENT]: { include: { violations: true } } } },
           case_sanction_history: { orderBy: { date_logged: 'asc' } },
           case_sanction_files: { include: { files: true }, orderBy: { case_sanction_file_id: 'asc' } },
+          // Name only (D15): never the account row, which carries password_hashed.
+          employee_accounts_case_sanctions_assigned_by_employee_idToemployee_accounts: { select: { first_name: true, last_name: true } },
         },
         orderBy: { date_assigned: 'desc' },
       });
@@ -142,6 +144,7 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
           dateCompleted: row.date_completed,
           staffNote: row.staff_note,
           complianceNote: row.compliance_note,
+          assignedBy: `${row.employee_accounts_case_sanctions_assigned_by_employee_idToemployee_accounts.first_name} ${row.employee_accounts_case_sanctions_assigned_by_employee_idToemployee_accounts.last_name}`,
           history: row.case_sanction_history.map((event) => ({
             eventType: event.event_type,
             remarks: event.remarks,

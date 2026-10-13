@@ -260,7 +260,7 @@ POST /cases/:id/sanctions   (sanction_id, due_date, staff_note)
 POST /cases/:id/resolve | /resolve-without-sanction | /remarks
 # Free text (reasons, remarks, notes, instructions) is capped at 1000 characters everywhere.
 
-GET  /me/sanctions
+GET  /me/sanctions   (each sanction carries `assignedBy`, the assigning officer's name, never an employee id; UI-POLISH-SPEC D15)
 POST /files (multipart; this one request IS the submission)   GET /files/:id/url   DELETE /files/:id
 #   `:id` is the `case_sanction_files` id. A replace sends `replaceFileId` with exactly one file.
 POST /case-sanctions/:id/verify | /return       # no /submit and no /record-compliance (online proof only)

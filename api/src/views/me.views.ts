@@ -65,6 +65,7 @@ export function toSanctionView(record: CaseSanctionRecord, today: string): Stude
     dateCompleted: isoOrNull(record.dateCompleted),
     staffNote: record.staffNote,
     complianceNote: record.complianceNote,
+    assignedBy: record.assignedBy,
     // Employee ids are never exposed to students; only "staff" or "student".
     history: record.history.map((event) => ({
       eventType: event.eventType,

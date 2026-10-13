@@ -244,6 +244,8 @@ export type StudentSanctionView = {
   dateCompleted: string | null;
   staffNote: string | null;
   complianceNote: string | null;
+  /** The officer who assigned it, by name (UI-POLISH-SPEC D15). */
+  assignedBy: string;
   history: SanctionHistoryEntry[];
   files: ProofFileView[];
   /** Derived from the due date in Asia/Manila time; never stored. */
