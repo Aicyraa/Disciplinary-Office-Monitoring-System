@@ -51,14 +51,14 @@ Core loop: report → staff validate → (3 minors roll into a Major) → staff 
 |---|---|---|
 | **Notifications (inbox + email)** | Every admin update reaches the student as one in-app notification and one email: what was assigned (sanction, appointment), what changed (status, due date, moved appointment, returned proof), and violation or case updates. Categories: Violations, Sanctions, Appointments, Clearance, Account. Each has a deep link. An idempotency key stops duplicates. Unread badge and a 7-second "you have N unread" toast after student login | `notifications` |
 | **Timelines (remarks + logs)** | Every case, sanction, appointment and clearance has a timeline of who did what and when. Staff remarks on a case are timeline entries of type `remark`, and the student sees the latest | `case_status_history` (extended), `case_sanction_history`, `appointment_history`, `clearance_history` |
-| **Sanction templates** | Each sanction has a template page (title, description, written requirements) with downloadable PDF/DOCX file(s). Students download them from the Handbook and from their sanction. Staff manage them under Handbook › Sanction templates | `sanction_templates`, `sanction_template_files` |
-| **Proof upload + verification** | Student uploads PDF/DOCX proof (≤ 10 MB, max 5 files); may replace or remove files while the sanction is pending. Staff must **open every file** before **Verify** unlocks; or **Return** with a reason | `case_sanction_files`, `files`, `case_sanctions.status` |
+| **Sanction templates** | Each sanction has a template page (title, description, written requirements) with one downloadable PDF file (PDF only, decision of 2026-10-13). Students download them from the Handbook and from their sanction. Staff manage them under Handbook › Sanction templates | `sanction_templates`, `sanction_template_files` |
+| **Proof upload + verification** | Student uploads PDF proof only (≤ 10 MB, max 5 files; any other file is refused with an error); may replace or remove files while the sanction is pending. Staff must **open every file** before **Verify** unlocks; or **Return** with a reason | `case_sanction_files`, `files`, `case_sanctions.status` |
 | **Gate reports** | Public 3-step web form → API inserts one `disciplinary_cases` row per selected violation directly (no separate table), duplicate guard, then Flow 1 notifies; staff then validate | `disciplinary_cases` (`source='gate'`, `claimed_*`, `submission_ref`) |
 | **Escalation tracking** | Minor offenses roll into a Major case, with a preview shown to staff before they validate | `case_escalations`, `disciplinary_cases.is_escalated` |
 | **Forced password change** | Staff reset creates a temp password; the student must set a new one at the next sign-in | `must_change_password` on both account tables |
 | **Clearance change log** | Mark done, reverse (reason required), add or remove a requirement, all logged | `clearance_history`, `requirements.is_default` |
 | **Appointment lifecycle** | Scheduled → Rescheduled → Completed / Cancelled (reason), each logged and notified. Overlap protection | `appointments`, `appointment_history` |
-| **In-browser file preview** | PDF in an iframe, DOCX rendered with `mammoth` | frontend only |
+| **In-browser file preview** | PDF only, shown in an iframe from the presigned URL (files are PDF only since 2026-10-13) | frontend only |
 
 ---
 
@@ -140,7 +140,7 @@ pending_verification ──return (reason)──▶ returned ──(student re-u
 ```
 - Staff pick the sanction(s) from the ones the handbook allows for that violation and offense number, set a **due date** (flexible), and add optional instructions (`staff_note`).
 - **Offense number (decision 14):** computed by the API when staff open the assign step, never typed: 1 + the count of the same student's earlier cases for the same violation with status `validated`, `for_sanction` or `resolved` (ordered by `case_date`, then id). A converted Major ("3 minor offense") counts against H068, not against the original violation. If a violation has no `handbook_entry_sanctions` row for that offense number, offer the highest defined offense number for it.
-- Student proof rules: PDF/DOCX only, ≤ 10 MB each, max **5** files; allowed while `assigned` or `returned`; while `pending_verification` the student may replace a file or remove one but **not the last one**; if staff already reviewed, those actions are rejected with "already reviewed".
+- Student proof rules: PDF only (decision of 2026-10-13; a wrong extension or content is refused with an error), ≤ 10 MB each, max **5** files; allowed while `assigned` or `returned`; while `pending_verification` the student may replace a file or remove one but **not the last one**; if staff already reviewed, those actions are rejected with "already reviewed".
 - **Online proof only (decision 16).** There is no in-person "record compliance" path: a sanction reaches `pending_verification` only when the student uploads at least one file (`POST /files` is the submission; there is no separate submit call). `case_sanctions.compliance_note` stays in the schema but is unused.
 - **Verify needs at least one file, and is blocked until every file has `date_viewed`** (staff opened it). The UI shows "n of m viewed". A pending sanction with no file cannot be verified, only returned.
 - "Late by N days" is derived from `due_date`, not stored.
@@ -198,7 +198,7 @@ Fields: student ID, name, program, year level; select ≥ 1 violation (picked fr
 
 **Public:** Gate violation form (3 steps + confirmation with reference), as designed in the prototype.
 
-**Cross-cutting UI:** three responsive modes (mobile < 720, rail 720–1100, full sidebar) with bottom tab bar on mobile; confirm modals with required-reason field; toast; loading / empty / error / denied page states; pagination; PDF/DOCX preview.
+**Cross-cutting UI:** three responsive modes (mobile < 720, rail 720–1100, full sidebar) with bottom tab bar on mobile; confirm modals with required-reason field; toast; loading / empty / error / denied page states; pagination; PDF preview (files are PDF only).
 
 ---
 
@@ -217,7 +217,7 @@ Facts from Neon's docs ([overview](https://neon.com/docs/storage/overview), [get
 - **Two buckets, both private and created by the human in Neon (the API never creates buckets):** `STORAGE_BUCKET_FILES` (default name `assets-files`) holds student proof files; `STORAGE_BUCKET_TEMPLATES` (default `assets-sanction-templates`) holds the sanction template files staff upload (build step 8). Templates never fall back to the files bucket. Older spellings `BUCKET_STORAGE_FILES`, `BUCKET_STORAGE` and `STORAGE_BUCKET` are still read for the files bucket.
 
 Suggested flow (keeps files private, needs no bucket CORS):
-1. **Upload (through the API):** the client sends `POST /files` as `multipart/form-data` (sanction id + file). The server validates (mime, ≤ 10 MB, ≤ 5 files, status allows upload; use `multer` with memory storage and a 10 MB limit), checks the first bytes (PDF starts with `%PDF`, DOCX is a ZIP starting with `PK`), uploads to the key `proof/{case_sanction_id}/{uuid}.{ext}`, then inserts `files` + `case_sanction_files` + a timeline entry + notifications in one transaction. If the insert fails, delete the object.
+1. **Upload (through the API):** the client sends `POST /files` as `multipart/form-data` (sanction id + file). The server validates (mime, ≤ 10 MB, ≤ 5 files, status allows upload; use `multer` with memory storage and a 10 MB limit), checks the first bytes (a PDF starts with `%PDF`; anything else is refused), uploads to the key `proof/{case_sanction_id}/{uuid}.{ext}`, then inserts `files` + `case_sanction_files` + a timeline entry + notifications in one transaction. If the insert fails, delete the object.
 2. **Download / preview:** `GET /files/:id/url` returns a **presigned GET URL valid ~60 seconds**, after an authorization check (the owning student, or any staff). Opening it is a normal browser navigation or `<a>`/`<iframe>` load, which does not need CORS. When staff open a proof file, set `date_viewed` and `viewed_by_employee_id`.
 3. **Delete / replace:** delete the object, delete the DB rows, and write a timeline entry. Run a nightly job to remove orphan objects.
 4. Templates use the key `templates/{sanction_id}/{uuid}.{ext}`; any signed-in student can download them.

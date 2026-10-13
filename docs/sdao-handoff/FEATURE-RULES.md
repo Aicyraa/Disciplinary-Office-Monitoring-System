@@ -37,7 +37,7 @@ For each feature: the spec section to read, and the rules that must not be broke
 
 ### 3.6 Sanctions and proof (SPEC 4.3, 6.1)
 - `case_sanctions.status`: `assigned → pending_verification → completed`, with `returned` (reason) looping back. Staff choose only sanctions the handbook allows for that violation and offense number, set a flexible `due_date` (today or later; UI may pre-fill +14 days), and optional `staff_note`.
-- Student proof: PDF/DOCX only, ≤ 10 MB each, max 5 files; allowed while `assigned` or `returned`; while pending verification they may replace or remove a file but never the last one; rejected with "already reviewed" if staff already reviewed.
+- Student proof: PDF only (2026-10-13; a wrong extension or content is refused with an error), ≤ 10 MB each, max 5 files; allowed while `assigned` or `returned`; while pending verification they may replace or remove a file but never the last one; rejected with "already reviewed" if staff already reviewed.
 - **Online proof only (SPEC decision 16):** a sanction reaches `pending_verification` only through a student upload (`POST /files` is the submission). There is no record-compliance path.
 - **Verify needs at least one file and is blocked until staff opened every file** (`date_viewed` set); a pending sanction with no file can only be returned. "Late by N days" is derived, not stored.
 - Verify sets `date_completed` and `verified_by_employee_id`.
@@ -45,10 +45,10 @@ For each feature: the spec section to read, and the rules that must not be broke
 
 ### 3.7 Files and sanction templates (SPEC 6.1)
 - Bytes live in the Neon Object Storage **private** bucket; metadata in `files`. Keys: `proof/{case_sanction_id}/{uuid}.{ext}` and `templates/{sanction_id}/{uuid}.{ext}`.
-- Upload goes **through Express** (`multer`, memory storage, 10 MB limit, check magic bytes: PDF `%PDF`, DOCX `PK`). Do not use browser presigned PUT (bucket CORS unconfirmed). Download via a ~60-second presigned GET after an authorization check (owner student or any staff). Opening a proof as staff sets `date_viewed` / `viewed_by_employee_id`.
+- Upload goes **through Express** (`multer`, memory storage, 10 MB limit, check magic bytes: PDF `%PDF`; anything else is refused). Do not use browser presigned PUT (bucket CORS unconfirmed). Download via a ~60-second presigned GET after an authorization check (owner student or any staff). Opening a proof as staff sets `date_viewed` / `viewed_by_employee_id`.
 - S3 client needs `forcePathStyle: true` and `requestChecksumCalculation: 'WHEN_REQUIRED'`. Env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `STORAGE_BUCKET_FILES` (proof files) and `STORAGE_BUCKET_TEMPLATES` (templates, never a fallback to the files bucket). A storage failure answers 503 `storage_unavailable`.
-- Each sanction has a template page (title, description, written requirements) with **one** downloadable PDF/DOCX; uploading again replaces it and the old object is removed (UI-POLISH-SPEC decision 7). Students download; staff manage them.
-- In-browser preview: PDF in an iframe, DOCX with `mammoth` (frontend only). The bucket returns permissive CORS headers (smoke test, SPEC 11 item 2), so the browser may `fetch` the presigned URL directly; no API proxy route is needed.
+- Each sanction has a template page (title, description, written requirements) with **one** downloadable PDF (PDF only since 2026-10-13); uploading again replaces it and the old object is removed (UI-POLISH-SPEC decision 7). Students download; staff manage them.
+- In-browser preview: PDF in an iframe (frontend only); files are PDF only, so no DOCX rendering. The bucket returns permissive CORS headers (smoke test, SPEC 11 item 2), so the browser may `fetch` the presigned URL directly; no API proxy route is needed.
 
 ### 3.8 Appointments (SPEC 4.5)
 - Staff pick a student, a start date (today … +60 days, not Sunday), purpose, optional notes. `end_date` = start + 5 more working days (Sundays skipped). 7:00 AM–5:00 PM is a UI display, not stored.

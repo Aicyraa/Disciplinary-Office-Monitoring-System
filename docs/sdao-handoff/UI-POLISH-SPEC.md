@@ -20,7 +20,7 @@ Status: **draft for the human to accept** (2026-10-13). This replaces the first 
 2. **No page headers.** The deck never shows a page title block; the breadcrumb in the top bar (`Staff › Cases`) is the title. Almost every built page starts with a `PageHeader` (title + subtitle + action) that is not in the deck.
 3. **Chrome.** Sidebar width, gold right edge, group labels, active state, collapse toggle, full-width content area, bell popover (students only), account details and change password as **modals**, phone "More" as the blue sidebar sliding in from the left.
 4. **Feedback.** Toast is a dark bar at the bottom right (gold check icon, 4.2 s). Modals carry a tone icon, tone-coloured confirm (red, green or blue), custom cancel labels ("Keep reviewing", "Keep open", "Keep it"), a confirm button that stays disabled until a required reason is typed, and turn into bottom sheets on a phone. Copy of nearly every toast and modal differs (catalogue in section 6).
-5. **Files open in place.** The deck previews PDF and DOCX in a modal (with Return / Verify in the footer for staff). The build opens a new browser tab.
+5. **Files open in place.** The deck previews files in a modal (we keep PDF only, D7) (with Return / Verify in the footer for staff). The build opens a new browser tab.
 6. **Forms.** Live student lookup (Record violation, Make appointment), a custom calendar for the appointment window, year-level pills and violation cards on the gate form, inline field errors with an icon and a red border.
 7. **Lists.** Numbered round pager instead of Previous / Next; list and detail panes of equal height that scroll independently; on a phone the panes stack on one page (no "Back to list" link).
 
@@ -31,7 +31,7 @@ Status: **draft for the human to accept** (2026-10-13). This replaces the first 
 - Copy comes verbatim from the source (section 6 and the per-screen tables), adapted only where our data differs (7-digit student IDs, no usernames, no time slots).
 - One slice is one task: tests first for logic, then `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`; Playwright at 390, 900 and 1280 px with the API mocked; the reviewer compares each screen with the slides named in the slice.
 - API rules stay in the API. A UI change never moves a rule into the client.
-- No new dependency without a `DEPENDENCY:` checkpoint. `mammoth` (DOCX preview) is already a client dependency.
+- No new dependency without a `DEPENDENCY:` checkpoint. Files are PDF only (D7), so `mammoth` is no longer needed; removing it is a dependency change and needs a checkpoint too.
 
 ## 4. Shared design system (what to build once)
 
@@ -74,7 +74,7 @@ Status pill colours already match the source; keep `utils/format.ts`.
 | `ListCard`, `GroupHead`, `SelectableRow` | Card radius 12; group head `surface-2`, 8 px coloured dot, uppercase 12/700 + count; row hover `row-hover`, selected `row-selected` + `inset 3px 0 0 primary` (src 573, 2543) | Rows with `bg-primary/10`, no bar, no dot |
 | `DetailTable` | Bordered radius 10, rows of label (104 px, 12/600 muted, not uppercase) then value (14 ink), full-width rows for long values (src 643) | `<dl>` with uppercase labels in every page |
 | `HistoryList` | Rows of date (96 px, 13 muted) then sentence (14 ink) with "by" (12 muted) under it, newest first (src 664) | Left-border timeline with `eventType → status` labels |
-| `FileRow` | 40 px tile (PDF `picture_as_pdf` on `bad-soft`, DOCX `description` on `info-soft`), name 14/600, meta `PDF · 242 KB · Uploaded Oct 7, 2:28 PM`, optional green "Viewed" chip, actions View (secondary pill, `visibility`), Replace (neutral pill, `swap_horiz`), remove (40 px round icon, red hover) (src 706 to 711) | Plain text rows, underline links, small square buttons |
+| `FileRow` | 40 px tile (PDF `picture_as_pdf` on `bad-soft`; files are PDF only, D7), name 14/600, meta `PDF · 242 KB · Uploaded Oct 7, 2:28 PM`, optional green "Viewed" chip, actions View (secondary pill, `visibility`), Replace (neutral pill, `swap_horiz`), remove (40 px round icon, red hover) (src 706 to 711) | Plain text rows, underline links, small square buttons |
 | `Pager` | Centred: round chevron prev / next (34 px, 40 on phone) and numbered round pages, current primary (src 601) | `Pagination`: Previous / "Page n of m · N cases" / Next |
 | `SectionLabel` | `1 · STUDENT`: 12/700 uppercase `.06em` muted (src 745) | none |
 | `EmptyBlock` | Icon 32 px `disabled`, title 600, text 13 muted, centred (src 594) | `EmptyState` (dashed card) |
@@ -87,7 +87,7 @@ Status pill colours already match the source; keep `utils/format.ts`.
 |---|---|---|---|
 | Toast (`src 2086`, `2368`) | Dark bar `#1C2445`, white 14 px, radius 10, pad 12×16; icon `check_circle` gold `#F2D46B` or `error` `#FF8A80`; bottom right 20 px on desktop, full width 16 px gutters above the tab bar on phone; **one at a time**, 4.2 s, `aria-live=polite` | White card with border, centred, up to 3 stacked, 5 s, errors stay until dismissed, close button | Restyle and reposition; keep a dismiss for errors |
 | Confirm modal (`src 1977`, `3430`) | Max 460, pad 24, radius 14; header = 40 px tone icon circle (danger `warning`, ok `task_alt`, primary `help`) + title 20/700 + body muted; optional textarea (label 13/600, placeholder), code block (dashed, monospace 24 px), choice chips; buttons pill 42 px: cancel neutral with a **custom label**, confirm in the tone colour (danger `#B42318`, ok `#2E8B57`, primary); confirm **disabled** (`disabled-bg`, title "Add a reason first") until a required input has text; single-button variant; phone = **bottom sheet** (radius 18 18 0 0, safe-area padding, max 92vh); Escape and backdrop close | No icon, only red or blue confirm, cancel always "Cancel", validates on submit ("Enter a reason."), sheet on phone already | Rebuild per deck |
-| File preview modal (`src 1952`) | Max 980, height min(88vh, 920), full screen on phone; header tile + name + meta + Download icon + Close; body `#E9ECF1`; PDF in an iframe, DOCX converted with mammoth in a sandboxed iframe, "Preparing preview…" spinner, error "This file could not be previewed here. Download it to open it in Word."; staff footer on a pending sanction: hint ("Open the other files before you verify." / "All files viewed. You can verify this sanction.") + Return to student + Verify sanction | Not built (new tab) | New component; see decision D7 for DOCX bytes |
+| File preview modal (`src 1952`) | Max 980, height min(88vh, 920), full screen on phone; header tile + name + meta + Download icon + Close; body `#E9ECF1`; PDF in an iframe (files are PDF only, D7), "Preparing preview…" spinner, error "This file could not be previewed here. Download it instead."; staff footer on a pending sanction: hint ("Open the other files before you verify." / "All files viewed. You can verify this sanction.") + Return to student + Verify sanction | Not built (new tab) | New component (PDF only, D7) |
 | Page states (`src 386 to 422`, W86 to W89) | Loading: spinner + "Loading {Page}…" + grey blocks (3 × 96 px tiles, 2 panels 320 px); Empty: card, `inbox` 40 px, "Nothing here yet" 20/700 + page text; Error: card with red border, `cloud_off` red, "Couldn’t load {Page}", "The server didn’t respond. Nothing was changed. Check your connection and try again.", primary pill "Try again" with `refresh`; No access: `lock` amber, "You don’t have access to {Page}", "Your account role doesn’t include this page. If you think this is a mistake, contact the Student Discipline Office.", secondary pill "Go to dashboard" | Pulse cards; error shows the API message; generic texts | Restyle and use the exact copy; keep the API message as a second line on errors |
 | Unread nudge (`src 2074`) | Student only, after sign-in, 7 s: card top right under the header (340 px), `notifications_active` in an `info-soft` circle, "You have N unread notifications.", small primary pill "Open inbox", close | Bottom card with an underlined "View" link | Restyle and move |
 
@@ -151,6 +151,30 @@ Each table lists only what differs. "Fix" says what the slice changes; "(D#)" po
 | Upcoming appointments | Sub "3 upcoming" / "Nothing scheduled"; row "Paolo Reyes · A-103", "reason · Sat, Oct 10 to Fri, Oct 16", flags "Window open" / "Rescheduled", "Open"; empty "No upcoming appointments." | Status pill instead of Open, no flags | Match |
 | Sanctions | Sub "1 in progress · 1 to verify"; stats In progress / Overdue (red when > 0) / To verify; to-verify rows first, 4 rows: "Maria Santos · S-019", "Community service · Due Oct 20", flags "Overdue" / "Returned", "Verify" / "Open"; empty "No sanctions need attention." | 3 rows, "· N days late" text | Match |
 | Clearance work | Sub "3 students not yet cleared" / "All cleared · 1st Term 2026–2027"; rows "Name · ID", "1 of 4 requirements done" / "Not set up for this term", flag "Not set", "Open"; empty "Every student is cleared this term." | Only set-up clearances, status pill | Match (D3) |
+
+### 5.4b Dashboard items open the record (both dashboards)
+
+Every row on both dashboards is clickable and opens **that record selected on its own page** (deck: `go('cases', { aCase })`, `go('viol', { sCase })`, `go('san', { sSan })`, `go('appt', { aAppt })`, `go('clr', { aClr })`). Use the URL so Back works and the link can be shared.
+
+| Dashboard row | Goes to | Selected item | Filters set on arrival |
+|---|---|---|---|
+| Staff · Reports to validate · "Validate" | `/cases/:id` (first case of the submission) | That case | Status "Needs review" |
+| Staff · Awaiting decision · "Decide" | `/cases/:id` | That case | Status "All cases" (the queue follows the case as it moves, src 2351) |
+| Staff · Sanctions · "Verify" / "Open" | `/cases/:caseId` | The case of that sanction, proof box in view | "All cases" |
+| Staff · Upcoming appointments · "Open" | `/appointments/:id` | That appointment, Details tab | Status "All", Dates "All dates", search cleared |
+| Staff · Clearance work · "Open" | `/clearance/:studentId?term=…` | That student for the current term | Term = current term |
+| Staff · card "View all" | The page with the card's filter: Reports → Cases "Needs review"; Decision → "Awaiting decision"; Sanctions → "Sanction in progress"; Appointments; Clearance (current term) | First row | as listed |
+| Student · Active violations row | `/violations/:id` | That case, Details tab | Class "All", status "All", **page that contains it** (src 3085) |
+| Student · Next appointment card | `/appointments/:id` | That appointment | Tab "Upcoming" |
+| Student · Active sanctions row | `/sanctions/:id` | That sanction | Class "All", status "All" |
+| Student · Clearance "View progress" / Handbook "Read" | `/clearance` / `/handbook` | — | — |
+| Notification (bell, inbox dialog "Open …") | Same rules: case, sanction, appointment or student record selected | | |
+
+Rules: the target list resets filters that would hide the item and jumps to the page that contains it; the detail pane scrolls into view on a phone (D9); a missing or no-longer-visible item shows the page's empty detail ("No case selected" style) instead of an error. Built today: staff buttons go to `/cases/:id` but the queue keeps its default "Needs review" filter and page 1, so the selected case can be missing from the list; student dashboard rows are not clickable; appointment rows have no link.
+
+### 5.4c Pagination (every list)
+
+All long lists use the numbered round `Pager` (4.2) at the bottom of the list card, hidden when everything fits on one page; changing a filter or search resets to page 1; a deep link opens the page that holds the selected item. Page sizes from the source: Cases 6, Students 20 (API), Appointments 5, Clearance students 20 (API), Handbook (student) 6, Handbook violations (staff) all (no pager in the deck; use 20 if needed), Sanction templates all, My violations 5, My sanctions all (short), Inbox 6, Notices all. Dashboard cards are not paged (they show the first 3 to 5 rows and "View all"). Built today: `Pagination` (Previous / Next) on Cases, Students, Clearance and Inbox only; none on Appointments, My violations or the student handbook.
 
 ### 5.5 Staff Cases — W17 to W29, W74, W75, M19 to M32, M85
 
@@ -254,7 +278,7 @@ Each table lists only what differs. "Fix" says what the slice changes; "(D#)" po
 | Page | Own page and nav item "Sanction templates" | Tab of the Handbook page (`?tab=templates`) | Own route |
 | List | "All sanctions" + "1 of 5 have a template or requirements"; chips All / Minor / Major / Posted / Not posted with bubbles; rows: 36 px tile (`task` green = file, `checklist` blue = requirements only, `draft` grey = nothing), title, "Template posted · with requirements" / "Requirements only" / "Nothing posted yet", category pill | No Minor / Major chips, no category pill, no "Requirements only" | Match |
 | Editor head | Kicker "Sanction template", title 22/700, "Minor offense sanction" | "S-001 · description" | Match |
-| File | Box "Template and requirements" + "Students can view and download only" (`folder_managed`); "Template file": none → dashed drop zone "Upload a template" / "PDF or DOCX, up to 10 MB" that **uploads on pick** (spinner "Uploading…", inline error with icon); file → `FileRow` with View (preview), Replace, delete → modal | "Choose file" + "Upload" + "Clear"; "Remove" without confirm | Match |
+| File | Box "Template and requirements" + "Students can view and download only" (`folder_managed`); "Template file": none → dashed drop zone "Upload a template" / "PDF only, up to 10 MB" that **uploads on pick** (spinner "Uploading…", inline error with icon); file → `FileRow` with View (preview), Replace, delete → modal | "Choose file" + "Upload" + "Clear"; "Remove" without confirm | Match |
 | Fields | "Template name" ("Name students will see"), "Short description" ("What this file is for"), "Requirements and instructions" ("Documents, format and how to submit, as set by the SDO") + help "Shown to students when there is no template, or alongside it."; Discard + "Save details" when dirty, else disabled "Saved" | Check labels | Copy |
 | Toasts | "Template uploaded for Violation slip issued by the SDO." / "Template replaced for …" / "Template file removed." / "Saved the template details for …" | Inline notices, "Template saved." | Toasts |
 
@@ -283,17 +307,17 @@ The source has the screen (src 1609 to 1668) though the deck has no slide. Match
 | Table | Desktop column heads "Case / Filed", "Violation", "Status"; 52 px rows: code + date, violation + tag ("Treated as Major" / "Escalated"), pill; phone rows violation + "SDO-2026-016 · Oct 8, 2026" + pill; 5 per page; "No violations match these filters." / "You have no violations on record." | List rows | Match |
 | Detail | Title 22/700, code under; tracker inside a bordered card (32 px circles, 3 px line, 13 px labels); Details / Timeline; rows Case ID, Filed, Handbook (class pill + "Sec. VI.D.3"), Source ("Gate report GI-1045" / "Recorded by SDO staff"), Sanction ("S-021 · Violation slip and a written warning · Due Oct 16" + pill), Remarks | Uppercase labels, no Source, text-only handbook row | Match |
 | Escalation | "This was your 3rd minor violation, so it is treated as a Major offense (Sec. VI.E.20). The handbook still lists it as Minor. Linked cases: …" / "This minor violation counted toward SDO-2025-042, which is treated as Major." | Check | Match |
-| Next step | `info-soft` box "**Next step:** Complete sanction S-021, then upload your proof below as a PDF or DOCX file." (only when the student must act) | Similar, always shown | Match |
+| Next step | `info-soft` box "**Next step:** Complete sanction S-021, then upload your proof below as a PDF file." (only when the student must act) | Similar, always shown | Match |
 | Upload panel head | Box: `upload_file` tile + "Upload proof of completion" 15/700 (sent: "Submitted proof") + "Sanction S-021 · …" (or "Verified by the SDO." / "Sanction S-021 · The SDO is reviewing your files.") + status pill | Grey "Proof of completion" box, separate "Upload your proof" header | Match |
 | Returned | `bad-soft` alert `undo` "Returned by the SDO: …" | Elsewhere | Match |
-| Drop zone | Dashed `#AEB6E3` on `#F7F8FC`, `cloud_upload` 32, "Choose files to upload", "Click to choose or drag files here · PDF or DOCX, up to 10 MB each, 5 files max" (phone "Tap to choose · …") | Close | Restyle |
-| Errors | Inline with icon, other files stay: "photo-of-letter.png is not a PDF or DOCX file." / "… is larger than 10 MB." / "You can upload up to 5 files." / "Keep at least one file for the SDO to review. Use Replace to swap it for another file." / "This sanction was already reviewed, so its files can no longer change." | `checkSelection` messages | Copy |
+| Drop zone | Dashed `#AEB6E3` on `#F7F8FC`, `cloud_upload` 32, "Choose files to upload", "Click to choose or drag files here · PDF only, up to 10 MB each, 5 files max" (phone "Tap to choose · …") | Close | Restyle |
+| Errors | Inline with icon, other files stay: "photo-of-letter.png is not a PDF file." / "… is larger than 10 MB." / "You can upload up to 5 files." / "Keep at least one file for the SDO to review. Use Replace to swap it for another file." / "This sanction was already reviewed, so its files can no longer change." | `checkSelection` messages | Copy |
 | Handbook link | Text button `menu_book` "View this offense in the Handbook" / "View the template for this sanction" | None (template block is on My sanctions) | Add |
 | Chosen files | `FileRow`s with View (preview) and X; meta "PDF · 1 KB · Not submitted yet" | Plain list, "Remove" text | Match |
 | Submit | Full-width 48 px "Submit for verification" / "Resubmit for verification"; disabled "Add a file to submit"; busy spinner "Uploading…" (keep the built percent if wanted inside the button) | "Upload N files", progress bar | Match |
 | Pending / locked | `info` "You can replace or remove files until the SDO verifies them."; `lock` "This sanction is verified. Uploads are closed." / "Submitted Oct 7, 2:28 PM. You can upload again only if the SDO returns it." | Short notes | Copy |
-| Removing a sent file | Modal danger "Remove “parent-acknowledgment.docx”?" / "The SDO will no longer see this file for sanction S-021. Your other files stay submitted." / "Remove file" / "Keep it" | No confirm | Add modal |
-| Toasts | "Proof submitted for S-021." / "Removed {file}." / "Replaced {a} with {b}." / error "Replacement failed. Use a PDF or DOCX file." | Inline notices ("Proof uploaded. The office will review it.") | Toasts |
+| Removing a sent file | Modal danger "Remove “parent-acknowledgment.pdf”?" / "The SDO will no longer see this file for sanction S-021. Your other files stay submitted." / "Remove file" / "Keep it" | No confirm | Add modal |
+| Toasts | "Proof submitted for S-021." / "Removed {file}." / "Replaced {a} with {b}." / error "Replacement failed. Use a PDF file." | Inline notices ("Proof uploaded. The office will review it.") | Toasts |
 | Below | Secondary full-width "Open the sanction" | Same | Keep |
 
 ### 5.16 Student My sanctions — W65 to W67, M76 to M79
@@ -305,7 +329,7 @@ The source has the screen (src 1609 to 1668) though the deck has no slide. Match
 | Table | Column heads "ID", "Sanction", "Due", "Status"; rows "S-022", title + "Case No. SDO-2026-016", "Oct 23, 2026", pill | "S-022 · type" + "case · Due … · N days left" | Match |
 | Detail | Title + code; tracker card (Assigned / In progress / Complied / Verified) with the due line inside: `schedule` "Due October 16, 2026 · 7 days left" (red when "Due today" / "Overdue by N days"; green `verified` "Verified") | Separate grey due line | Match |
 | Details | Rows Sanction ID, Case No., Violation (name + class pill + Sec.), Assigned, Due, Proof ("Not submitted yet" / "2 files submitted · Oct 7"), Officer | Description paragraph only | Match (D15 for Officer) |
-| Notes | `warn-soft` "**Note from the SDO:** …" ("Returned by the SDO" when returned); `info-soft` "**Next step:** …" with the four texts: "Complete this sanction, then upload your proof (PDF or DOCX) from the case in My Violations. The SDO reviews it and updates the status." / "The SDO returned this sanction. Fix what they asked for and upload your proof again from the case in My Violations." / "The SDO is reviewing the proof you uploaded. Nothing to do right now." / "Verified by the SDO. Nothing else to do." | Template block + "Upload proof in My violations" button | Match; keep one link to the case (the deck text points there) |
+| Notes | `warn-soft` "**Note from the SDO:** …" ("Returned by the SDO" when returned); `info-soft` "**Next step:** …" with the four texts: "Complete this sanction, then upload your proof (PDF) from the case in My Violations. The SDO reviews it and updates the status." / "The SDO returned this sanction. Fix what they asked for and upload your proof again from the case in My Violations." / "The SDO is reviewing the proof you uploaded. Nothing to do right now." / "Verified by the SDO. Nothing else to do." | Template block + "Upload proof in My violations" button | Match; keep one link to the case (the deck text points there) |
 | Timeline | Sentences + by | Labels map | `HistoryList` |
 
 ### 5.17 Student Clearance — W79, M89, M90
@@ -389,7 +413,7 @@ The source has the screen (src 1609 to 1668) though the deck has no slide. Match
 | Handbook | "Saved changes to {V}." / "Added {V} to the handbook." |
 | Templates | "Template uploaded for {S}." / "Template replaced for {S}." / "Template file removed." / "Saved the template details for {S}." |
 | Notices | "Notice published to {N} students." / "Notice updated. Students see the new version." / "Notice removed." |
-| Proof (student) | "Proof submitted for {S}." / "Removed {file}." / "Replaced {a} with {b}." / error "Replacement failed. Use a PDF or DOCX file." / error "Replacement failed. The file is over 10 MB." |
+| Proof (student) | "Proof submitted for {S}." / "Removed {file}." / "Replaced {a} with {b}." / error "Replacement failed. Use a PDF file." / error "Replacement failed. The file is over 10 MB." |
 | Inbox | "All notifications marked as read." / "Up to date." |
 | Account | "Password changed." / "Password set. Welcome back." |
 | Dashboard refresh | "Up to date." |
@@ -408,7 +432,7 @@ Each has a recommendation. Nothing here is built until answered.
 | D4 | Dashboard "Reports to validate" shows **one row per gate submission** (all its violations in one line, age, "Will escalate"). | Group in the client from the existing reported-cases response (they carry `submissionRef`); no API change unless paging makes groups incomplete, then add `GET /cases/submissions?status=reported`. |
 | D5 | "HIGH" tag on case rows: reported and at least 1 day old, or Major. | Build as a pure client rule (display only). |
 | D6 | Staff appointment filters: Status, Dates (Today / Next 7 days / Past), On a day. | Add `status`, `range`, `on` query parameters to the staff appointment list (API change + tests). |
-| D7 | In-place file preview. A PDF can show in an iframe from the presigned URL. A DOCX needs its bytes in the browser for `mammoth`, which needs CORS on the bucket (a bucket change, human only) or an API route that streams the file. | Add `GET /files/:id/content` and `GET /sanction-templates/files/:fileId/content` next to the existing `/url` routes (same auth and "viewed" rules, stream from storage); preview both types through them; keep Download on the presigned link. |
+| D7 | **Decided by the human (2026-10-13): PDF only.** Proof files and sanction templates accept PDF only, so every file previews in an iframe from the presigned URL. The API refuses anything that is not a PDF (extension, MIME and the `%PDF` first bytes) with "{file} is not a PDF file."; the client shows the same message inline and keeps the other chosen files. `SPEC.md` (3, 4.3, 6.1, 9) and `FEATURE-RULES.md` 3.6 / 3.7 are updated. Still to do in the build slice: API validation + tests, `accept=".pdf,application/pdf"` on inputs, hint text "PDF only, up to 10 MB each, 5 files max", and removing `mammoth` (a dependency change: checkpoint). Existing DOCX rows on the dev branch stay downloadable but are not previewed. | Done (spec); build in U1 + U10 |
 | D8 | Clearance "Record completion" is one click in the deck; the build asks for optional remarks first. | Follow the deck (one click + toast). The API keeps accepting remarks; the UI simply stops sending them. |
 | D9 | Phone layout: the deck stacks list and detail on one page; the build shows one pane at a time and keeps the selection in the URL. | Stack like the deck **and** keep the URL selection (scroll to the detail on select). |
 | D10 | The deck shows usernames ("jdelacruz") in search placeholders, the Students list and Account details. Our accounts have no username. | Drop "username"; show the school email where the deck shows a username; search accepts email. |
@@ -431,17 +455,17 @@ No in-person "Record compliance", no student statement, no service-hours trackin
 
 | Slice | Covers | Done when |
 |---|---|---|
-| **U0 Tokens and primitives** | 4.1, 4.2 | Tokens in `index.css`; `utils/cn.ts`; `Button`, `Field`/`Select`/`Textarea`, `Alert`, `Chip`/`ChipGroup`, `SegmentedTabs`, `StatTile`, `ClassTile`, `Pill`/`Tag`, `ListCard`/`GroupHead`/`SelectableRow`, `DetailTable`, `HistoryList`, `FileRow`, `Pager`, `SectionLabel`, `EmptyBlock`, `ActionFooter`, `StudentLookup`, each with a test (keyboard, aria, variants). Old `buttonClass`/`fieldClass` kept until the last page moves, then removed. |
-| **U1 Feedback** | 4.3 | Toast, ConfirmModal v2 (tone, custom cancel, disabled until reason, code block, sheet), page states with exact copy, nudge; FilePreview modal once D7 is answered. Tests for focus trap, Escape, timing. |
+| **U0 Tokens and primitives** | 4.1, 4.2 | Tokens in `index.css`; `utils/cn.ts`; `Button`, `Field`/`Select`/`Textarea`, `Alert`, `Chip`/`ChipGroup`, `SegmentedTabs`, `StatTile`, `ClassTile`, `Pill`/`Tag`, `ListCard`/`GroupHead`/`SelectableRow`, `DetailTable`, `HistoryList`, `FileRow`, `Pager` (with "go to the page that holds item X", 5.4c), `SectionLabel`, `EmptyBlock`, `ActionFooter`, `StudentLookup`, each with a test (keyboard, aria, variants). Old `buttonClass`/`fieldClass` kept until the last page moves, then removed. |
+| **U1 Feedback** | 4.3 | Toast, ConfirmModal v2 (tone, custom cancel, disabled until reason, code block, sheet), page states with exact copy, nudge; FilePreview modal (PDF iframe, D7). Tests for focus trap, Escape, timing. |
 | **U2 Chrome** | 5.1, 5.10 | Sidebar, collapse, top bar, bell popover, account menu, Account and Password modals, phone header, tab bar, left drawer, full-width main, MasterDetail v2; no `PageHeader` on any app page (breadcrumb only); nav icons and labels. |
 | **U3 Public** | 5.2, 5.3 | Sign-in, set a new password (D1), gate form (D2). |
-| **U4 Staff dashboard** | 5.4 | Layout, cards, rows, copy (D3, D4). |
+| **U4 Staff dashboard** | 5.4, 5.4b | Layout, cards, rows, copy (D3, D4); every row opens its record selected (5.4b). |
 | **U5 Cases and Record violation** | 5.5, 5.6 | Queue, workspace, footers, preview use, Resolve modal, copy; Record violation page and the C### bug. |
 | **U6 Students** | 5.7 | List, record, tile tabs, lists, reset flow. |
 | **U7 Appointments** | 5.8 | Filters (D6), detail, Make / Edit form with the calendar and review. |
 | **U8 Staff Clearance** | 5.9 | Term chips, all-students list (D3), detail, direct completion (D8), history. |
 | **U9 Handbook and templates (staff)** | 5.11, 5.12 | Violations page, Add violation, Sanction templates page and route, per-offense selects (D13). |
-| **U10 Student record pages** | 5.14, 5.15, 5.16 | Dashboard, My violations with the new upload panel (D14), My sanctions (D15). |
+| **U10 Student record pages** | 5.14, 5.15, 5.16, 5.4b | Dashboard with clickable rows that open the record selected (5.4b), My violations with the new upload panel (D14, PDF only D7), My sanctions (D15). |
 | **U11 Student info pages** | 5.17, 5.18, 5.19, 5.20 | Clearance, Appointments, Inbox and message dialog, Handbook. |
 | **U12 Notices** | 5.13 | Master-detail notices page. |
 | **U13 Final pass** | all | No raw hex in `.tsx`; copy audit against section 6; three widths for every screen; keyboard pass; delete unused components (`Kpi`, `RowItem`, per-page `Tile`, old `Pagination`). |
