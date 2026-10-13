@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/api/src/server.js",
   "scripts": {
-    "test": "npm --prefix .. test -- api/src",
+    "test": "npm --prefix .. test -- api/tests",
     "lint": "npm --prefix .. run lint --",
     "typecheck": "tsc --noEmit",
     "build": "tsc",

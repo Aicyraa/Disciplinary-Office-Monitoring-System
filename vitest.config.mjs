@@ -4,6 +4,6 @@ export default defineConfig({
   envDir: false,
   test: {
     environment: 'node',
-    include: ['api/src/**/*.test.ts', 'client/src/**/*.test.{ts,tsx}'],
+    include: ['api/tests/**/*.test.ts', 'client/src/**/*.test.{ts,tsx}'],
   },
 });
