@@ -270,6 +270,7 @@ POST /staff/students/:studentId/reset-password                (staff: one-time t
 GET  /me/profile                                              (student: own account details)
 GET  /me/clearance/slip?academic_year=&semester=              (student: slip data; 409 `not_cleared` until the term is cleared)
 GET  /clearances?status=&q=&page=   GET /clearances/:id   POST /clearances (studentId, academicYear, semester)
+GET  /clearances/terms   GET /clearances/terms/:year/:semester/students?q=&page=   (staff: current term + terms with clearances; every active student of a term with their clearance or "Not set"; UI-POLISH-SPEC D3. Current term is assumed Aug-Nov 1st, Dec-Mar 2nd, Apr-Jul 3rd until item 8.3 is confirmed)
 POST /clearances/:id/requirements (label)   DELETE /clearances/:id/requirements/:rid
 POST /clearances/:id/requirements/:rid/complete (remarks) | /reverse (reason)   GET /me/clearance (student)
 #   A clearance always keeps at least one requirement (the last cannot be removed).

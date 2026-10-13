@@ -1,9 +1,10 @@
 import { Router, type Response } from 'express';
-import type { AuthUser, StaffClearanceView } from '@shared/types.js';
+import type { AuthUser, ClearanceRosterResponse, ClearanceTermsResponse, StaffClearanceView } from '@shared/types.js';
 import { requireStaff } from '../middleware/auth.js';
 import { STUDENT_ID_PATTERN } from '../domain/auth/policy.js';
 import { sendError, sendOk } from '../lib/http.js';
-import { CLEARANCE_PAGE_SIZE, type ClearanceQueries, type ClearanceRow } from '../repositories/clearance/queries.js';
+import { CLEARANCE_PAGE_SIZE, ROSTER_PAGE_SIZE, type ClearanceQueries, type ClearanceRow } from '../repositories/clearance/queries.js';
+import { currentTerm, termList } from '../domain/clearance/term.js';
 import { NO_ACTIVE_VIOLATIONS_LABEL } from '../domain/clearance/rules.js';
 import type { ClearanceFailure, ClearanceFailureCode, ClearanceService } from '../services/clearance.service.js';
 import { parseId } from '../lib/params.js';
@@ -11,6 +12,8 @@ import { parseId } from '../lib/params.js';
 export interface ClearanceRouterOptions {
   service: ClearanceService;
   queries: ClearanceQueries;
+  /** Injected so tests control "today" (the current term). */
+  now?: () => Date;
 }
 
 const HTTP_STATUS: Record<ClearanceFailureCode, number> = {
@@ -61,9 +64,38 @@ export function toStaffClearanceView(row: ClearanceRow): StaffClearanceView {
  * marked by hand: nothing here reads cases or sanctions to decide anything (the open-case count only feeds the
  * warning hint).
  */
-export function createClearanceRouter({ service, queries }: ClearanceRouterOptions): Router {
+export function createClearanceRouter({ service, queries, now = () => new Date() }: ClearanceRouterOptions): Router {
   const router = Router();
   router.use('/clearances', ...requireStaff);
+
+  // UI-POLISH-SPEC D3. Registered before `/clearances/:id` so "terms" is never read as an id.
+  router.get('/clearances/terms', async (_request, response) => {
+    const current = currentTerm(now());
+    const body: ClearanceTermsResponse = { current, terms: termList(current, await queries.termsWithClearances()) };
+    sendOk(response, body);
+  });
+
+  router.get('/clearances/terms/:year/:semester/students', async (request, response) => {
+    const { year, semester } = request.params;
+    const { q, page } = request.query;
+    if (!/^\d{4}$/.test(String(year)) || !/^[1-3]$/.test(String(semester))) {
+      sendError(response, 400, 'invalid_input', 'The term is a four-digit start year and a term number from 1 to 3.');
+      return;
+    }
+    if (page !== undefined && !(typeof page === 'string' && /^[1-9]\d{0,5}$/.test(page))) {
+      sendError(response, 400, 'invalid_input', 'page must be a positive whole number.');
+      return;
+    }
+    if (q !== undefined && (typeof q !== 'string' || q.length > 100)) {
+      sendError(response, 400, 'invalid_input', 'q must be text up to 100 characters.');
+      return;
+    }
+    const term = { academicYear: Number(year), semester: Number(semester) };
+    const pageNumber = page === undefined ? 1 : Number(page);
+    const { rows, total, notCleared } = await queries.roster({ ...term, q: typeof q === 'string' ? q : undefined, page: pageNumber });
+    const body: ClearanceRosterResponse = { term, students: rows, total, page: pageNumber, pageSize: ROSTER_PAGE_SIZE, notCleared };
+    sendOk(response, body);
+  });
 
   router.get('/clearances', async (request, response) => {
     const { status, q, page } = request.query;

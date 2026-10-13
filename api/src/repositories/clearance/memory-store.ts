@@ -1,4 +1,4 @@
-import { CLEARANCE_PAGE_SIZE, type ClearanceQueries, type ClearanceRow } from './queries.js';
+import { CLEARANCE_PAGE_SIZE, ROSTER_PAGE_SIZE, type ClearanceQueries, type ClearanceRow } from './queries.js';
 import type {
   ClearanceHistoryInput,
   ClearanceNotificationInput,
@@ -61,7 +61,12 @@ export function createMemoryClearanceStore(seed: Partial<MemoryClearanceState> =
 /** Staff-side reads over the same fake data. Names come from the maps given here. */
 export function createMemoryClearanceQueries(
   store: MemoryClearanceStore,
-  names: { students?: Record<string, string>; staff?: Record<string, string> } = {},
+  names: {
+    students?: Record<string, string>;
+    staff?: Record<string, string>;
+    /** Program and year level per student, for the term roster. */
+    profiles?: Record<string, { program: string; yearLevel: number }>;
+  } = {},
 ): ClearanceQueries {
   const staffName = (id: string) => names.staff?.[id] ?? id;
   const toRow = (record: ClearanceRecord): ClearanceRow => ({
@@ -98,6 +103,44 @@ export function createMemoryClearanceQueries(
     async get(clearanceId) {
       const found = store.state.clearances.find((c) => c.clearanceId === clearanceId);
       return found ? toRow(found) : null;
+    },
+    async roster({ academicYear, semester, q, page }) {
+      const forTerm = (studentId: string) =>
+        store.state.clearances.find((c) => c.studentId === studentId && c.academicYear === academicYear && c.semester === semester);
+      const all = store.state.students
+        .map((studentId) => {
+          const clearance = forTerm(studentId);
+          const profile = names.profiles?.[studentId];
+          return {
+            studentId,
+            name: names.students?.[studentId] ?? studentId,
+            program: profile?.program ?? '',
+            yearLevel: profile?.yearLevel ?? 0,
+            clearance: clearance
+              ? {
+                  id: clearance.clearanceId,
+                  status: clearance.status,
+                  done: clearance.items.filter((item) => item.status === 'completed').length,
+                  total: clearance.items.length,
+                }
+              : null,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const needle = q?.trim().toLowerCase();
+      const matching = all.filter((row) => !needle || row.studentId.toLowerCase().includes(needle) || row.name.toLowerCase().includes(needle));
+      return {
+        rows: matching.slice((page - 1) * ROSTER_PAGE_SIZE, page * ROSTER_PAGE_SIZE),
+        total: matching.length,
+        notCleared: all.filter((row) => row.clearance?.status !== 'cleared').length,
+      };
+    },
+    async termsWithClearances() {
+      const keys = new Set(store.state.clearances.map((c) => `${c.academicYear}-${c.semester}`));
+      return [...keys].map((key) => {
+        const [academicYear, semester] = key.split('-').map(Number);
+        return { academicYear, semester };
+      });
     },
   };
 }

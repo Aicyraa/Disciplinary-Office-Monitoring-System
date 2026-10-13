@@ -369,6 +369,31 @@ export type StaffClearanceListResponse = {
   pageSize: number;
 };
 
+/** A school term: `academicYear` is the start year (2026 = 2026-2027), `semester` 1 to 3 ("1st Term"). */
+export type TermRef = { academicYear: number; semester: number };
+
+/** `GET /clearances/terms` (UI-POLISH-SPEC D3): the current term and every term that has clearances. */
+export type ClearanceTermsResponse = { current: TermRef; terms: TermRef[] };
+
+/** One student of a term on the staff Clearance list; `clearance` is null while it is not set up ("Not set"). */
+export type ClearanceRosterRow = {
+  studentId: string;
+  name: string;
+  program: string;
+  yearLevel: number;
+  clearance: { id: number; status: 'pending' | 'cleared'; done: number; total: number } | null;
+};
+
+/** `GET /clearances/terms/:year/:semester/students`. `notCleared` counts every active student, before the search. */
+export type ClearanceRosterResponse = {
+  term: TermRef;
+  students: ClearanceRosterRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  notCleared: number;
+};
+
 export type ClearanceTermView = {
   academicYear: number;
   semester: number;

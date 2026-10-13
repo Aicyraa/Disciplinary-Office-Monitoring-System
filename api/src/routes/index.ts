@@ -66,7 +66,7 @@ export function registerDataRoutes(app: Express, data: DataDeps, sessionSecret: 
   if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));
   if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
   if (data.appointments) app.use(createAppointmentRouter({ ...data.appointments, now: data.now }));
-  if (data.clearance) app.use(createClearanceRouter(data.clearance));
+  if (data.clearance) app.use(createClearanceRouter({ ...data.clearance, now: data.now }));
   if (data.notices) app.use(createNoticeRouter({ ...data.notices, now: data.now }));
   if (data.notifications) app.use(createNotificationsRouter({ store: data.notifications.inbox }));
 }
