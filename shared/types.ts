@@ -305,7 +305,8 @@ export type StaffAppointmentView = {
   id: number;
   /** Display code, `A-104`. */
   code: string;
-  student: { id: string; name: string };
+  /** Program and year for the "BSIT · 3rd Year" line; null when unknown. */
+  student: { id: string; name: string; program: string | null; yearLevel: number | null };
   startDate: string;
   endDate: string;
   purpose: string;
@@ -324,6 +325,10 @@ export type StaffAppointmentListResponse = {
   total: number;
   page: number;
   pageSize: number;
+  /** Matches per group: "UPCOMING 3" and "PAST AND CLOSED 2". */
+  counts: { upcoming: number; closed: number };
+  /** Every appointment per status (the status menu counts the whole office). */
+  statusCounts: Record<AppointmentStatus, number>;
 };
 
 /** One row of a clearance's change log (SPEC 4.4). */

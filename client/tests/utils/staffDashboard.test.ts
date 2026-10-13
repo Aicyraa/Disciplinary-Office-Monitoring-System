@@ -89,7 +89,7 @@ describe('appointmentRow (src 2839)', () => {
   const appt = (over: Partial<StaffAppointmentView>): StaffAppointmentView => ({
     id: 4,
     code: 'A-104',
-    student: { id: '2023-1001230', name: 'Juan Dela Cruz' },
+    student: { id: '2023-1001230', name: 'Juan Dela Cruz', program: 'BSIT', yearLevel: 3 },
     startDate: '2026-10-12',
     endDate: '2026-10-17',
     purpose: 'Hand in the signed letter.',

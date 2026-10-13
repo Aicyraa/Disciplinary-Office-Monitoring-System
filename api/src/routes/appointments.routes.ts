@@ -1,11 +1,17 @@
 import { Router, type Response } from 'express';
-import type { AuthUser, StaffAppointmentView } from '@shared/types.js';
+import type { AppointmentStatus, AuthUser, StaffAppointmentView } from '@shared/types.js';
 import { requireStaff } from '../middleware/auth.js';
 import { displayCode } from '../domain/codes.js';
 import { STUDENT_ID_PATTERN } from '../domain/auth/policy.js';
 import { sendError, sendOk } from '../lib/http.js';
 import { manilaToday } from '../views/me.views.js';
-import { APPOINTMENT_PAGE_SIZE, type AppointmentQueries, type AppointmentRow } from '../repositories/appointments/queries.js';
+import {
+  APPOINTMENT_PAGE_SIZE,
+  type AppointmentQueries,
+  type AppointmentRange,
+  type AppointmentRow,
+} from '../repositories/appointments/queries.js';
+import { isRealDate } from '../domain/appointments/window.js';
 import type { AppointmentFailure, AppointmentFailureCode, AppointmentService } from '../services/appointments.service.js';
 import { parseId } from '../lib/params.js';
 
@@ -25,6 +31,8 @@ const HTTP_STATUS: Record<AppointmentFailureCode, number> = {
   appointment_overlap: 409,
 };
 
+const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = ['scheduled', 'rescheduled', 'completed', 'cancelled'];
+
 const staffId = (request: { user?: unknown }): string => (request.user as AuthUser).id;
 
 function sendFailure(response: Response, failure: AppointmentFailure): void {
@@ -36,7 +44,7 @@ export function toStaffAppointmentView(row: AppointmentRow, today: string): Staf
   return {
     id: row.appointmentId,
     code: displayCode('A', row.appointmentId),
-    student: { id: row.studentId, name: row.studentName },
+    student: { id: row.studentId, name: row.studentName, program: row.studentProgram, yearLevel: row.studentYearLevel },
     startDate: row.startDate,
     endDate: row.endDate,
     purpose: row.purpose,
@@ -65,9 +73,9 @@ export function createAppointmentRouter({ service, queries, now = () => new Date
   router.use('/appointments', ...requireStaff);
 
   router.get('/appointments', async (request, response) => {
-    const { bucket, q, page } = request.query;
-    if (bucket !== undefined && bucket !== 'upcoming' && bucket !== 'history') {
-      sendError(response, 400, 'invalid_input', 'bucket must be upcoming or history.');
+    const { bucket, q, page, status, range, on, focus } = request.query;
+    if (bucket !== undefined && bucket !== 'upcoming' && bucket !== 'history' && bucket !== 'all') {
+      sendError(response, 400, 'invalid_input', 'bucket must be upcoming, history or all.');
       return;
     }
     if (page !== undefined && !(typeof page === 'string' && /^[1-9]\d{0,5}$/.test(page))) {
@@ -78,19 +86,40 @@ export function createAppointmentRouter({ service, queries, now = () => new Date
       sendError(response, 400, 'invalid_input', 'q must be text up to 100 characters.');
       return;
     }
+    if (status !== undefined && !APPOINTMENT_STATUSES.includes(status as AppointmentStatus)) {
+      sendError(response, 400, 'invalid_input', 'Unknown status.');
+      return;
+    }
+    if (range !== undefined && range !== 'today' && range !== 'week' && range !== 'past') {
+      sendError(response, 400, 'invalid_input', 'range must be today, week or past.');
+      return;
+    }
+    if (on !== undefined && !(typeof on === 'string' && isRealDate(on))) {
+      sendError(response, 400, 'invalid_input', 'on must be a date, YYYY-MM-DD.');
+      return;
+    }
+    if (focus !== undefined && !(typeof focus === 'string' && /^[1-9]\d{0,9}$/.test(focus))) {
+      sendError(response, 400, 'invalid_input', 'focus must be an appointment id.');
+      return;
+    }
     const today = manilaToday(now());
-    const pageNumber = page === undefined ? 1 : Number(page);
-    const { rows, total } = await queries.list({
-      bucket: bucket === 'history' ? 'history' : 'upcoming',
+    const result = await queries.list({
+      bucket: bucket === 'history' || bucket === 'all' ? bucket : 'upcoming',
       q: typeof q === 'string' ? q : undefined,
-      page: pageNumber,
+      status: status as AppointmentStatus | undefined,
+      range: range as AppointmentRange | undefined,
+      on: typeof on === 'string' ? on : undefined,
+      page: page === undefined ? 1 : Number(page),
+      focus: focus === undefined ? undefined : Number(focus),
       today,
     });
     sendOk(response, {
-      appointments: rows.map((row) => toStaffAppointmentView(row, today)),
-      total,
-      page: pageNumber,
+      appointments: result.rows.map((row) => toStaffAppointmentView(row, today)),
+      total: result.total,
+      page: result.page,
       pageSize: APPOINTMENT_PAGE_SIZE,
+      counts: result.counts,
+      statusCounts: result.statusCounts,
     });
   });
 

@@ -1,6 +1,14 @@
 import type { Prisma, PrismaClient } from '../../../generated/prisma/client.js';
 import type { AppointmentStatus } from '@shared/types.js';
-import { APPOINTMENT_PAGE_SIZE, type AppointmentListFilter, type AppointmentQueries, type AppointmentRow } from './queries.js';
+import {
+  appointmentIdFromCode,
+  emptyAppointmentCounts,
+  matchesAppointmentFilter,
+  pageAppointments,
+  type AppointmentListFilter,
+  type AppointmentQueries,
+  type AppointmentRow,
+} from './queries.js';
 import type { AppointmentEventType, AppointmentRecord, AppointmentStore, AppointmentTx } from '../../types/appointments.types.js';
 
 const LIVE = ['scheduled', 'rescheduled'];
@@ -126,13 +134,14 @@ export function createPrismaAppointmentStore(prisma: Pick<PrismaClient, '$transa
 const nameOnly = { select: { first_name: true, last_name: true } } as const;
 
 const withNames = {
-  student_accounts: nameOnly,
+  // Name, program and year only: never the password hash.
+  student_accounts: { select: { first_name: true, last_name: true, year_level: true, programs: { select: { program_name: true } } } },
   employee_accounts: nameOnly,
   appointment_history: { orderBy: { appointment_history_id: 'asc' }, include: { employee_accounts: nameOnly } },
 } as const;
 
 type FullRow = Row & {
-  student_accounts: { first_name: string; last_name: string };
+  student_accounts: { first_name: string; last_name: string; year_level: number; programs: { program_name: string } };
   employee_accounts: { first_name: string; last_name: string };
   appointment_history: Array<{
     event_type: string;
@@ -148,6 +157,8 @@ function toRow(row: FullRow): AppointmentRow {
   return {
     ...toRecord(row),
     studentName: fullName(row.student_accounts),
+    studentProgram: row.student_accounts.programs.program_name,
+    studentYearLevel: row.student_accounts.year_level,
     assignedByName: fullName(row.employee_accounts),
     history: row.appointment_history.map((entry) => ({
       eventType: entry.event_type as AppointmentEventType,
@@ -158,41 +169,56 @@ function toRow(row: FullRow): AppointmentRow {
   };
 }
 
+/** Status and search in the database; bucket and dates are matched on the keys (`matchesAppointmentFilter`). */
 function listWhere(filter: AppointmentListFilter): Prisma.appointmentsWhereInput {
-  const todayDate = toDate(filter.today);
-  const upcoming: Prisma.appointmentsWhereInput = { status: { in: LIVE }, end_date: { gte: todayDate } };
-  const and: Prisma.appointmentsWhereInput[] = [filter.bucket === 'upcoming' ? upcoming : { NOT: upcoming }];
+  const and: Prisma.appointmentsWhereInput[] = [];
+  if (filter.status) and.push({ status: filter.status });
   const needle = filter.q?.trim();
   if (needle) {
     const contains = { contains: needle, mode: 'insensitive' as const };
+    const codeId = appointmentIdFromCode(needle);
     and.push({
       OR: [
+        ...(codeId === null ? [] : [{ appointment_id: codeId }]),
         { student_id: contains },
         { purpose: contains },
         { student_accounts: { OR: [{ first_name: contains }, { last_name: contains }] } },
       ],
     });
   }
-  return { AND: and };
+  return and.length > 0 ? { AND: and } : {};
 }
 
 /** Prisma-backed staff reads. Staff are one department and see every appointment. */
 export function createPrismaAppointmentQueries(db: Pick<PrismaClient, 'appointments'>): AppointmentQueries {
   return {
     async list(filter) {
-      const where = listWhere(filter);
-      const direction = filter.bucket === 'upcoming' ? 'asc' : 'desc';
-      const [rows, total] = await Promise.all([
+      // One office's appointments stay small: read the keys, filter and order them here, then load one page.
+      const [keys, grouped] = await Promise.all([
         db.appointments.findMany({
-          where,
-          include: withNames,
-          orderBy: [{ start_date: direction }, { appointment_id: direction }],
-          skip: (filter.page - 1) * APPOINTMENT_PAGE_SIZE,
-          take: APPOINTMENT_PAGE_SIZE,
+          where: listWhere(filter),
+          select: { appointment_id: true, status: true, start_date: true, end_date: true },
         }),
-        db.appointments.count({ where }),
+        db.appointments.groupBy({ by: ['status'], _count: { _all: true } }),
       ]);
-      return { rows: rows.map((row) => toRow(row as unknown as FullRow)), total };
+      const statusCounts = emptyAppointmentCounts();
+      for (const group of grouped) {
+        if (group.status in statusCounts) statusCounts[group.status as AppointmentStatus] = group._count._all;
+      }
+      const matching = keys
+        .map((k) => ({ id: k.appointment_id, status: k.status as AppointmentStatus, startDate: asDay(k.start_date), endDate: asDay(k.end_date) }))
+        .filter((k) => matchesAppointmentFilter(k, filter));
+      const { page, pageKeys, total, counts } = pageAppointments(matching, filter);
+      const ids = pageKeys.map((k) => k.id);
+      const loaded = await db.appointments.findMany({ where: { appointment_id: { in: ids } }, include: withNames });
+      const byId = new Map(loaded.map((row) => [row.appointment_id, row]));
+      return {
+        rows: ids.flatMap((id) => (byId.has(id) ? [toRow(byId.get(id) as unknown as FullRow)] : [])),
+        total,
+        page,
+        counts,
+        statusCounts,
+      };
     },
     async get(appointmentId) {
       const row = await db.appointments.findUnique({ where: { appointment_id: appointmentId }, include: withNames });

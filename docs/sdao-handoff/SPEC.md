@@ -157,7 +157,7 @@ pending_verification ──return (reason)──▶ returned ──(student re-u
 - The database rejects overlapping live (`scheduled`/`rescheduled`) windows for the same student.
 - Changing the start date → `rescheduled`; staff can mark `completed` or `cancelled` (reason required). All logged in `appointment_history` and notified.
 - **No reminders (decision 17).** The student is notified only when staff set, move, edit, complete or cancel an appointment (keys `appt:<id>:new`, `appt:<id>:rescheduled:<ms>`, `appt:<id>:remarks:<ms>`, `appt:<id>:completed`, `appt:<id>:cancelled`). Students have no actions on appointments. There are no holidays: only Sundays are skipped.
-- Staff routes: `GET /appointments?bucket=upcoming|history&q=&page=` (10 per page), `POST /appointments`, `PATCH /appointments/:id` (only `startDate`, `purpose`, `notes` are read; a new `startDate` = `rescheduled`, text-only = `remarks_updated`), `POST /appointments/:id/complete`, `POST /appointments/:id/cancel`. The end date is always computed by the API.
+- Staff routes: `GET /appointments?bucket=upcoming|history|all&q=&status=&range=today|week|past&on=YYYY-MM-DD&page=&focus=` (5 per page; `all` lists upcoming first, then past and closed, with group and status counts; `q` also matches `A-104`; UI-POLISH-SPEC D6), `POST /appointments`, `PATCH /appointments/:id` (only `startDate`, `purpose`, `notes` are read; a new `startDate` = `rescheduled`, text-only = `remarks_updated`), `POST /appointments/:id/complete`, `POST /appointments/:id/cancel`. The end date is always computed by the API.
 
 ### 4.6 Notifications
 - Helper: `notify({recipient, kind, title, message, link, idempotencyKey})`. If `idempotency_key` already exists, do nothing. Example keys: `san:12:completed`, `case:7:resolved`, `appt:3:new`.
@@ -275,7 +275,7 @@ GET  /clearances/terms   GET /clearances/terms/:year/:semester/students?q=&page=
 POST /clearances/:id/requirements (label)   DELETE /clearances/:id/requirements/:rid
 POST /clearances/:id/requirements/:rid/complete (remarks) | /reverse (reason)   GET /me/clearance (student)
 #   A clearance always keeps at least one requirement (the last cannot be removed).
-GET  /appointments?bucket=&q=&page=   GET /appointments/:id   POST /appointments   PATCH /appointments/:id
+GET  /appointments?bucket=&q=&status=&range=&on=&page=&focus=   GET /appointments/:id   POST /appointments   PATCH /appointments/:id
 POST /appointments/:id/complete | /cancel        GET /me/appointments (student)
 GET  /notices   POST /notices   PATCH /notices/:id   DELETE /notices/:id    (staff: important notices; students read them in the inbox)
 GET  /me/notifications   POST /me/notifications/:id/read | /read-all
