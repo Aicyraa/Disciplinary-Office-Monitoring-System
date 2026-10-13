@@ -4,6 +4,7 @@ import type { AccountRole, NotificationLinkType } from '@shared/types.js';
  * The page a notification points to (`link_type` + `link_id`), as an app path. One mapping serves the inbox and
  * the email link, so they can never disagree. Returns null when there is nothing sensible to open.
  *
+ * Each link opens that record selected (UI-POLISH-SPEC 5.4b).
  * Students and staff have different screens for the same thing: a case is /violations/:id for the student and
  * /cases/:id for staff. A sanction has no page of its own for staff (it lives on the case page), so staff
  * notifications about sanctions are stored as case links by the code that writes them.
@@ -21,9 +22,9 @@ export function linkPath(
       case 'case':
         return id === null ? '/violations' : `/violations/${id}`;
       case 'sanction':
-        return '/sanctions';
+        return id === null ? '/sanctions' : `/sanctions/${id}`;
       case 'appointment':
-        return '/appointments';
+        return id === null ? '/appointments' : `/appointments/${id}`;
       case 'clearance':
         return '/clearance';
       case 'inbox':
@@ -35,7 +36,10 @@ export function linkPath(
 
   switch (linkType) {
     case 'case':
-      return id === null ? '/cases' : `/cases/${id}`;
+      // "All cases", so the case shows whatever stage it reached since (UI-POLISH-SPEC 5.4b).
+      return id === null ? '/cases' : `/cases/${id}?queue=all`;
+    case 'appointment':
+      return id === null ? '/appointments' : `/appointments/${id}`;
     case 'inbox':
       return '/inbox';
     case 'sanction':

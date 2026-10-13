@@ -94,7 +94,7 @@ describe('student inbox', () => {
     expect(response.body.data.notifications.map((n: { id: number }) => n.id)).toEqual([3, 2, 1]);
     const byId = (id: number) => response.body.data.notifications.find((n: { id: number }) => n.id === id);
     expect(byId(1).href).toBe('/violations/1');
-    expect(byId(2).href).toBe('/sanctions');
+    expect(byId(2).href).toBe('/sanctions/9');
     expect(JSON.stringify(response.body)).not.toContain('B only');
   });
 
@@ -163,7 +163,7 @@ describe('staff shared inbox', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.notifications.map((n: { id: number }) => n.id)).toEqual([6, 5]);
     expect(response.body.data.unreadCount).toBe(1);
-    expect(response.body.data.notifications.find((n: { id: number }) => n.id === 5).href).toBe('/cases/12');
+    expect(response.body.data.notifications.find((n: { id: number }) => n.id === 5).href).toBe('/cases/12?queue=all');
     expect(JSON.stringify(response.body)).not.toContain('B only');
   });
 
