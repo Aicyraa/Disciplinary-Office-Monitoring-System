@@ -13,11 +13,11 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          'border-transparent bg-primary text-white hover:bg-primary-hover active:bg-primary-press aria-busy:bg-primary-busy',
+          'border-transparent bg-primary text-white hover:bg-primary-hover active:bg-primary-press aria-busy:bg-primary-busy aria-busy:text-white',
         secondary: 'border-primary bg-white text-primary hover:bg-primary-tint',
         neutral: 'border-line-strong bg-white text-ink hover:bg-page',
         danger: 'border-danger-strong bg-white text-danger-strong hover:bg-danger-soft',
-        success: 'border-transparent bg-success-strong text-white hover:brightness-95',
+        success: 'border-transparent bg-success-strong text-white hover:brightness-95 aria-busy:bg-success-strong aria-busy:text-white',
         gold: 'border-gold-line bg-gold text-ink hover:bg-gold-hover',
         text: 'border-transparent bg-transparent text-primary hover:bg-info-soft',
       },

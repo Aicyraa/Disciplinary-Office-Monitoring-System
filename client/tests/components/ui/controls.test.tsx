@@ -40,6 +40,11 @@ test('busy Button locks, shows the busy label and a spinner', () => {
   expect(out).toContain('animate-spin');
 });
 
+test('busy filled Buttons keep white text and spinner over the disabled look', () => {
+  expect(html(createElement(Button, { busy: true }, 'Save'))).toContain('aria-busy:text-white');
+  expect(html(createElement(Button, { busy: true, variant: 'success' }, 'Save'))).toContain('aria-busy:text-white');
+});
+
 test('busy Button says Saving… by default', () => {
   expect(html(createElement(Button, { busy: true }, 'Save'))).toContain('Saving…');
 });
