@@ -4,7 +4,6 @@ import { AuthProvider, useAuth, type AuthState } from '@/context/AuthContext';
 import { Shell } from '@/components/layout/Shell';
 import { LoadingState } from '@/components/ui';
 import { ToastProvider } from '@/components/feedback';
-import { AccountDetailsPage } from '@/pages/account/AccountDetails';
 import { AppointmentsPage } from '@/pages/student/Appointments';
 import ChangePassword from '@/pages/account/ChangePassword';
 import { ClearancePage, ClearanceSlipPage } from '@/pages/student/Clearance';
@@ -85,8 +84,9 @@ function AppRoutes() {
           <Route path="handbook" element={<HandbookPage />} />
           <Route path="handbook/:id" element={<HandbookPage />} />
           <Route path="inbox" element={<InboxPage />} />
-          <Route path="account" element={<AccountDetailsPage />} />
-          <Route path="account/password" element={<ChangePassword />} />
+          {/* Account details and Change password are dialogs (UI-POLISH-SPEC 5.10); the old addresses open them. */}
+          <Route path="account" element={<Navigate to="/" replace state={{ account: 'details' }} />} />
+          <Route path="account/password" element={<Navigate to="/" replace state={{ account: 'password' }} />} />
           <Route path="appointments" element={<AppointmentsRoute />} />
           <Route path="appointments/:id" element={<AppointmentsRoute />} />
           <Route path="clearance" element={<ClearanceRoute />} />

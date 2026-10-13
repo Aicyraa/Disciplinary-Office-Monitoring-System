@@ -53,6 +53,8 @@
   --color-disabled-ink: #6b7480;
   --color-skeleton: #e6eaee;
   --color-scrim: rgba(16, 22, 52, 0.5);
+  /* Unread rows and selected class tiles (src 1320, 2956). */
+  --color-tint-soft: #f5f7fb;
   /* Error icon on the dark toast (src 3527). */
   --color-toast-error: #ff8a80;
   /* Behind a file in the preview modal (src 1961). */
