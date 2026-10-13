@@ -51,7 +51,7 @@ export function NotificationList({
                   <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-white">New</span>
                 )}
               </div>
-              <p className="mt-0.5 text-sm break-words">{notification.message}</p>
+              <p className="mt-0.5 text-sm break-words whitespace-pre-line">{notification.message}</p>
               <p className="mt-1 text-xs text-muted">{formatDateTime(notification.dateCreated)}</p>
             </div>
             {onView ? (

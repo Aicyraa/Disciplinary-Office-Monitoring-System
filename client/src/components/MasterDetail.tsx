@@ -21,8 +21,8 @@ export function MasterDetail({ list, detail, emptyDetail, backTo, backLabel = 'B
   const hasDetail = detail !== null;
   return (
     <div className="grid gap-4 rail:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]">
-      <div className={hasDetail ? 'hidden rail:block' : ''}>{list}</div>
-      <div className={hasDetail ? '' : 'hidden rail:block'}>
+      <div className={`min-w-0 ${hasDetail ? 'hidden rail:block' : ''}`}>{list}</div>
+      <div className={`min-w-0 ${hasDetail ? '' : 'hidden rail:block'}`}>
         {hasDetail ? (
           <>
             <Link

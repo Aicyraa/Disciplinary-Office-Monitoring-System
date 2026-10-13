@@ -47,7 +47,11 @@ export function createNoticeService({ store, now = () => new Date() }: { store: 
     let expiresOn: string | null = null;
     if (input.expiresOn !== undefined && input.expiresOn !== null && input.expiresOn !== '') {
       const raw = input.expiresOn;
-      if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw) || Number.isNaN(Date.parse(`${raw}T00:00:00Z`))) {
+      if (
+        typeof raw !== 'string' ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(raw) ||
+        new Date(`${raw}T00:00:00Z`).toISOString().slice(0, 10) !== raw
+      ) {
         return fail('invalid_input', 'The expiry date must look like 2026-10-31.');
       }
       if (raw < manilaToday(now())) return fail('invalid_input', 'The expiry date cannot be in the past.');

@@ -30,7 +30,8 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 function StudentList({ selectedId }: { selectedId: string | null }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
-  const list = useApi(() => api.students({ q: query.trim() || undefined }), [query]);
+  const [page, setPage] = useState(1);
+  const list = useApi(() => api.students({ q: query.trim() || undefined, page }), [query, page]);
   // Students with a sanction waiting for verification: one staff queue call, grouped by student here.
   const queue = useApi(() => api.sanctionQueue({ filter: 'pending_verification' }), []);
   const toVerify = useMemo(
@@ -52,7 +53,10 @@ function StudentList({ selectedId }: { selectedId: string | null }) {
           <input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setPage(1);
+              setQuery(event.target.value);
+            }}
             placeholder="Name or student ID"
             className={`${fieldClass} min-h-11 pl-10`}
           />
@@ -103,6 +107,17 @@ function StudentList({ selectedId }: { selectedId: string | null }) {
           </li>
         ))}
       </ul>
+      {list.status === 'ready' && list.data.total > list.data.pageSize ? (
+        <nav className="flex items-center justify-between gap-2 border-t border-line p-3 text-sm" aria-label="Pagination">
+          <button type="button" className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            Previous
+          </button>
+          <span className="text-muted">Page {page} of {Math.ceil(list.data.total / list.data.pageSize)}</span>
+          <button type="button" className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50" disabled={page >= Math.ceil(list.data.total / list.data.pageSize)} onClick={() => setPage(page + 1)}>
+            Next
+          </button>
+        </nav>
+      ) : null}
     </section>
   );
 }

@@ -99,7 +99,7 @@ function build(kind: NotificationKind): Builder {
       html_body:
         `<p>${greeting}</p>` +
         `<p>${escapeHtml(intro)}</p>` +
-        `<p><strong>${escapeHtml(input.title)}</strong><br>${escapeHtml(input.message)}</p>` +
+        `<p><strong>${escapeHtml(input.title)}</strong><br>${escapeHtml(input.message).replace(/\r?\n/g, '<br>')}</p>` +
         link +
         '<p style="color:#5B6576;font-size:12px">NU Fairview Student Discipline Office. This is an automatic message; do not reply.</p>',
       link_url: href,

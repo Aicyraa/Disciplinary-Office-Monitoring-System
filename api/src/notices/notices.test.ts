@@ -67,6 +67,7 @@ describe('POST /notices', () => {
     ['text that is not text', { title: 5, message: 'Text' }],
     ['an expiry in the past', { title: 'T', message: 'Text', expiresOn: '2026-10-11' }],
     ['an expiry that is not a date', { title: 'T', message: 'Text', expiresOn: 'tomorrow' }],
+    ['an expiry on a day that does not exist', { title: 'T', message: 'Text', expiresOn: '2026-02-31' }],
   ])('refuses %s and writes nothing', async (_label, body) => {
     const staff = await signedInAgent(build(), STAFF.email);
     const response = await staff.post('/notices').send(body);
