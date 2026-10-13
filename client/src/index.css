@@ -16,6 +16,42 @@
   --color-danger: #b42318;
   --color-success: #1e6b3e;
 
+  /* UI-POLISH-SPEC 4.1: the extra shades the design deck uses. */
+  --color-primary-hover: #2a3376;
+  --color-primary-press: #20285e;
+  --color-primary-busy: #4a5498;
+  --color-primary-tint: #f0f2fa;
+  --color-surface-2: #f7f9fa;
+  --color-line-soft: #eef1f4;
+  --color-row-hover: #eef1f9;
+  --color-row-selected: #e8ebf7;
+  --color-info-soft: #e8ebf7;
+  --color-info-ink: #2b347a;
+  --color-danger-soft: #fceeee;
+  --color-danger-line: #f1c9c9;
+  --color-danger-ink: #8e1f17;
+  --color-danger-strong: #c0392b;
+  --color-bad-soft: #f7e6e6;
+  --color-bad-ink: #9b2c2c;
+  --color-warn-soft: #fef6d8;
+  --color-warn-ink: #7a5a00;
+  --color-amber-soft: #fce9c6;
+  --color-amber-ink: #7a4600;
+  --color-pending-soft: #fdf3d3;
+  --color-success-strong: #2e8b57;
+  --color-success-soft: #e2f3e8;
+  --color-success-line: #cde9d7;
+  --color-neutral-soft: #eceef1;
+  --color-neutral-ink: #4a5260;
+  --color-gold-line: #ddbb4a;
+  --color-gold-hover: #e8c75a;
+  --color-muted-2: #7b8592;
+  --color-disabled: #9aa6b2;
+  --color-disabled-bg: #eef1f4;
+  --color-disabled-ink: #6b7480;
+  --color-skeleton: #e6eaee;
+  --color-scrim: rgba(16, 22, 52, 0.5);
+
   /* Responsive modes: bottom tab bar under 720, icon rail 720-1100, full sidebar above. */
   --breakpoint-rail: 720px;
   --breakpoint-full: 1100px;
@@ -58,6 +94,21 @@ body {
   :focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
+  }
+
+  /* UI-POLISH-SPEC 4.2b: Tailwind v4 resets buttons to the default cursor; everything clickable shows a pointer. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  label[for],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
   }
 }
 

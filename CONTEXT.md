@@ -816,3 +816,20 @@ HUMAN CHECK: after `add-notices.sql`, run `SELECT pg_get_constraintdef(oid) FROM
 **Config touched (human authorized by the request):** root `package.json` lint paths, `api/package.json` and `client/package.json` test filters, `vitest.config.mjs`, `api/tsconfig.json`, `client/tsconfig.json`, `client/vite.config.ts`.
 
 ### Review (reviewer fills this)
+
+
+
+
+---
+
+## ui-polish-build / U0 Tokens and primitives (UI-POLISH-SPEC 4.1, 4.2, 4.2b, section 8) branch worktree-ui-polish-build
+
+**Dev**
+- Changed: `client/src/index.css` (33 colour tokens of 4.1 plus `primary-tint` `#F0F2FA` and `danger-strong` `#C0392B`, which the deck's hover and danger-outline states need; `scrim`; base-layer pointer / not-allowed cursor rules, 4.2b). `utils/cn.ts` (clsx + tailwind-merge), `utils/pager.ts` (`pageCount`, `clampPage`, `pageHolding` = page that holds item X, `pagerItems`), `utils/tabKeys.ts` (arrow / Home / End).
+- New in `components/ui/` (one file each, `cva` + `cn`): `Button`, `Field` (+ `FieldShell`), `Select`, `Textarea`, `Alert`, `Chip`, `ChipGroup`, `SegmentedTabs` (+ `handleTabKeys`), `StatTile`, `ClassTile`, `Pill`, `Tag`, `HighTag`, `ListCard`, `GroupHead`, `SelectableRow`, `DetailTable`, `HistoryList`, `FileRow`, `Pager`, `SectionLabel`, `EmptyBlock`, `ActionFooter`, `StudentLookup`. `FileRow` View is a button (no link, no new tab). Old `buttonClass`, `fieldClass`, `StatusPill`, `EmptyState` in `ui/index.tsx` untouched until the last page moves (U13).
+- Tests added (red first against stubs, failing on assertions, then green): `client/tests/utils/{cn,pager,tabKeys}.test.ts`, `client/tests/styles/tokens.test.ts` (every token + cursor rules), `client/tests/components/ui/{controls,selection,display}.test.tsx` (variants, aria, roving tabindex, busy / disabled, error wiring, hover and pointer classes, no `target="_blank"`). 203 tests across these 7 files.
+- Libraries checked in Context7: class-variance-authority (`cva`, `VariantProps`, compound variants), tailwind-merge (`twMerge`, custom theme extension; none needed because token names fall into the default colour group), React (`useId`, static rendering).
+- Commands: `npm test` 72 files / 1185 passed; `npm run lint` clean; `npm run typecheck` clean (api + client); `npm run build` exit 0 (known Vite config-loader and 500 kB warnings). Serena diagnostics on `Button.tsx`: none.
+- Decisions: `ClassTile` selected background is `surface-2` (the deck's `#F5F7FB` has no token in 4.1). Keyboard behaviour is split into pure `nextTabIndex` (tested) and a thin DOM handler `handleTabKeys`; the test environment is `node` with no DOM library, so the focus move itself is not exercised. Sizes named `sm 34 / md 42 / lg 44 / xl 48 / xxl 50`.
+- Not verified: no screen mounts these primitives yet (first use is U1 onward), so Playwright at 390 / 900 / 1280 was not run; real focus movement on arrow keys and the 3 px focus ring and hover colours are untested in a browser. Skills `tailwind-design-system` and friends were not loaded for this slice; the build follows the spec tables directly.
+- Not done (outside U0): `ui/index.tsx` re-exports (no consumers yet), removal of `buttonClass` / `fieldClass`.
