@@ -81,6 +81,12 @@ Status pill colours already match the source; keep `utils/format.ts`.
 | `ActionFooter` | Full-bleed band at the bottom of a detail card: `surface-2`, top border, pad 16×24 (src 679) | `bg-page/60` band (close) |
 | `StudentLookup` | Input + live result line: green `person_check` "Name · BSIT 3rd Year" or red `error` "No student found with that ID." (src 748 to 754) | none |
 
+### 4.2b Interaction rules (every slice; added by the human 2026-10-13)
+
+- **Every clickable thing shows it is clickable.** `cursor: pointer` on every button, link, chip, row, tile, label-as-button and file input label (Tailwind v4 resets buttons to `cursor: default`, so add `button:not(:disabled), [role="button"], label[for] { cursor: pointer }` to the base layer of `index.css`); `cursor: not-allowed` on disabled ones; plus a visible hover colour on each.
+- **Upload controls react on hover** (source values): drop zone `cursor: pointer`, background `#F7F8FC` → `#EEF0FA`, dashed border `#AEB6E3` → primary, and the same look while a file is dragged over it; "View" pill hover `#F0F2FA`; "Replace" pill hover `#F2F5F5`; remove (X / delete) icon hover background `#FCEEEE` and icon red; "Submit for verification" hover `#2A3376`, press `#20285E`; disabled submit keeps `not-allowed` and no hover change. The same applies to the template upload on Sanction templates. A test checks the pointer cursor and hover classes on the drop zone and file-row buttons.
+- **Files are reviewed inside the system, never in another tab.** "View", "View template" and staff proof "View" open the File preview modal (4.3) over the current page; nothing calls `window.open` or uses `target="_blank"`. Only the explicit "Download" action saves the file. Remove the current `window.open` code in `components/sanctions/ProofPanel.tsx`, `pages/staff/Sanctions.tsx` and `components/templates/TemplateDownloads.tsx`; a test asserts no new tab is opened.
+
 ### 4.3 Feedback (one implementation each)
 
 | Piece | Deck | Built | Change |
@@ -456,7 +462,7 @@ No in-person "Record compliance", no student statement, no service-hours trackin
 | Slice | Covers | Done when |
 |---|---|---|
 | **U0 Tokens and primitives** | 4.1, 4.2 | Tokens in `index.css`; `utils/cn.ts`; `Button`, `Field`/`Select`/`Textarea`, `Alert`, `Chip`/`ChipGroup`, `SegmentedTabs`, `StatTile`, `ClassTile`, `Pill`/`Tag`, `ListCard`/`GroupHead`/`SelectableRow`, `DetailTable`, `HistoryList`, `FileRow`, `Pager` (with "go to the page that holds item X", 5.4c), `SectionLabel`, `EmptyBlock`, `ActionFooter`, `StudentLookup`, each with a test (keyboard, aria, variants). Old `buttonClass`/`fieldClass` kept until the last page moves, then removed. |
-| **U1 Feedback** | 4.3 | Toast, ConfirmModal v2 (tone, custom cancel, disabled until reason, code block, sheet), page states with exact copy, nudge; FilePreview modal (PDF iframe, D7). Tests for focus trap, Escape, timing. |
+| **U1 Feedback** | 4.2b, 4.3 | Toast, ConfirmModal v2 (tone, custom cancel, disabled until reason, code block, sheet), page states with exact copy, nudge; FilePreview modal (PDF iframe, D7). Tests for focus trap, Escape, timing. |
 | **U2 Chrome** | 5.1, 5.10 | Sidebar, collapse, top bar, bell popover, account menu, Account and Password modals, phone header, tab bar, left drawer, full-width main, MasterDetail v2; no `PageHeader` on any app page (breadcrumb only); nav icons and labels. |
 | **U3 Public** | 5.2, 5.3 | Sign-in, set a new password (D1), gate form (D2). |
 | **U4 Staff dashboard** | 5.4, 5.4b | Layout, cards, rows, copy (D3, D4); every row opens its record selected (5.4b). |
