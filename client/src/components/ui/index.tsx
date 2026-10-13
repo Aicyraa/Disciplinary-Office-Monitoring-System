@@ -18,7 +18,30 @@ export function StatusPill({ status, label, kind }: { status: string; label?: st
   );
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+/**
+ * Inside the app the breadcrumb is the page title (deck: no page header), so the heading is for screen readers
+ * only and the subtitle is dropped; actions stay until each screen's slice moves them. `visible` is for the
+ * screens outside the app frame.
+ */
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+  visible = false,
+}: {
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+  visible?: boolean;
+}) {
+  if (!visible) {
+    return (
+      <>
+        <h1 className="sr-only">{title}</h1>
+        {actions ? <div className="mb-4 flex flex-wrap justify-end gap-2">{actions}</div> : null}
+      </>
+    );
+  }
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>

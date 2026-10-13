@@ -278,6 +278,8 @@ export function StudentsPage() {
     <>
       <PageHeader title="Students" subtitle="Look up a student, review their record or reset their password." />
       <MasterDetail
+        ratio="students"
+        detailKey={id}
         list={<StudentList selectedId={id ?? null} />}
         detail={id ? <StudentRecord key={id} studentId={id} /> : null}
         emptyDetail={<EmptyState title="Select a student" hint="Their cases, sanctions and clearance appear here." />}

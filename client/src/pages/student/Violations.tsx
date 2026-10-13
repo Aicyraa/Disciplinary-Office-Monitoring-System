@@ -234,6 +234,8 @@ export function ViolationsPage() {
               })()}
             </div>
             <MasterDetail
+              ratio="student"
+              detailKey={caseId}
               list={<CaseList cases={resource.data.cases} selectedId={caseId} />}
               detail={caseId === null ? null : <SelectedCase key={caseId} caseId={caseId} onChanged={resource.reload} />}
               emptyDetail={<EmptyState title="Select a violation" hint="Its progress, details and any sanction appear here." />}

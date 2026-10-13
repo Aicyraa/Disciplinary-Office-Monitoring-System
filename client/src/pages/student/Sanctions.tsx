@@ -215,6 +215,8 @@ export function SanctionsPage() {
               <Tile label="Major offense" value={resource.data.sanctions.filter((s) => s.severity === 'Major').length} accent="bg-danger" />
             </div>
             <MasterDetail
+              ratio="student"
+              detailKey={selectedId}
               list={<SanctionList sanctions={resource.data.sanctions} selectedId={selectedId} />}
               detail={(() => {
                 if (selectedId === null) return null;

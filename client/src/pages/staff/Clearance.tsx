@@ -489,6 +489,8 @@ export function StaffClearancePage() {
         />
       ) : null}
       <MasterDetail
+        ratio="clearance"
+        detailKey={selectedId}
         list={<ClearanceQueue selectedId={selectedId} reloadRef={reloadQueue} />}
         detail={selectedId === null ? null : <SelectedClearance key={selectedId} clearanceId={selectedId} onChanged={() => reloadQueue.current?.()} />}
         emptyDetail={<EmptyState title="Select a student" hint="Their requirements and activity history appear here." />}

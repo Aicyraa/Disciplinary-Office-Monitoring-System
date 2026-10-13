@@ -324,6 +324,8 @@ export function TemplatesTab({ isStaff }: { isStaff: boolean }) {
 
   return (
     <MasterDetail
+      ratio="handbook"
+      detailKey={selectedId}
       list={<TemplateList templates={templates} selectedId={selectedId} />}
       detail={
         selectedId === null ? null : selected ? (

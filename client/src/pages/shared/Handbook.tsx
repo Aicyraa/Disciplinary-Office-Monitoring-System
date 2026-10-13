@@ -236,6 +236,8 @@ export function HandbookPage() {
         <ErrorState message={resource.error.message} onRetry={resource.reload} />
       ) : (
         <MasterDetail
+          ratio="handbook"
+          detailKey={selectedId}
           list={<EntryList entries={resource.data.entries} selectedId={selectedId} isStaff={isStaff} />}
           detail={(() => {
             if (selectedId === null) return null;

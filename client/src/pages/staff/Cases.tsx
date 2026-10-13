@@ -193,6 +193,8 @@ export function CasesPage() {
         }
       />
       <MasterDetail
+        ratio="cases"
+        detailKey={caseId}
         list={<CaseQueue selectedId={caseId} reloadRef={reloadQueue} />}
         detail={caseId === null ? null : <CaseWorkspace key={caseId} caseId={caseId} onChanged={() => reloadQueue.current?.()} />}
         emptyDetail={<EmptyState title="Select a case" hint="Open a report from the queue to validate it or follow its sanction." />}

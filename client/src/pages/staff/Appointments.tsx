@@ -486,6 +486,8 @@ export function StaffAppointmentsPage() {
         }
       />
       <MasterDetail
+        ratio="appointments"
+        detailKey={selectedId}
         list={<AppointmentQueue selectedId={selectedId} reloadRef={reloadQueue} />}
         detail={selectedId === null ? null : <SelectedAppointment key={selectedId} appointmentId={selectedId} onChanged={() => reloadQueue.current?.()} />}
         emptyDetail={<EmptyState title="Select an appointment" hint="Complete, reschedule or cancel it here." />}

@@ -47,6 +47,7 @@ export default function ChangePassword() {
   return (
     <div className="mx-auto max-w-md px-4 py-10">
       <PageHeader
+        visible
         title="Change your password"
         subtitle={forced ? 'You must set a new password before you can continue.' : undefined}
       />
