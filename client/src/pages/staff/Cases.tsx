@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import type { CaseStatus, Severity, StaffCaseRow } from '@shared/types';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { EmptyState, ErrorState, Icon, LoadingState, PageHeader, StatusPill, buttonClass, fieldClass } from '@/components/ui';
+import { Pagination } from '@/components/ui/Pagination';
 import { api } from '@/api/client';
 import { STATUS_ORDER, groupCases, statusOption } from '@/utils/caseView';
 import { formatDate } from '@/utils/format';
@@ -165,39 +166,11 @@ function CaseQueue({ selectedId, reloadRef }: { selectedId: number | null; reloa
                 </ul>
               </div>
             ))}
-            <Pagination page={page} total={resource.data.total} pageSize={resource.data.pageSize} onPage={setPage} />
+            <Pagination page={page} total={resource.data.total} pageSize={resource.data.pageSize} onPage={setPage} noun="cases" />
           </>
         )
       ) : null}
     </section>
-  );
-}
-
-function Pagination({ page, total, pageSize, onPage }: { page: number; total: number; pageSize: number; onPage: (page: number) => void }) {
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-  if (pages === 1) return null;
-  return (
-    <nav className="flex items-center justify-between gap-2 border-t border-line p-3 text-sm" aria-label="Pagination">
-      <button
-        type="button"
-        className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50"
-        disabled={page <= 1}
-        onClick={() => onPage(page - 1)}
-      >
-        Previous
-      </button>
-      <span className="text-muted">
-        Page {page} of {pages} · {total} cases
-      </span>
-      <button
-        type="button"
-        className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50"
-        disabled={page >= pages}
-        onClick={() => onPage(page + 1)}
-      >
-        Next
-      </button>
-    </nav>
   );
 }
 

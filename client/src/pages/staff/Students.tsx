@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { StaffStudentRow } from '@shared/types';
 import { ConfirmModal, useToast } from '@/components/feedback';
+import { Pagination } from '@/components/ui/Pagination';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { EmptyState, ErrorState, Icon, LoadingState, PageHeader, Resource, StatusPill, fieldClass } from '@/components/ui';
 import { api, toApiError } from '@/api/client';
@@ -107,16 +108,8 @@ function StudentList({ selectedId }: { selectedId: string | null }) {
           </li>
         ))}
       </ul>
-      {list.status === 'ready' && list.data.total > list.data.pageSize ? (
-        <nav className="flex items-center justify-between gap-2 border-t border-line p-3 text-sm" aria-label="Pagination">
-          <button type="button" className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-            Previous
-          </button>
-          <span className="text-muted">Page {page} of {Math.ceil(list.data.total / list.data.pageSize)}</span>
-          <button type="button" className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50" disabled={page >= Math.ceil(list.data.total / list.data.pageSize)} onClick={() => setPage(page + 1)}>
-            Next
-          </button>
-        </nav>
+      {list.status === 'ready' ? (
+        <Pagination page={page} total={list.data.total} pageSize={list.data.pageSize} onPage={setPage} noun="students" />
       ) : null}
     </section>
   );

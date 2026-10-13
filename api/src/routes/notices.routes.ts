@@ -5,6 +5,7 @@ import { sendError, sendOk } from '../lib/http.js';
 import { manilaToday } from '../views/me.views.js';
 import type { NoticeFailure, NoticeService } from '../services/notices.service.js';
 import type { NoticeStore } from '../types/notices.types.js';
+import { parseId } from '../lib/params.js';
 
 export interface NoticeRouterOptions {
   service: NoticeService;
@@ -14,7 +15,6 @@ export interface NoticeRouterOptions {
   now?: () => Date;
 }
 
-const parseId = (value: string): number | null => (/^\d{1,9}$/.test(value) ? Number(value) : null);
 
 function sendFailure(response: Response, failure: NoticeFailure): void {
   sendError(response, failure.code === 'not_found' ? 404 : 400, failure.code, failure.message);

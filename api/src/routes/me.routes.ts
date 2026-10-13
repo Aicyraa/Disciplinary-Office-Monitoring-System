@@ -14,13 +14,13 @@ import {
   toSanctionView,
   toSlipView,
 } from '../views/me.views.js';
+import { parseId } from '../lib/params.js';
 
 export interface MeRouterOptions {
   repo: StudentViewRepo;
   now?: () => Date;
 }
 
-const parseId = (value: string): number | null => (/^\d{1,9}$/.test(value) ? Number(value) : null);
 
 /**
  * `/me/*`: a student's own data, read-only (SPEC 7). The student id always comes from the session, never

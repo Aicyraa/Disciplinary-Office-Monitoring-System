@@ -6,6 +6,7 @@ import { STUDENT_ID_PATTERN } from '../domain/auth/policy.js';
 import { manilaToday } from '../views/me.views.js';
 import { CASE_PAGE_SIZE, type CaseQueries } from '../repositories/cases/queries.js';
 import type { CaseFailure, CaseFailureCode, CaseService } from '../services/cases.service.js';
+import { parseId } from '../lib/params.js';
 
 export interface CaseRouterOptions {
   service: CaseService;
@@ -31,7 +32,6 @@ const HTTP_STATUS: Record<CaseFailureCode, number> = {
   sanctions_incomplete: 409,
 };
 
-const parseId = (value: string): number | null => (/^\d{1,9}$/.test(value) ? Number(value) : null);
 const staffId = (request: { user?: unknown }): string => (request.user as AuthUser).id;
 
 function sendFailure(response: Response, failure: CaseFailure): void {

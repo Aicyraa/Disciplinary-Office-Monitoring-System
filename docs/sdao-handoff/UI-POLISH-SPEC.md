@@ -106,7 +106,7 @@ Decisions are the human's answers of 2026-10-13. "Open" rows are built only afte
 | 9 | Dashboard: **Will escalate** chip, Last checked and refresh, Overdue | None | **Build all three** (2026-10-13) |
 | 10 | Badges: Cases = reports needing review; Students = sanctions to verify; Inbox = unread | Only the bell | Built with P3b |
 | 11 | Sign-in form hint about the NU email domain | API validates the account | Client copy only; the API stays the authority |
-| 12 | **Staff accounts may use a student-domain address** (the demo admin) | The role came from the address domain | **Built (2026-10-13):** the role is the table the address is found in; both NU domains still required (`api/src/auth/service.ts`, SPEC 4.8) |
+| 12 | **Staff accounts may use a student-domain address** (the demo admin) | The role came from the address domain | **Built (2026-10-13):** the role is the table the address is found in; both NU domains still required (`api/src/services/auth.service.ts`, SPEC 4.8) |
 | 13 | **Student records page for staff** (list, record pane, reset password) | Missing | **Build** (P4): `GET /students`, `GET /students/:id`, reset uses the existing route |
 | 14 | **Account details** (read-only) and voluntary change password | Missing | **Build** (P0): `GET /me/profile` with name, student ID, email, program, year level |
 | 15 | **Fidelity target** | Old prototype | **Settled:** screens = `SDO_Portal_UI.pptx`, logic and copy = `sdo-portal.source.html`, order = this SPEC (SPEC decision 18) |

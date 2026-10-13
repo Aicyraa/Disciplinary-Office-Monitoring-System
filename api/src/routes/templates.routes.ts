@@ -8,6 +8,7 @@ import { sendError, sendOk } from '../lib/http.js';
 import type { TemplateReader } from '../repositories/templates/reader.js';
 import { FILES_PER_TEMPLATE, type TemplateFailure, type TemplateFailureCode, type TemplateService } from '../services/templates.service.js';
 import type { TemplateRecord } from '../types/templates.types.js';
+import { parseId } from '../lib/params.js';
 
 export interface TemplateRouterOptions {
   service: TemplateService;
@@ -24,7 +25,6 @@ const HTTP_STATUS: Record<TemplateFailureCode, number> = {
   not_found: 404,
 };
 
-const parseId = (value: unknown): number | null => (typeof value === 'string' && /^\d{1,9}$/.test(value) ? Number(value) : null);
 const user = (request: Request): AuthUser => request.user as AuthUser;
 
 function sendFailure(response: Response, failure: TemplateFailure): void {

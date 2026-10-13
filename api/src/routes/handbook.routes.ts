@@ -5,6 +5,7 @@ import { requireAuth, requirePasswordChanged, requireStaff } from '../middleware
 import { sendError, sendOk } from '../lib/http.js';
 import type { HandbookAdminFailure, HandbookAdminFailureCode, HandbookAdminService } from '../services/handbook-admin.service.js';
 import type { HandbookEntryRecord, HandbookRepo } from '../repositories/handbook/repo.js';
+import { parseId } from '../lib/params.js';
 
 export function toHandbookEntryView(record: HandbookEntryRecord): HandbookEntryView {
   return {
@@ -32,7 +33,6 @@ export function toHandbookEntryView(record: HandbookEntryRecord): HandbookEntryV
 /** FEATURE-RULES 3.2: system entries (V068 / H068 "3 minor offense") are hidden from every handbook list. */
 export const isVisibleInHandbook = (record: HandbookEntryRecord): boolean => !record.violation.isSystem;
 
-const parseId = (value: string): number | null => (/^\d{1,9}$/.test(value) ? Number(value) : null);
 
 const ADMIN_STATUS: Record<HandbookAdminFailureCode, number> = {
   invalid_input: 400,

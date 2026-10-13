@@ -6,6 +6,7 @@ import { sendError, sendOk } from '../lib/http.js';
 import { CLEARANCE_PAGE_SIZE, type ClearanceQueries, type ClearanceRow } from '../repositories/clearance/queries.js';
 import { NO_ACTIVE_VIOLATIONS_LABEL } from '../domain/clearance/rules.js';
 import type { ClearanceFailure, ClearanceFailureCode, ClearanceService } from '../services/clearance.service.js';
+import { parseId } from '../lib/params.js';
 
 export interface ClearanceRouterOptions {
   service: ClearanceService;
@@ -21,7 +22,6 @@ const HTTP_STATUS: Record<ClearanceFailureCode, number> = {
   requirement_exists: 409,
 };
 
-const parseId = (value: string): number | null => (/^\d{1,9}$/.test(value) ? Number(value) : null);
 const staffId = (request: { user?: unknown }): string => (request.user as AuthUser).id;
 
 function sendFailure(response: Response, failure: ClearanceFailure): void {

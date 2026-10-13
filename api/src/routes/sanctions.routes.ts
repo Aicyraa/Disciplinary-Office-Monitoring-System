@@ -6,6 +6,7 @@ import { sendError, sendOk } from '../lib/http.js';
 import { MAX_FILE_BYTES, MAX_FILES_PER_SANCTION } from '../domain/files/validate.js';
 import { manilaToday } from '../views/me.views.js';
 import type { SanctionFailure, SanctionFailureCode, SanctionService } from '../services/sanctions.service.js';
+import { parseId } from '../lib/params.js';
 
 export interface SanctionRouterOptions {
   service: SanctionService;
@@ -30,7 +31,6 @@ const HTTP_STATUS: Record<SanctionFailureCode, number> = {
   files_not_viewed: 409,
 };
 
-const parseId = (value: unknown): number | null => (typeof value === 'string' && /^\d{1,9}$/.test(value) ? Number(value) : null);
 const user = (request: Request): AuthUser => request.user as AuthUser;
 
 function sendFailure(response: Response, failure: SanctionFailure): void {

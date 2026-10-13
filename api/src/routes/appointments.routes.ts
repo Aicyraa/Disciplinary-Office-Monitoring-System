@@ -7,6 +7,7 @@ import { sendError, sendOk } from '../lib/http.js';
 import { manilaToday } from '../views/me.views.js';
 import { APPOINTMENT_PAGE_SIZE, type AppointmentQueries, type AppointmentRow } from '../repositories/appointments/queries.js';
 import type { AppointmentFailure, AppointmentFailureCode, AppointmentService } from '../services/appointments.service.js';
+import { parseId } from '../lib/params.js';
 
 export interface AppointmentRouterOptions {
   service: AppointmentService;
@@ -24,7 +25,6 @@ const HTTP_STATUS: Record<AppointmentFailureCode, number> = {
   appointment_overlap: 409,
 };
 
-const parseId = (value: string): number | null => (/^\d{1,9}$/.test(value) ? Number(value) : null);
 const staffId = (request: { user?: unknown }): string => (request.user as AuthUser).id;
 
 function sendFailure(response: Response, failure: AppointmentFailure): void {

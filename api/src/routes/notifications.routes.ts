@@ -3,11 +3,11 @@ import type { NotificationListResponse } from '@shared/types.js';
 import { requireStaff, requireStudent } from '../middleware/auth.js';
 import { sendError, sendOk } from '../lib/http.js';
 import { toNotificationView, type Audience, type InboxStore } from '../services/notifications/inbox.js';
+import { parseId } from '../lib/params.js';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
-const parseId = (value: unknown): number | null => (typeof value === 'string' && /^\d{1,9}$/.test(value) ? Number(value) : null);
 
 /**
  * Inbox routes (SPEC 7). Students read `/me/notifications` (their own rows). Staff share one inbox,

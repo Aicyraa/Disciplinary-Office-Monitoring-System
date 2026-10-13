@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import type { StaffClearanceItemView, StaffClearanceView } from '@shared/types';
 import { ProgressBar } from '@/components/dashboard/DashboardCards';
 import { ConfirmModal, useToast } from '@/components/feedback';
+import { Pagination } from '@/components/ui/Pagination';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { Card, EmptyState, ErrorState, Icon, LoadingState, PageHeader, StatusPill, buttonClass, fieldClass } from '@/components/ui';
 import { api, toApiError } from '@/api/client';
@@ -437,27 +438,7 @@ function ClearanceQueue({ selectedId, reloadRef }: { selectedId: number | null; 
               })}
             </ul>
             {Math.ceil(resource.data.total / resource.data.pageSize) > 1 ? (
-              <nav className="flex items-center justify-between gap-2 border-t border-line p-3 text-sm" aria-label="Pagination">
-                <button
-                  type="button"
-                  className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  Previous
-                </button>
-                <span className="text-muted">
-                  Page {page} of {Math.ceil(resource.data.total / resource.data.pageSize)}
-                </span>
-                <button
-                  type="button"
-                  className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50"
-                  disabled={page >= Math.ceil(resource.data.total / resource.data.pageSize)}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Next
-                </button>
-              </nav>
+              <Pagination page={page} total={resource.data.total} pageSize={resource.data.pageSize} onPage={setPage} noun="clearances" />
             ) : null}
           </>
         )

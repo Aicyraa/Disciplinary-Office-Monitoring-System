@@ -2,10 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import type { NotificationKind, NotificationView } from '@shared/types';
 import { useAuth } from '@/context/AuthContext';
 import { ConfirmModal } from '@/components/feedback';
+import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, Icon, LoadingState, PageHeader, buttonClass } from '@/components/ui';
 import { api, toApiError } from '@/api/client';
 import { formatDateTime } from '@/utils/format';
-import { INBOX_CATEGORY_LABEL, categoryCounts, filterInbox, pageOf, type InboxCategory } from '@/utils/inbox';
+import { INBOX_CATEGORY_LABEL, INBOX_PAGE_SIZE, categoryCounts, filterInbox, pageOf, type InboxCategory } from '@/utils/inbox';
 import { useApi } from '@/hooks/useApi';
 import { useUnread } from '@/context/UnreadContext';
 import { useMemo, useState } from 'react';
@@ -225,27 +226,7 @@ export function InboxPage() {
                   onView={setViewing}
                 />
                 {paged.pages > 1 ? (
-                  <nav className="mt-4 flex items-center justify-between gap-2 text-sm" aria-label="Pagination">
-                    <button
-                      type="button"
-                      className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50"
-                      disabled={paged.page <= 1}
-                      onClick={() => setPage(paged.page - 1)}
-                    >
-                      Previous
-                    </button>
-                    <span className="text-muted">
-                      Page {paged.page} of {paged.pages} · {filtered.length} messages
-                    </span>
-                    <button
-                      type="button"
-                      className="min-h-11 rounded-md border border-line-strong bg-white px-3 font-medium disabled:opacity-50"
-                      disabled={paged.page >= paged.pages}
-                      onClick={() => setPage(paged.page + 1)}
-                    >
-                      Next
-                    </button>
-                  </nav>
+                  <Pagination page={paged.page} total={filtered.length} pageSize={INBOX_PAGE_SIZE} onPage={setPage} noun="messages" />
                 ) : null}
               </>
             )}
