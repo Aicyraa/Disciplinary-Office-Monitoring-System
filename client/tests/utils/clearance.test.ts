@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { StaffClearanceView } from '@shared/types';
-import { clearanceCopy, clearanceHistoryItems, clearanceStatus, parseTermParam, rosterProgress, termParam } from '@/utils/clearance';
+import { clearanceCopy, clearanceHistoryItems, clearanceStatus, parseTermParam, rosterProgress, studentNextStep, termParam } from '@/utils/clearance';
 
 describe('staff Clearance (deck W50 to W56, src 2874 to 2904)', () => {
   test('the term lives in ?term=YYYY-S', () => {
@@ -47,5 +47,22 @@ describe('staff Clearance (deck W50 to W56, src 2874 to 2904)', () => {
     expect(copy.marked('SDO signature')).toBe('Marked “SDO signature” done for Juan Dela Cruz.');
     expect(copy.removeBody).toBe('It is removed from Juan Dela Cruz’s checklist for 1st Term 2026–2027. The change is saved to the log.');
     expect(copy.addBody).toBe('It is added to Juan Dela Cruz’s checklist for 1st Term 2026–2027.');
+  });
+});
+
+describe('student "What to do next" (deck src 3028, 2133)', () => {
+  const items = (done: string[], all = ['No active violations', 'All sanctions served', 'Guidance exit interview', 'SDO signature']) =>
+    all.map((label, i) => ({ requirementId: i + 1, label, status: done.includes(label) ? ('completed' as const) : ('pending' as const), remarks: null, dateCompleted: null }));
+  test('not set up, cleared, or the help of the first open requirement', () => {
+    expect(studentNextStep(null)).toBe('The SDO has not set up your clearance for this term yet.');
+    expect(studentNextStep({ status: 'cleared', items: items(['SDO signature']) })).toBe('You’re cleared for this term. Download your slip.');
+    expect(studentNextStep({ status: 'pending', items: items([]) })).toBe('Wait for the SDO to resolve every open case on your record.');
+    expect(studentNextStep({ status: 'pending', items: items(['No active violations']) })).toBe(
+      'Finish each sanction and upload your proof in My Violations. The SDO verifies it.',
+    );
+    expect(studentNextStep({ status: 'pending', items: items(['No active violations', 'All sanctions served', 'Guidance exit interview']) })).toBe(
+      'Get the final signature at the SDO office.',
+    );
+    expect(studentNextStep({ status: 'pending', items: items([], ['Return lab equipment']) })).toBe('Complete “Return lab equipment” at the SDO office.');
   });
 });

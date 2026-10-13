@@ -1,4 +1,4 @@
-import type { ClearanceRosterRow, StaffClearanceView, TermRef } from '@shared/types';
+import type { ClearanceRosterRow, StaffClearanceView, StudentClearanceView, TermRef } from '@shared/types';
 import type { HistoryItem } from '@/components/ui/HistoryList';
 
 /** Staff Clearance (deck W50 to W56, src 2874 to 2904). The API owns every rule. */
@@ -55,4 +55,21 @@ export function clearanceCopy(name: string, term: string) {
     removeBody: `It is removed from ${name}’s checklist for ${term}. The change is saved to the log.`,
     addBody: `It is added to ${name}’s checklist for ${term}.`,
   };
+}
+
+/** The deck's help per standard requirement (src 2133), matched by the seeded label's key words. */
+const HELP: Array<[RegExp, string]> = [
+  [/violation|open case/i, 'Wait for the SDO to resolve every open case on your record.'],
+  [/sanction/i, 'Finish each sanction and upload your proof in My Violations. The SDO verifies it.'],
+  [/exit interview/i, 'Attend your guidance exit interview.'],
+  [/signature/i, 'Get the final signature at the SDO office.'],
+];
+
+/** The student's "What to do next" box (src 3028). */
+export function studentNextStep(clearance: Pick<StudentClearanceView, 'status' | 'items'> | null): string {
+  if (!clearance) return 'The SDO has not set up your clearance for this term yet.';
+  if (clearance.status === 'cleared') return 'You’re cleared for this term. Download your slip.';
+  const next = clearance.items.find((item) => item.status !== 'completed');
+  if (!next) return 'You’re cleared for this term. Download your slip.';
+  return HELP.find(([pattern]) => pattern.test(next.label))?.[1] ?? `Complete “${next.label}” at the SDO office.`;
 }

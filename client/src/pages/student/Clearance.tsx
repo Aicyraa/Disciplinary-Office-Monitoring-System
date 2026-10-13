@@ -3,9 +3,14 @@ import { Link } from 'react-router-dom';
 import type { ClearanceSlipView, ClearanceTermView } from '@shared/types';
 import { useAuth } from '@/context/AuthContext';
 import { ProgressBar } from '@/components/dashboard/DashboardCards';
-import { LockedButton } from '@/components/feedback';
-import { Card, EmptyState, ErrorState, Icon, LoadingState, PageHeader, Resource } from '@/components/ui';
+import { PageError, Spinner } from '@/components/feedback/PageState';
+import { ErrorState, Icon, LoadingState, PageHeader } from '@/components/ui';
+import { Button, buttonVariants } from '@/components/ui/Button';
+import { ChipGroup } from '@/components/ui/ChipGroup';
+import { Pill } from '@/components/ui/Pill';
 import { api } from '@/api/client';
+import { studentNextStep } from '@/utils/clearance';
+import { cn } from '@/utils/cn';
 import { formatDate, formatTerm } from '@/utils/format';
 import { useApi } from '@/hooks/useApi';
 
@@ -18,11 +23,11 @@ const STEPS = [
 
 const termKey = (term: { academicYear: number; semester: number }) => `${term.academicYear}-${term.semester}`;
 
-/** Student clearance (deck W79): term chips, the requirement list, a slip that stays locked until every item is done. */
+/** Student Clearance (deck W79, src 1340 to 1391): status, requirements, the slip, and how to get cleared. */
 export function ClearancePage() {
   // `null` means "the newest term"; the API picks it.
   const [term, setTerm] = useState<{ academicYear: number; semester: number } | null>(null);
-  // The term list is kept here, outside the loading state, so the chips are not unmounted while a term loads.
+  // The term list is kept here, outside the loading state, so the chips stay while a term loads.
   const [terms, setTerms] = useState<ClearanceTermView[]>([]);
   const resource = useApi(() => api.myClearance(term ?? undefined), [term?.academicYear, term?.semester]);
 
@@ -30,126 +35,122 @@ export function ClearancePage() {
     if (resource.status === 'ready') setTerms(resource.data.terms);
   }, [resource]);
 
+  if (resource.status === 'loading' && terms.length === 0) {
+    return (
+      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
+        <Spinner />
+        Loading your clearance…
+      </p>
+    );
+  }
+  if (resource.status === 'error') return <PageError page="Clearance" detail={resource.error.message} onRetry={resource.reload} />;
+
+  const clearance = resource.status === 'ready' ? resource.data.clearance : null;
+  const shownTerm = clearance ?? term ?? terms[0] ?? null;
+  const items = clearance?.items ?? [];
+  const done = items.filter((item) => item.status === 'completed').length;
+  const cleared = clearance?.status === 'cleared';
+  const percent = items.length === 0 ? 0 : Math.round((done / items.length) * 100);
+
   return (
     <>
-      <PageHeader title="Clearance" subtitle="Requirements the office has set for each term. Staff mark them done." />
-      {terms.length > 1 ? (
-        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Term">
-          {terms.map((option) => {
-            const active =
-              term !== null
-                ? termKey(option) === termKey(term)
-                : resource.status === 'ready' && resource.data.clearance !== null && termKey(option) === termKey(resource.data.clearance);
-            return (
-              <button
-                key={termKey(option)}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setTerm({ academicYear: option.academicYear, semester: option.semester })}
-                className={`min-h-11 rounded-full border px-4 text-sm font-medium ${
-                  active ? 'border-primary bg-primary text-white' : 'border-line-strong bg-white text-ink'
-                }`}
-              >
-                {formatTerm(option.academicYear, option.semester)}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-      <Resource resource={resource} onRetry={resource.reload}>
-        {({ terms: loadedTerms, clearance }) => {
-          if (loadedTerms.length === 0) return <EmptyState title="No clearance has been set up for you yet." />;
-          if (!clearance) return <EmptyState title="No clearance for this term." />;
-          const done = clearance.items.filter((item) => item.status === 'completed').length;
-          const remaining = clearance.items.length - done;
-          const cleared = clearance.status === 'cleared';
-          const percent = clearance.items.length === 0 ? 0 : Math.round((done / clearance.items.length) * 100);
-          return (
-            <div className="grid gap-4 full:grid-cols-[3fr_2fr]">
-              <Card>
-                <p className="inline-flex items-center gap-1 rounded-full bg-page px-2.5 py-0.5 text-xs font-medium text-ink">
-                  <Icon name="calendar_today" className="text-sm" />
-                  {formatTerm(clearance.academicYear, clearance.semester)}
+      <h1 className="sr-only">Clearance</h1>
+      <div className="flex flex-wrap items-stretch gap-6">
+        <section className="flex min-w-0 flex-[1.3_1_420px] flex-col gap-5 rounded-xl border border-line bg-white p-6">
+          <div>
+            {terms.length > 1 ? (
+              <ChipGroup
+                label="Term"
+                options={terms.map((option) => ({ value: termKey(option), label: formatTerm(option.academicYear, option.semester) }))}
+                value={shownTerm ? termKey(shownTerm) : ''}
+                onChange={(value) => {
+                  const [year, semester] = value.split('-').map(Number);
+                  setTerm({ academicYear: year, semester });
+                }}
+                className="gap-1.5 [&>button]:min-h-11 rail:[&>button]:min-h-8"
+              />
+            ) : shownTerm ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-line-soft px-2.5 py-1 text-xs font-bold text-body">
+                <Icon name="calendar_month" className="!text-base" />
+                {formatTerm(shownTerm.academicYear, shownTerm.semester)}
+              </span>
+            ) : null}
+            <p className={cn('mt-2 text-[26px] leading-tight font-extrabold rail:text-[32px]', cleared ? 'text-success' : 'text-warn-ink')}>
+              {cleared ? 'CLEARED' : 'NOT YET CLEARED'}
+            </p>
+            {clearance ? (
+              <>
+                <p className="my-2 flex flex-wrap gap-2">
+                  <Pill tone="pending">{items.length - done} remaining</Pill>
+                  <Pill tone="done">{done} completed</Pill>
                 </p>
-                <h2 className={`mt-2 text-3xl font-extrabold tracking-tight ${cleared ? 'text-success' : 'text-[#7A5B00]'}`}>
-                  {cleared ? 'CLEARED' : 'NOT YET CLEARED'}
-                </h2>
-                <p className="mt-1 flex flex-wrap gap-2 text-xs font-semibold">
-                  <span className="rounded-full bg-[#FCE9C6] px-2 py-0.5 text-[#7A4600]">{remaining} remaining</span>
-                  <span className="rounded-full bg-[#E4F3EA] px-2 py-0.5 text-success">{done} completed</span>
-                </p>
-                <div className="mt-3">
-                  <ProgressBar percent={percent} label="Clearance progress" />
-                </div>
+                <ProgressBar percent={percent} label="Clearance progress" tone={cleared ? 'green' : 'gold'} />
+              </>
+            ) : null}
+          </div>
 
-                <h3 className="mt-5 text-xs font-semibold tracking-wide text-muted uppercase">Requirements</h3>
-                <ul className="mt-2 space-y-2">
-                  {clearance.items.map((item) => {
-                    const complete = item.status === 'completed';
-                    return (
-                      <li
-                        key={item.requirementId}
-                        className={`flex items-center gap-3 rounded-lg border px-3 py-3 ${
-                          complete ? 'border-[#BFE3CB] bg-[#F1FAF4]' : 'border-line bg-white'
-                        }`}
-                      >
-                        <Icon name={complete ? 'check_circle' : 'radio_button_unchecked'} className={complete ? 'text-success' : 'text-muted'} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-ink">{item.label}</div>
-                          {complete && item.dateCompleted ? (
-                            <div className="text-xs text-muted">Done {formatDate(item.dateCompleted)}</div>
-                          ) : null}
-                          {item.remarks ? <div className="text-xs text-muted">{item.remarks}</div> : null}
-                        </div>
-                        <span className={`text-xs font-semibold ${complete ? 'text-success' : 'text-[#7A4600]'}`}>
-                          {complete ? 'Completed' : 'Remaining'}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-
-                <div className="mt-5">
-                  {cleared ? (
-                    <Link
-                      to={`/clearance/slip?academic_year=${clearance.academicYear}&semester=${clearance.semester}`}
-                      className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-active"
+          <div>
+            <p className="mb-2 text-[13px] font-semibold text-muted">Requirements</p>
+            {clearance ? (
+              <ul className="flex flex-col gap-2">
+                {items.map((item) => {
+                  const complete = item.status === 'completed';
+                  return (
+                    <li
+                      key={item.requirementId}
+                      className={cn('flex min-h-12 items-center gap-3 rounded-[10px] border px-3.5 py-2.5', complete ? 'border-success-line bg-success-soft/50' : 'border-calendar-closed bg-white')}
                     >
-                      <Icon name="download" className="text-base" />
-                      Download clearance slip
-                    </Link>
-                  ) : (
-                    <LockedButton lockedReason="Unlocks once every requirement is completed.">Download clearance slip</LockedButton>
-                  )}
-                </div>
-              </Card>
-
-              <Card className="self-start">
-                <h3 className="text-base font-bold text-ink">How to get cleared</h3>
-                <ol className="mt-3 space-y-3">
-                  {STEPS.map((step, index) => (
-                    <li key={step} className="flex gap-3 text-sm">
-                      <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                        {index + 1}
-                      </span>
-                      {step}
+                      <Icon name={complete ? 'check_circle' : 'radio_button_unchecked'} filled={complete} className={cn('!text-[22px]', complete ? 'text-success-strong' : 'text-disabled')} />
+                      <span className="min-w-0 flex-1 font-medium text-ink">{item.label}</span>
+                      <span className={cn('text-xs font-bold', complete ? 'text-success' : 'text-warn-ink')}>{complete ? 'Completed' : 'Remaining'}</span>
                     </li>
-                  ))}
-                </ol>
-                {!cleared ? (
-                  <div className="mt-4 flex gap-2 rounded-lg bg-primary/10 p-3 text-sm text-ink">
-                    <Icon name="arrow_forward" className="text-base" />
-                    <span>
-                      <span className="block text-xs font-semibold text-muted">What to do next</span>
-                      Finish each sanction and upload your proof in My violations. The SDO verifies it.
-                    </span>
-                  </div>
-                ) : null}
-              </Card>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">The SDO has not set up your clearance for this term yet.</p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {cleared && clearance ? (
+              <Link to={`/clearance/slip?academic_year=${clearance.academicYear}&semester=${clearance.semester}`} className={buttonVariants({ size: 'lg' })}>
+                <Icon name="download" className="!text-xl" />
+                Download clearance slip
+              </Link>
+            ) : (
+              <>
+                <Button size="lg" disabled>
+                  <Icon name="lock" className="!text-xl" />
+                  Download clearance slip
+                </Button>
+                <span className="text-xs text-muted">Unlocks once every requirement is completed.</span>
+              </>
+            )}
+          </div>
+        </section>
+
+        <section className="flex min-w-0 flex-[1_1_320px] flex-col gap-5 rounded-xl border border-line bg-white p-6">
+          <h2 className="text-[19px] font-bold text-ink">How to get cleared</h2>
+          <ol className="flex flex-col gap-3.5">
+            {STEPS.map((step, index) => (
+              <li key={step} className="flex items-start gap-3">
+                <span aria-hidden="true" className="grid size-[26px] shrink-0 place-items-center rounded-full bg-info-soft text-xs font-bold text-primary">
+                  {index + 1}
+                </span>
+                <span className="pt-[3px] text-body">{step}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-auto flex items-center gap-3 rounded-[10px] border border-info-soft bg-info-soft px-4 py-3.5">
+            <Icon name="arrow_forward" className="!text-[22px] text-primary" />
+            <div>
+              <p className="text-[13px] font-semibold text-info-ink">What to do next</p>
+              <p className="mt-0.5 text-pretty text-ink">{studentNextStep(clearance)}</p>
             </div>
-          );
-        }}
-      </Resource>
+          </div>
+        </section>
+      </div>
     </>
   );
 }
