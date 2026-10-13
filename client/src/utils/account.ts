@@ -41,6 +41,21 @@ export function passwordChangeError({ current, next, confirm }: { current: strin
   return null;
 }
 
+/** Sign-in checks before calling the API (deck src 2548). The API stays the authority on the account. */
+export function loginProblem(email: string, password: string): string | null {
+  const address = email.trim().toLowerCase();
+  if (address !== '' && !/@(students\.)?nu-fairview\.edu\.ph$/.test(address)) return 'Use your NU email (ending in nu-fairview.edu.ph).';
+  if (address === '' || password === '') return 'Enter your NU email and password.';
+  return null;
+}
+
+/** "Set a new password" after a temporary password (deck src 3420). Reuse of the temporary one is the API's check. */
+export function forcedPasswordError(next: string, confirm: string): string | null {
+  if (!passwordRules(next).every((rule) => rule.ok)) return 'Your new password doesn’t meet the rules below.';
+  if (next !== confirm) return 'The passwords don’t match.';
+  return null;
+}
+
 /** The line at the bottom of the bell popover (deck src 3482; staff have the bell too, D11). */
 export function bellFooter(role: AccountRole): string {
   return role === 'staff' ? 'Also sent to your work email' : 'Also sent to your school email';

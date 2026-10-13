@@ -159,8 +159,9 @@ export const api = {
   login: (email: string, password: string) => post<{ user: AuthUser }>('/auth/login', { email, password }),
   logout: () => post<null>('/auth/logout'),
   me: () => get<{ user: AuthUser }>('/auth/me'),
-  changePassword: (currentPassword: string, newPassword: string) =>
-    post<{ user: AuthUser }>('/auth/change-password', { currentPassword, newPassword }),
+  /** `currentPassword` null: the forced change right after a temporary-password sign-in (UI-POLISH-SPEC D1). */
+  changePassword: (currentPassword: string | null, newPassword: string) =>
+    post<{ user: AuthUser }>('/auth/change-password', currentPassword === null ? { newPassword } : { currentPassword, newPassword }),
 
   handbook: () => get<{ entries: HandbookEntryView[] }>('/handbook'),
 
@@ -276,7 +277,9 @@ export const api = {
   // Public gate form (SPEC 4.10): no session.
   gateToken: () => get<{ token: string }>('/public/gate-form-token'),
   gateOptions: () =>
-    get<{ violations: Array<{ id: number; name: string; section: string }>; programs: string[] }>('/public/gate-form-options'),
+    get<{ violations: Array<{ id: number; name: string; section: string; category: 'Minor' | 'Major' }>; programs: string[] }>(
+      '/public/gate-form-options',
+    ),
   submitGateReport: (input: {
     token: string;
     studentId: string;
@@ -284,7 +287,8 @@ export const api = {
     program: string;
     year: string;
     violationIds: number[];
-  }) => request<{ reference: string; code: string; duplicate: boolean }>(() => http.post('/public/gate-reports', input)),
+  }) =>
+    request<{ reference: string; code: string; duplicate: boolean; submittedAt: string }>(() => http.post('/public/gate-reports', input)),
 
   // Handbook admin and sanction templates (SPEC 4.9, 6.1)
   createViolation: (input: {

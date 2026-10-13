@@ -8,7 +8,6 @@ import { StatusPill } from '@/components/ui';
 import { navGroups } from '@/utils/nav';
 import { filterEntries } from '@/pages/shared/Handbook';
 import Login from '@/pages/public/Login';
-import { passwordRuleError } from '@/pages/account/ChangePassword';
 
 const user: AuthUser = {
   role: 'student',
@@ -82,7 +81,11 @@ describe('Login', () => {
     expect(html).toContain('NU email');
     expect(html).toContain('type="password"');
     expect(html).toContain('Sign in');
-    expect(html).toContain('Room 204');
+    expect(html).toContain('Forgot password?');
+    expect(html).toContain('href="/report"');
+    expect(html).toContain('NU FAIRVIEW');
+    // The help text shows only after "Forgot password?" (deck W04); no extra office-hours line.
+    expect(html).not.toContain('Room 204');
   });
 });
 
@@ -92,20 +95,6 @@ describe('StatusPill', () => {
     expect(html).toContain('Not verified');
     expect(html).toContain('#ECEEF1');
     expect(html).toContain('#4A5260');
-  });
-});
-
-describe('passwordRuleError', () => {
-  test.each([
-    ['short1', 'Use at least 8 characters.'],
-    ['abcdefgh', 'Include at least one digit.'],
-    ['12345678', 'Include at least one letter.'],
-  ])('%s', (password, message) => {
-    expect(passwordRuleError(password)).toBe(message);
-  });
-
-  test('accepts a valid password', () => {
-    expect(passwordRuleError('abcdef12')).toBeNull();
   });
 });
 

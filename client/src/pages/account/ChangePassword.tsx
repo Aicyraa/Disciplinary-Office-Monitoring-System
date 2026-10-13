@@ -1,109 +1,90 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { api, toApiError } from '@/api/client';
+import { PasswordRuleList } from '@/components/account/AccountModals';
+import { useToast } from '@/components/feedback';
+import { PublicSplit } from '@/components/layout/PublicSplit';
+import { Alert } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
 import { useAuth } from '@/context/AuthContext';
-import { buttonClass, Card, fieldClass, PageHeader } from '@/components/ui';
-import { api, ApiError } from '@/api/client';
+import { forcedPasswordError } from '@/utils/account';
 
-interface Fields {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
-/** Same rules the API enforces (SPEC 4.8). The API stays the authority; this only saves a round trip. */
-export function passwordRuleError(password: string): string | null {
-  if (password.length < 8) return 'Use at least 8 characters.';
-  if (!/[A-Za-z]/.test(password)) return 'Include at least one letter.';
-  if (!/\d/.test(password)) return 'Include at least one digit.';
-  return null;
-}
-
+/**
+ * "Set a new password" after signing in with a temporary password (deck W05, W06). Only the new password and
+ * its confirmation: the session already proved the temporary one (UI-POLISH-SPEC D1). An ordinary change is
+ * the Change password dialog, so anyone else is sent there.
+ */
 export default function ChangePassword() {
-  const { state, setUser } = useAuth();
+  const { state, setUser, signOut } = useAuth();
   const navigate = useNavigate();
-  const [formError, setFormError] = useState<string | null>(null);
-  const {
-    register,
-    handleSubmit,
-    getValues,
-    formState: { errors, isSubmitting },
-  } = useForm<Fields>();
+  const toast = useToast();
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  if (state.status !== 'authenticated') return <Navigate to="/login" replace />;
-  const forced = state.user.mustChangePassword;
+  if (state.status === 'anonymous') return <Navigate to="/login" replace />;
+  if (state.status !== 'authenticated') return null;
+  if (!state.user.mustChangePassword) return <Navigate to="/account/password" replace />;
+  const { user } = state;
 
-  const onSubmit = handleSubmit(async ({ currentPassword, newPassword }) => {
-    setFormError(null);
-    try {
-      const { user } = await api.changePassword(currentPassword, newPassword);
-      setUser(user);
-      navigate('/', { replace: true });
-    } catch (error) {
-      setFormError(error instanceof ApiError ? error.message : 'Something went wrong. Try again.');
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const problem = forcedPasswordError(next, confirm);
+    if (problem) {
+      setError(problem);
+      return;
     }
-  });
+    setBusy(true);
+    setError(null);
+    try {
+      const { user: updated } = await api.changePassword(null, next);
+      setUser(updated);
+      toast.show('Password set. Welcome back.', 'success');
+      navigate('/', { replace: true });
+    } catch (caught) {
+      setError(toApiError(caught).message);
+      setBusy(false);
+    }
+  }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-10">
-      <PageHeader
-        visible
-        title="Change your password"
-        subtitle={forced ? 'You must set a new password before you can continue.' : undefined}
-      />
-      <Card>
-        <form onSubmit={onSubmit} className="space-y-4" noValidate>
-          <div>
-            <label htmlFor="currentPassword" className="mb-1 block text-sm font-medium text-ink">
-              {forced ? 'Temporary password' : 'Current password'}
-            </label>
-            <input
-              id="currentPassword"
-              type="password"
-              autoComplete="current-password"
-              className={fieldClass}
-              {...register('currentPassword', { required: 'Enter your current password.' })}
-            />
-            {errors.currentPassword ? <p className="mt-1 text-sm text-danger">{errors.currentPassword.message}</p> : null}
-          </div>
-          <div>
-            <label htmlFor="newPassword" className="mb-1 block text-sm font-medium text-ink">
-              New password
-            </label>
-            <input
-              id="newPassword"
-              type="password"
-              autoComplete="new-password"
-              className={fieldClass}
-              {...register('newPassword', { validate: (value) => passwordRuleError(value) ?? true })}
-            />
-            {errors.newPassword ? <p className="mt-1 text-sm text-danger">{errors.newPassword.message}</p> : null}
-          </div>
-          <div>
-            <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-ink">
-              Confirm new password
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              className={fieldClass}
-              {...register('confirmPassword', {
-                validate: (value) => value === getValues('newPassword') || 'The passwords do not match.',
-              })}
-            />
-            {errors.confirmPassword ? <p className="mt-1 text-sm text-danger">{errors.confirmPassword.message}</p> : null}
-          </div>
-          {formError ? (
-            <p role="alert" className="text-sm font-medium text-danger">
-              {formError}
-            </p>
-          ) : null}
-          <button type="submit" disabled={isSubmitting} className={buttonClass}>
-            {isSubmitting ? 'Saving…' : 'Save new password'}
-          </button>
-        </form>
-      </Card>
-    </div>
+    <PublicSplit>
+      <h1 className="text-[26px] leading-tight font-bold text-ink">Set a new password</h1>
+      <p className="mt-1.5 mb-5 text-[13px] text-pretty text-muted">
+        Hi {user.firstName} {user.lastName}. You signed in with a temporary password from the SDO. Choose a new password to continue.
+      </p>
+      <form onSubmit={submit} noValidate className="flex flex-col gap-3.5">
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        <Field
+          label="New password"
+          type="password"
+          autoComplete="new-password"
+          value={next}
+          onChange={(event) => {
+            setNext(event.target.value);
+            setError(null);
+          }}
+        />
+        <Field
+          label="Confirm new password"
+          type="password"
+          autoComplete="new-password"
+          value={confirm}
+          onChange={(event) => {
+            setConfirm(event.target.value);
+            setError(null);
+          }}
+        />
+        <PasswordRuleList password={next} />
+        <Button type="submit" size="xl" busy={busy}>
+          Save and continue
+        </Button>
+        <Button variant="text" size="lg" onClick={() => void signOut().then(() => navigate('/login', { replace: true }))}>
+          Back to sign in
+        </Button>
+      </form>
+    </PublicSplit>
   );
 }
