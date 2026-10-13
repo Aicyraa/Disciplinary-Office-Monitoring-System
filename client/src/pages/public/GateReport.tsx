@@ -9,7 +9,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Pill } from '@/components/ui/Pill';
 import { Select } from '@/components/ui/Select';
 import { StageTracker } from '@/components/ui/StageTracker';
-import { LoadingState } from '@/components/ui';
+import { Spinner } from '@/components/feedback/PageState';
 import { cn } from '@/utils/cn';
 import { notificationWhen } from '@/utils/inbox';
 import {
@@ -211,7 +211,13 @@ export default function GateReportPage() {
     );
   }
 
-  if (!options) return shell(<LoadingState label="Opening the form…" />);
+  if (!options)
+    return shell(
+      <p role="status" className="flex items-center justify-center gap-2 py-10 text-[13px] text-muted">
+        <Spinner />
+        Opening the form…
+      </p>,
+    );
 
   const shown = filterGateViolations(options.violations, search, category);
   const counts = categoryCounts(options.violations, search);

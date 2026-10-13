@@ -88,7 +88,7 @@ export function Sidebar({
         {labels ? (
           <div className="min-w-0 flex-1">
             <div className="text-base leading-tight font-bold tracking-[0.02em]">NU FAIRVIEW</div>
-            <div className="truncate text-xs leading-snug text-[#F1DD9A]">
+            <div className="truncate text-xs leading-snug text-gold-pale">
               {role === 'staff' ? 'Student Discipline Office · Staff' : 'Student Discipline Office'}
             </div>
           </div>

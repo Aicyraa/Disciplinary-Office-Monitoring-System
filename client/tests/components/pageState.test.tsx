@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
 import { NudgeCard, PageEmpty, PageError, PageLoading, PageNoAccess } from '@/components/feedback/PageState';
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui';
 
 const inRouter = (node: React.ReactNode) => renderToStaticMarkup(<MemoryRouter>{node}</MemoryRouter>);
 
@@ -40,28 +39,6 @@ describe('page states (deck W86 to W89, src 386 to 422)', () => {
     expect(html).toContain('You don’t have access to Students');
     expect(html).toContain('Your account role doesn’t include this page. If you think this is a mistake, contact the Student Discipline Office.');
     expect(html).toMatch(/<a [^>]*href="\/"[^>]*>Go to dashboard<\/a>/);
-  });
-});
-
-describe('pane states keep their signatures with the new look', () => {
-  test('LoadingState: spinner and label', () => {
-    const html = renderToStaticMarkup(<LoadingState label="Loading cases…" />);
-    expect(html).toContain('Loading cases…');
-    expect(html).toContain('animate-spin');
-  });
-
-  test('ErrorState: the deck error card with the message as detail', () => {
-    const html = renderToStaticMarkup(<ErrorState message="No such case." onRetry={() => undefined} />);
-    expect(html).toContain('Couldn’t load this page');
-    expect(html).toContain('No such case.');
-    expect(html).toContain('Try again');
-  });
-
-  test('EmptyState: a calm card with icon, title and hint', () => {
-    const html = renderToStaticMarkup(<EmptyState title="Select a case" hint="Open a report from the queue." />);
-    expect(html).toContain('Select a case');
-    expect(html).toContain('Open a report from the queue.');
-    expect(html).toContain('material-symbols-outlined');
   });
 });
 

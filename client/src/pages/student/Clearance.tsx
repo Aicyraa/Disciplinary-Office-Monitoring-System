@@ -4,7 +4,7 @@ import type { ClearanceSlipView, ClearanceTermView } from '@shared/types';
 import { useAuth } from '@/context/AuthContext';
 import { ProgressBar } from '@/components/dashboard/DashboardCards';
 import { PageError, Spinner } from '@/components/feedback/PageState';
-import { ErrorState, Icon, LoadingState, PageHeader } from '@/components/ui';
+import { Icon, PageHeader } from '@/components/ui';
 import { Button, buttonVariants } from '@/components/ui/Button';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { Pill } from '@/components/ui/Pill';
@@ -207,25 +207,26 @@ export function ClearanceSlipPage() {
           title="Clearance slip"
           actions={
             slip.status === 'ready' ? (
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-active"
-              >
-                <Icon name="print" className="text-base" />
+              <Button size="lg" onClick={() => window.print()}>
+                <Icon name="print" className="!text-xl" />
                 Print or save as PDF
-              </button>
+              </Button>
             ) : undefined
           }
         />
         <p className="mb-3 text-sm">
-          <Link to="/clearance" className="font-medium text-primary underline">
+          <Link to="/clearance" className="font-semibold text-primary hover:underline">
             Back to clearance
           </Link>
         </p>
       </div>
-      {slip.status === 'loading' ? <LoadingState label="Preparing your slip…" cards={1} /> : null}
-      {slip.status === 'error' ? <ErrorState message={slip.error.message} onRetry={slip.reload} /> : null}
+      {slip.status === 'loading' ? (
+        <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
+          <Spinner />
+          Preparing your slip…
+        </p>
+      ) : null}
+      {slip.status === 'error' ? <PageError page="your clearance slip" detail={slip.error.message} onRetry={slip.reload} /> : null}
       {slip.status === 'ready' ? <SlipDocument slip={slip.data.slip} /> : null}
     </>
   );

@@ -2,7 +2,7 @@ import { BrowserRouter, MemoryRouter, Navigate, Outlet, Route, Routes } from 're
 import type { AccountRole } from '@shared/types';
 import { AuthProvider, useAuth, type AuthState } from '@/context/AuthContext';
 import { Shell } from '@/components/layout/Shell';
-import { LoadingState } from '@/components/ui';
+import { Spinner } from '@/components/feedback/PageState';
 import { ToastProvider } from '@/components/feedback';
 import { AppointmentsPage } from '@/pages/student/Appointments';
 import ChangePassword from '@/pages/account/ChangePassword';
@@ -41,7 +41,10 @@ function RequireAuth() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2">
         <p className="font-semibold text-ink">Disciplinary Office Monitoring System</p>
-        <LoadingState label="Checking your session…" />
+        <p role="status" className="flex items-center justify-center gap-2 py-16 text-[13px] text-muted">
+          <Spinner />
+          Checking your session…
+        </p>
       </div>
     );
   }

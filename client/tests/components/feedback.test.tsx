@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, test } from 'vitest';
 import { ConfirmModal, LockedButton, ToastView } from '@/components/feedback';
-import { LoadingState } from '@/components/ui';
 
 describe('ConfirmModal (UI-POLISH-SPEC 4.3)', () => {
   const base = { title: 'Reject GI-1042?', confirmLabel: 'Reject submission', onConfirm: () => undefined, onClose: () => undefined };
@@ -106,13 +105,5 @@ describe('LockedButton', () => {
     const html = renderToStaticMarkup(<LockedButton>Download clearance slip</LockedButton>);
     expect(html).not.toContain('aria-disabled');
     expect(html).toContain('Download clearance slip');
-  });
-});
-
-describe('LoadingState', () => {
-  test('placeholder cards with the label kept for screen readers', () => {
-    const html = renderToStaticMarkup(<LoadingState label="Loading cases…" cards={2} />);
-    expect(html).toContain('role="status"');
-    expect(html).toContain('Loading cases…');
   });
 });
