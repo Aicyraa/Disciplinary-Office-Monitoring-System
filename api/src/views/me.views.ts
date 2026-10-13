@@ -36,6 +36,7 @@ export function toCaseView(record: CaseRecord): StudentCaseView {
     violation: record.violationType,
     severity: record.severity,
     section: record.handbookSection,
+    handbookEntryId: record.handbookEntryId,
     isEscalated: record.isEscalated,
     convertedFrom: record.originalViolationType,
     resolvedWithoutSanction: record.resolvedWithoutSanction,

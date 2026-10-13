@@ -21,6 +21,7 @@ type CaseRow = {
   status: string;
   case_date: Date;
   is_escalated: boolean;
+  handbook_entry_id: number;
   resolved_without_sanction: boolean;
   date_resolved: Date | null;
   [CURRENT]: { handbook_section: string; violations: { violation_type: string; severity: string } };
@@ -36,6 +37,7 @@ function toCaseRecord(row: CaseRow, code: string): CaseRecord {
     isEscalated: row.is_escalated,
     resolvedWithoutSanction: row.resolved_without_sanction,
     dateResolved: row.date_resolved,
+    handbookEntryId: row.handbook_entry_id,
     handbookSection: row[CURRENT].handbook_section,
     violationType: row[CURRENT].violations.violation_type,
     severity: row[CURRENT].violations.severity as Severity,

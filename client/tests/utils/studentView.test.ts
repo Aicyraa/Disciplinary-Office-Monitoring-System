@@ -26,6 +26,7 @@ const c = (over: Partial<StudentCaseView>): StudentCaseView => ({
   violation: 'Improper uniform',
   severity: 'Minor',
   section: 'VI.D.1',
+  handbookEntryId: 1,
   isEscalated: false,
   convertedFrom: null,
   resolvedWithoutSanction: false,

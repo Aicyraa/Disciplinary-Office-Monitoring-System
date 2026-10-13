@@ -11,6 +11,7 @@ const caseBase: CaseRecord = {
   isEscalated: false,
   resolvedWithoutSanction: false,
   dateResolved: null,
+  handbookEntryId: 4,
   handbookSection: 'VI.D.1',
   violationType: 'Improper uniform',
   severity: 'Minor',
@@ -140,6 +141,7 @@ describe('GET /me/cases', () => {
     const response = await agent.get('/me/cases');
     expect(response.status).toBe(200);
     expect(response.body.data.cases.map((c: { code: string }) => c.code)).toEqual(['SDO-2026-003', 'SDO-2026-001', 'SDO-2026-002']);
+    expect(response.body.data.cases[0].handbookEntryId).toBe(4);
   });
 
   test('shows rejected cases and converted majors with their original minor', async () => {

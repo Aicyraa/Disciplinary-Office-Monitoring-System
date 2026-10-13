@@ -14,6 +14,8 @@ export interface CaseRecord {
   isEscalated: boolean;
   resolvedWithoutSanction: boolean;
   dateResolved: Date | null;
+  /** The handbook entry the case is about, for the student's "View this offense" link. */
+  handbookEntryId: number;
   handbookSection: string;
   violationType: string;
   severity: Severity;

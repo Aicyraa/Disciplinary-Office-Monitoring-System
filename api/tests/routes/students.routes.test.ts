@@ -29,6 +29,7 @@ const studentViews = createMemoryStudentViewRepo({
       isEscalated: false,
       resolvedWithoutSanction: false,
       dateResolved: null,
+      handbookEntryId: 4,
       handbookSection: 'VI.D.1',
       violationType: 'Improper uniform',
       severity: 'Minor',

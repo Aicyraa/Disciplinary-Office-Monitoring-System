@@ -265,6 +265,8 @@ export type StudentCaseView = {
   violation: string;
   severity: Severity;
   section: string;
+  /** The handbook entry, for "View this offense in the Handbook". */
+  handbookEntryId: number;
   /** This minor was counted into a 3-minor Major case. */
   isEscalated: boolean;
   /** Set on a converted Major case: the minor violation it started as. */
