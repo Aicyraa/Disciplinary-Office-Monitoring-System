@@ -274,6 +274,13 @@ export type StudentCaseView = {
 };
 
 export type StudentCaseDetailView = StudentCaseView & {
+  /** "Gate report GI-1045" or "Recorded by SDO staff" (UI-POLISH-SPEC 5.15). */
+  source: 'gate' | 'staff';
+  submissionCode: string | null;
+  /** On a counted minor: the Major case it counted toward. */
+  countedTowardCode: string | null;
+  /** On a converted Major: the minors it was created from. */
+  linkedCaseCodes: string[];
   timeline: CaseTimelineEntry[];
   sanctions: StudentSanctionView[];
 };

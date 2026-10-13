@@ -1,6 +1,6 @@
 import type { PrismaClient } from '../../../generated/prisma/client.js';
 import type { AppointmentStatus, CaseSanctionStatus, CaseStatus, Severity } from '@shared/types.js';
-import { loadCaseCodes } from '../cases/code-sql.js';
+import { loadCaseCodes, loadSubmissionCodes } from '../cases/code-sql.js';
 import type { CaseRecord, StudentProfileRecord, StudentViewRepo } from './repo.js';
 
 type Db = Pick<
@@ -93,12 +93,24 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
     async getCase(studentId, caseId) {
       const row = await db.disciplinary_cases.findFirst({
         where: { disciplinary_case_id: caseId, student_id: studentId },
-        include: { ...caseInclude, case_status_history: { orderBy: { date_updated: 'asc' } } },
+        include: {
+          ...caseInclude,
+          case_status_history: { orderBy: { date_updated: 'asc' } },
+          case_escalations_case_escalations_major_case_idTodisciplinary_cases: { select: { minor_case_id: true } },
+          case_escalations_case_escalations_minor_case_idTodisciplinary_cases: { select: { major_case_id: true } },
+        },
       });
       if (!row) return null;
-      const code = (await loadCaseCodes(db, [caseId])).get(caseId) ?? '';
+      const linkedIds = row.case_escalations_case_escalations_major_case_idTodisciplinary_cases.map((link) => link.minor_case_id);
+      const towardId = row.case_escalations_case_escalations_minor_case_idTodisciplinary_cases?.major_case_id ?? null;
+      const codes = await loadCaseCodes(db, [caseId, ...linkedIds, ...(towardId === null ? [] : [towardId])]);
+      const submissionCodes = row.submission_ref ? await loadSubmissionCodes(db, [row.submission_ref]) : new Map<string, string>();
       return {
-        ...toCaseRecord(row as unknown as CaseRow, code),
+        ...toCaseRecord(row as unknown as CaseRow, codes.get(caseId) ?? ''),
+        source: row.source === 'gate' ? 'gate' : 'staff',
+        submissionCode: row.submission_ref ? (submissionCodes.get(row.submission_ref) ?? null) : null,
+        countedTowardCode: towardId === null ? null : (codes.get(towardId) ?? null),
+        linkedCaseCodes: linkedIds.map((id) => codes.get(id) ?? '').filter(Boolean),
         history: row.case_status_history.map((entry) => ({
           eventType: entry.event_type,
           statusAfter: entry.status_after as CaseStatus | null,

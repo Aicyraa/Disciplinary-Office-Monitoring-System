@@ -250,7 +250,7 @@ POST /sanction-templates/:sanctionId/files    (staff, multipart, one file; a new
 GET  /sanction-templates/files/:fileId/url    (any signed-in user: 60 s download link)
 
 GET  /cases?status=&class=&q=&sort=&page=     (staff)     GET /me/cases (student)
-GET  /cases/:id                               (staff)     GET /me/cases/:id (student)
+GET  /cases/:id                               (staff)     GET /me/cases/:id (student)   (the student detail adds `source`, `submissionCode` and the escalation links as case codes; UI-POLISH-SPEC 5.15)
 POST /cases                                   (staff records violation; optional remarks become the first log entry)
 POST /submissions/:id/validate | /reject      GET /submissions/:id/escalation-preview
 GET  /cases?status=&class=&q=&sort=newest|oldest&group=status&page=&focus=   (staff queue, 6 per page; `group=status` orders by stage first; `focus=<case id>` answers the page that holds it; rows carry the latest sanction code + status and the resolve date; UI-POLISH-SPEC 5.5, 5.4b)

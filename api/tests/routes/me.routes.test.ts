@@ -48,6 +48,9 @@ const studentViews = createMemoryStudentViewRepo({
     {
       studentId: STUDENT_A.id,
       ...caseBase,
+      source: 'gate',
+      submissionCode: 'GI-1045',
+      countedTowardCaseId: 3,
       history: [
         { eventType: 'sanction_assigned', statusAfter: 'for_sanction', remarks: 'Assigned', date: new Date('2026-09-02T02:00:00Z') },
         { eventType: 'reported', statusAfter: 'reported', remarks: null, date: new Date('2026-09-01T02:00:00Z') },
@@ -63,6 +66,7 @@ const studentViews = createMemoryStudentViewRepo({
       severity: 'Major',
       originalViolationType: 'Improper uniform',
       caseDate: new Date('2026-09-10T02:00:00Z'),
+      linkedCaseIds: [1, 2],
     },
     { studentId: STUDENT_B.id, ...caseBase, caseId: 9 },
   ],
@@ -164,6 +168,14 @@ describe('GET /me/cases/:id', () => {
     expect(response.body.data.case.timeline.map((t: { eventType: string }) => t.eventType)).toEqual(['reported', 'sanction_assigned']);
     expect(response.body.data.case.sanctions).toHaveLength(1);
     expect(response.body.data.case.sanctions[0]).toMatchObject({ id: 7, sanctionCode: 'S-003', dueDate: '2026-09-20', staffNote: 'Bring a signed slip.' });
+  });
+
+  test('carries the source and the escalation links as display codes (UI-POLISH-SPEC 5.15)', async () => {
+    const agent = await signedInAgent(built(), STUDENT_A.email);
+    const one = (await agent.get('/me/cases/1')).body.data.case;
+    expect(one).toMatchObject({ source: 'gate', submissionCode: 'GI-1045', countedTowardCode: 'SDO-2026-003', linkedCaseCodes: [] });
+    const three = (await agent.get('/me/cases/3')).body.data.case;
+    expect(three).toMatchObject({ source: 'staff', submissionCode: null, countedTowardCode: null, linkedCaseCodes: ['SDO-2026-001', 'SDO-2026-002'] });
   });
 
   test("another student's case is a 404, indistinguishable from a missing one", async () => {

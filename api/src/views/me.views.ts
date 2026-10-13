@@ -13,6 +13,7 @@ import { displayCode } from '../domain/codes.js';
 import { lateByDays } from '../domain/sanctions/rules.js';
 import type {
   AppointmentRecord,
+  CaseDetailExtras,
   CaseHistoryRecord,
   CaseRecord,
   CaseSanctionRecord,
@@ -94,12 +95,16 @@ export function toSanctionView(record: CaseSanctionRecord, today: string): Stude
 }
 
 export function toCaseDetailView(
-  record: CaseRecord & { history: CaseHistoryRecord[] },
+  record: CaseRecord & CaseDetailExtras & { history: CaseHistoryRecord[] },
   sanctions: CaseSanctionRecord[],
   today: string,
 ): StudentCaseDetailView {
   return {
     ...toCaseView(record),
+    source: record.source,
+    submissionCode: record.submissionCode,
+    countedTowardCode: record.countedTowardCode,
+    linkedCaseCodes: record.linkedCaseCodes,
     timeline: record.history.map(toTimelineEntry),
     sanctions: sanctions.map((sanction) => toSanctionView(sanction, today)),
   };
