@@ -1016,3 +1016,105 @@ Commit: d6b8a7a. Cause: the staff dashboard's "Last checked" effect (U4) listed 
 - Public form (#4): sticky header bar removed; back button, seal and title sit inline at the top.
 - Not diagnosed (#6): empty space under the student Violations tab. Height math now uses `--page-h`; root cause unconfirmed.
 - Not verified: no browser run (dev server denied). HUMAN CHECK: open student Violations, staff Students and the gate form at 390, 900 and 1280 px -> no blank scroll area, 4 tiles at 1280, no navbar on the gate form, tracker line behind circles.
+
+## restructure: "Frontend vs Backend" folder standard, dedupe, debug map (2026-10-15) branch worktree-restructure (from c_v1_polish a061294)
+
+### Baseline (Phase 0, before any change)
+`npm test` 89 files / 1362 tests passed; `npm run lint`, `npm run typecheck`, `npm run build` green. Nothing was red. Final: 94 files / 1378 tests, all four checks green. No new characterization tests were needed before moving: every moved route already had a route test through the harness (`api/tests/routes/*`) and every moved rule a domain test. Tests added: `config/env`, `validators/cases`, `validators/studentId`.
+
+### Move plan (what moved, and what stayed)
+The API was already layered (routes -> services -> repositories, pure domain, views), so under 30% of files moved; no stop-and-ask was needed.
+
+| current path | target path | reason | risk |
+|---|---|---|---|
+| `api/src/middleware/auth.ts` | `api/src/middlewares/auth.ts` | standard name | low (import rewrite) |
+| `api/src/middleware/cors.ts` | `api/src/config/cors.ts` | origin rules are configuration, not a middleware | low |
+| `api/src/lib/http.ts` | `api/src/helpers/http.ts` (+ `middlewares/error.ts` for `notFoundHandler`, `errorHandler`) | envelope helpers vs request-pipeline handlers | low |
+| `api/src/lib/params.ts` | `api/src/helpers/params.ts` (+ `sessionUserId`) | | low |
+| Express.User block in `middleware/auth.ts` | `api/src/@types/express.d.ts` | ambient types | low |
+| validation inside every `routes/*.routes.ts` | `api/src/validators/<feature>.validators.ts` (+ `common`, `helpers/validation.ts`) | one place for boundary rules | medium: behavior preserved, covered by route tests |
+| handlers inside every `routes/*.routes.ts` | `api/src/controllers/<feature>.controller.ts` | routes are wiring only | medium |
+| `toStaffAppointmentView`, `toStaffClearanceView`, `toTemplateView`, `toHandbookEntryView`, `isVisibleInHandbook` (in routes) | `api/src/views/*.views.ts` | mapping belongs to views | low |
+| multer setup duplicated in sanctions and templates routes | `api/src/middlewares/upload.ts` | one upload receiver | low |
+| rate limiters inline in gate and auth routes | `api/src/middlewares/rateLimit.ts` | one limiter | low |
+| form-timing check inline in gate route | `api/src/middlewares/formToken.ts` | SPEC 4.10 protection is a middleware | low |
+| passport strategy inline in `auth.routes.ts` | `api/src/config/passport.ts` | | low |
+| `process.env` reads in `server.ts`, `power-automate.ts`, `s3.ts` | `api/src/config/env.ts` | env only in config | low |
+| `GateLimits`, `DEFAULT_GATE_LIMITS`, body cap (in gate route) | `api/src/config/gate.ts` | | low |
+| `api/src/types/*.types.ts` | `api/src/repositories/<feature>/types.ts` (`handbook/admin-types.ts`) | store contracts live next to the stores | low |
+| status list in `repositories/cases/queries.ts`, validator, `me/*-repo.ts` | `api/src/domain/cases/status.ts` | one definition | low |
+| `client/src/App.tsx` route table and guards | `client/src/routes/AppRoutes.tsx`, `routes/guards.tsx` (`RequireAuth`, `RequireRole`, `RoleSwitch`) | App.tsx is the shell | low |
+| `client/src/api/client.ts` `api` object | `client/src/api/{auth,notifications,me,handbook,cases,students,sanctions,appointments,notices,gate,templates,clearance}.ts`; transport stays in `client.ts` | one file per feature | medium: ~49 call sites rewritten by script, typecheck + tests green |
+| validation functions in `utils/account.ts`, `gateForm.ts`, `notices.ts`, `files.ts` | `client/src/validators/{account,gateForm,notice,files,studentId}.ts` | pure form validation | low |
+| `pages/public/GateReport.tsx` (432 lines) | `pages/public/gate/{DetailsStep,ViolationsStep,ReviewStep,ReceivedCard,GateCard}.tsx` | over 300 lines, several jobs | low |
+| everything else in `api/src` and `client/src` | kept | already follows CLAUDE.md section 10 | none |
+
+Kept on purpose: `client/src/App.tsx` (hot file, stays `App.tsx`, imported by `main.tsx` and the smoke test); `shared/types.ts`; `routes/index.ts` (additive edit only); `repositories/` and `domain/`; ESLint (no Biome). No `models/`, `templates/` or `themes/` folders: nothing belongs in them.
+
+### Findings (and where each one went)
+- Duplicated: student id regex x5 in the client (`pages/staff/Clearance.tsx`, `hooks/useStudentLookup.ts`, `utils/gateForm.ts` x2) -> `client/src/validators/studentId.ts`; the API has its one in `domain/auth/policy.ts` (two packages, one definition each, because shared/ is types-only). Case status list x3 in the API -> `domain/cases/status.ts`. Open-case statuses in `repositories/me` -> same file. `SDO-0000-NNN` fallback x3 -> `domain/codes.ts:unknownCaseCode`. Active-case predicate x2 in the client -> `utils/studentRecord.ts:isActiveCase`. Multer receiver x2, rate limiter x3, `staffId` helper x5, failure-to-status mapper x8 -> middlewares/helpers.
+- Layer violations: env reads outside `config/` (3 files) fixed. Routes held validation and handlers: fixed. No route imported Prisma. No service touched `req`/`res`. No response bypassed `sendOk`/`sendError` (the `/health` probe is the documented exception).
+- Over 300 lines: `GateReport.tsx` split. `components/layout/Shell.tsx` is 315 lines: left, it is one component with one job (chrome); revisit if it grows.
+- Hex colors in `.tsx`: none. `any`: none (two grep hits are English words in comments). `console.log`: two, both startup lines in `server.ts` (kept).
+- `ConnectionTest` scaffolding: already gone from `schema.prisma`, `api/src`, `client/src`.
+- Pill colors: one table, `client/src/utils/format.ts:pillTone`. Power Automate helper: one, `api/src/integrations/power-automate.ts:createSendToPowerAutomate`. Display codes: one formatter set, `api/src/domain/codes.ts` (the client only shows codes the API sends).
+- Not done on purpose: `React.lazy` route splitting (would change loading behavior and the SSR smoke test; the build already warns about a >500 kB chunk, a task of its own). `utils/appointments.ts` keeps `startDateError` and `formErrors` because the calendar uses the same helpers (moving them would create a utils<->validators cycle). `utils/recordForm.ts` and `utils/handbookForm.ts` mix guidance and helpers and were left whole.
+
+### Where to look when X breaks
+Paths are relative to `api/src` (API) and `client/src` (client); tests are under `api/tests` and `client/tests`. The path list was checked by script.
+
+| feature / symptom | route | controller | validator | middleware | service | domain rule | repository | client page | hook / API fn | test |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Auth: cannot sign in, wrong role, forced password change | `routes/auth.routes.ts` | `controllers/auth.controller.ts` | `validators/auth.validators.ts` | `middlewares/auth.ts`, `middlewares/rateLimit.ts`, `config/passport.ts` | `services/auth.service.ts` | `domain/auth/policy.ts` | `repositories/auth/prisma-repo.ts` | `pages/public/Login.tsx`, `pages/account/ChangePassword.tsx` | `context/AuthContext.tsx`, `api/auth.ts` | `tests/routes/auth.routes.test.ts`, `tests/services/auth.service.test.ts` |
+| Handbook: entry missing, system entry visible | `routes/handbook.routes.ts` | `controllers/handbook.controller.ts` | (service validates) | `middlewares/auth.ts` | `services/handbook-admin.service.ts` | `views/handbook.views.ts` (`isVisibleInHandbook`) | `repositories/handbook/prisma-repo.ts` | `pages/student/Handbook.tsx`, `pages/staff/Violations.tsx` | `api/handbook.ts` | `tests/routes/handbook.routes.test.ts`, `tests/routes/handbook-admin.routes.test.ts` |
+| Cases: wrong list, filter 400, cannot validate or reject | `routes/cases.routes.ts` | `controllers/cases.controller.ts` | `validators/cases.validators.ts` | `middlewares/auth.ts` | `services/cases.service.ts` | `domain/cases/status.ts`, `domain/codes.ts` | `repositories/cases/prisma-store.ts`, `repositories/cases/queries.ts` | `pages/staff/Cases.tsx` | `api/cases.ts` | `tests/routes/cases.routes.test.ts`, `tests/services/cases.service.test.ts`, `tests/validators/cases.validators.test.ts` |
+| Escalation: 3 minors not converted, wrong preview | `routes/cases.routes.ts` | `controllers/cases.controller.ts` | `validators/cases.validators.ts` | | `services/cases.service.ts` | `domain/cases/escalation.ts` | `repositories/cases/prisma-store.ts` | `pages/staff/cases/ReviewFooter.tsx` | `api/cases.ts` | `tests/domain/cases/escalation.test.ts` |
+| Sanctions and proof: cannot assign, verify, return, upload | `routes/sanctions.routes.ts` | `controllers/sanctions.controller.ts` | `validators/sanctions.validators.ts` | `middlewares/upload.ts`, `middlewares/auth.ts` | `services/sanctions.service.ts` | `domain/sanctions/rules.ts` | `repositories/cases/prisma-store.ts` | `pages/staff/cases/SanctionFooter.tsx`, `pages/student/Sanctions.tsx` | `api/sanctions.ts` | `tests/routes/sanctions.routes.test.ts`, `tests/services/sanctions.service.test.ts`, `tests/domain/sanctions/rules.test.ts` |
+| Files: upload rejected, preview or download URL fails | `routes/sanctions.routes.ts`, `routes/templates.routes.ts` | `controllers/sanctions.controller.ts`, `controllers/templates.controller.ts` | `validators/sanctions.validators.ts` | `middlewares/upload.ts` | `services/sanctions.service.ts`, `services/templates.service.ts` | `domain/files/validate.ts` | `repositories/templates/prisma-store.ts` | `components/sanctions/ProofPanel.tsx`, `pages/staff/templates/TemplateEditor.tsx` | `api/sanctions.ts`, `api/templates.ts`, `integrations/storage/s3.ts` | `tests/domain/files/validate.test.ts`, `tests/integrations/storage/s3.test.ts`, `tests/routes/templates.routes.test.ts` |
+| Appointments: window or overlap error, wrong status | `routes/appointments.routes.ts` | `controllers/appointments.controller.ts` | `validators/appointments.validators.ts` | `middlewares/auth.ts` | `services/appointments.service.ts` | `domain/appointments/window.ts` | `repositories/appointments/prisma-store.ts`, `repositories/appointments/queries.ts` | `pages/staff/Appointments.tsx`, `pages/student/Appointments.tsx` | `api/appointments.ts` | `tests/routes/appointments.routes.test.ts`, `tests/domain/appointments/window.test.ts` |
+| Clearance: term or roster wrong, cannot mark done | `routes/clearance.routes.ts`, `routes/me.routes.ts` | `controllers/clearance.controller.ts`, `controllers/me.controller.ts` | `validators/clearance.validators.ts`, `validators/me.validators.ts` | `middlewares/auth.ts` | `services/clearance.service.ts` | `domain/clearance/rules.ts`, `domain/clearance/term.ts` | `repositories/clearance/prisma-store.ts` | `pages/staff/Clearance.tsx`, `pages/student/Clearance.tsx` | `api/clearance.ts`, `api/me.ts` | `tests/routes/clearance.routes.test.ts`, `tests/routes/clearance.roster.test.ts`, `tests/domain/clearance/rules.test.ts` |
+| Notifications: inbox wrong, unread count off, email not sent | `routes/notifications.routes.ts` | `controllers/notifications.controller.ts` | `validators/notifications.validators.ts` | `middlewares/auth.ts` | `services/notifications/delivery.ts`, `services/notifications/inbox.ts`, `services/notifications/render.ts` | idempotency key in `services/notifications/delivery.ts` | `repositories/notifications/prisma.ts` | `pages/shared/Inbox.tsx`, `components/layout/BellPopover.tsx` | `api/notifications.ts`, `context/UnreadContext.tsx` | `tests/routes/notifications.routes.test.ts`, `tests/services/notifications.test.ts` |
+| Notices: publish, edit, remove | `routes/notices.routes.ts` | `controllers/notices.controller.ts` | service validates; client form rules in `validators/notice.ts` | `middlewares/auth.ts` | `services/notices.service.ts` | | `repositories/notices/prisma-store.ts` | `pages/staff/Notices.tsx` | `api/notices.ts` | `tests/routes/notices.test.ts` |
+| Power Automate: email never arrives, flow answers not sent | | | | | `services/notifications/delivery.ts`, `services/notifications/scheduler.ts` | | `repositories/notifications/prisma.ts` | | `integrations/power-automate.ts`, `config/env.ts` (`flowUrlsFromEnv`) | `tests/services/notifications.test.ts` |
+| Gate form: refused, 429, token too fresh or stale | `routes/gate.routes.ts` | `controllers/gate.controller.ts` | `validators/gate.validators.ts`, `domain/gate/validate.ts` | `middlewares/rateLimit.ts`, `middlewares/formToken.ts` | `services/gate.service.ts` | `domain/gate/token.ts` | `repositories/gate/prisma-store.ts` | `pages/public/GateReport.tsx`, `pages/public/gate/DetailsStep.tsx` | `api/gate.ts`, `validators/gateForm.ts` (client) | `tests/routes/gate.routes.test.ts`, `tests/domain/gate/token.test.ts`, `tests/domain/gate/validate.test.ts` |
+| Any unexpected 500 or odd error body | | | | `middlewares/error.ts` | | | | | `api/client.ts` (`toApiError`) | `tests/middlewares/error.test.ts` |
+| Server will not start, CORS, env | | | | | | | | | `config/env.ts`, `config/cors.ts`, `server.ts` | `tests/config/env.test.ts`, `tests/config/cors.test.ts` |
+
+Error codes: every API refusal carries a stable `code` from `ApiErrorCode` (`shared/types.ts`); feature failure codes are mapped to HTTP statuses in the matching `controllers/<feature>.controller.ts` (`HTTP_STATUS`), and `sendFailure` in `helpers/http.ts` is the one mapper. Grep the code string to find the rule.
+
+### CLAUDE.md CHANGE: (proposed, not applied; the human approves)
+Section 10, "Dependency direction" and "Where a new thing goes", should read:
+
+```
+### Dependency direction (never import "upwards")
+- **API:** `routes` -> `controllers` -> `services` -> `repositories` / `integrations`. `validators` and `middlewares` are used by routes and controllers. `domain` (pure rules), `helpers` and `config` may be imported by any layer; `domain` and `helpers` do no I/O. Routes hold wiring only (path, method, middleware, controller). Controllers parse the request, call a service, send the response, and never import Prisma. Services never see `req`/`res`. Repositories hold no business rules. `views` map stored records to response shapes. Environment variables are read only in `config/` (`config/env.ts`).
+- **Client:** `routes` / `pages` -> `components` / `hooks` -> `api` / `utils` / `validators`. `components/ui` and `components/feedback` import nothing from `pages` or from domain components. `utils` and `validators` are pure (no React, no axios). Only `api/` talks to the network, one file per feature.
+- **Shared:** unchanged.
+
+| Need | API | Client |
+|---|---|---|
+| A business rule | `domain/<feature>/<rule>.ts`, pure, plus a test | never in the client |
+| A workflow or transaction | `services/<feature>.service.ts` | none |
+| A query | `repositories/<feature>/` (interface, `prisma-*`, `memory-*`, `types.ts`) | none |
+| An endpoint | `routes/<feature>.routes.ts` (wiring), `controllers/<feature>.controller.ts`, `validators/<feature>.validators.ts`, registered in `routes/index.ts` | typed function in `api/<feature>.ts` |
+| Input validation | `validators/` | `validators/` (form and field rules) |
+| Auth, rate limit, upload, errors | `middlewares/` | none |
+| A route or guard | none | `routes/` (table in `AppRoutes.tsx`, guards in `guards.tsx`) |
+```
+Also: in "Package boundaries" add `api/src/@types/` (Express augmentation) and `client/src/validators/`; `api/src/types/` and `api/src/lib/` no longer exist.
+
+### Evidence (definition of done)
+- `grep -rln prisma api/src/routes api/src/controllers` -> no output.
+- `grep -rn "process\.env" api/src | grep -v api/src/config/` -> no output.
+- `grep -rnE "#[0-9A-Fa-f]{6}\b" client/src --include='*.tsx'` -> no output.
+- `grep -rnE ": any\b|as any\b|<any>|any\[\]" api/src client/src shared` -> only two English-word comment lines.
+- Student id regex: one per package (`api/src/domain/auth/policy.ts`, `client/src/validators/studentId.ts`). Case status list: `api/src/domain/cases/status.ts`. Case codes: `api/src/domain/codes.ts`. Pill colors: `client/src/utils/format.ts`. Power Automate helper: `api/src/integrations/power-automate.ts`.
+
+### Could not verify
+Live database, object-storage bucket and a real Power Automate flow (no live operations were run). No browser run: the client was checked by typecheck, lint, unit and interaction tests and `npm run build`. `npm run dev` from a fresh clone was not started.
+
+### Raised items
+- `CLAUDE.md CHANGE:` above (CLAUDE.md was not edited).
+- `DEPENDENCY:` none (hand-written validators; zod not added).
+- `SPEC QUESTION:` none.
+- Open for the human: `React.lazy` route splitting for the >500 kB chunk; renaming `App.tsx` to `app.tsx` (hot file, left).
