@@ -1008,3 +1008,11 @@ Commits: 704b27d (legacy UI removal, last raw hex), 8e668a6 (page splits), then 
 Commit: d6b8a7a. Cause: the staff dashboard's "Last checked" effect (U4) listed the whole `useApi` result as its dependency; `useApi` returns a new object every render and the effect set a new `Date`, so React re-rendered forever ("Maximum update depth exceeded", clicks stopped working). It now depends on the loaded data only. The student Clearance term list had the same pattern (harmless there, but guarded too). Every other effect and `useApi` call was checked: their dependencies are plain values or stable callbacks.
 - Not caught by tests: client tests render to static markup, so effects never run. A DOM test environment (jsdom) would be a new dependency (checkpoint).
 - HUMAN CHECK: `npm run dev`, sign in as staff -> no "Maximum update depth" errors in the console; the dashboard, sidebar and every staff page respond to clicks.
+
+## U14 Check and polish (human report, 2026-10-14) — main session, branch worktree-ui-polish-build
+- Tracker (#5): the connector line now belongs to the step before and the next circle paints over it (`StageTracker.tsx`).
+- Scale (#2, #3): base text 15 px (prototype src 34); prototype zoom restored (`utils/zoom.ts`, `hooks/useUiZoom.ts`, `.ui-zoom` on header, main, sidebar; reverses D16); fixed page heights use `--page-h`.
+- Students (#1): record tile grid container query moved to the section (4 columns when main is wide).
+- Public form (#4): sticky header bar removed; back button, seal and title sit inline at the top.
+- Not diagnosed (#6): empty space under the student Violations tab. Height math now uses `--page-h`; root cause unconfirmed.
+- Not verified: no browser run (dev server denied). HUMAN CHECK: open student Violations, staff Students and the gate form at 390, 900 and 1280 px -> no blank scroll area, 4 tiles at 1280, no navbar on the gate form, tracker line behind circles.
