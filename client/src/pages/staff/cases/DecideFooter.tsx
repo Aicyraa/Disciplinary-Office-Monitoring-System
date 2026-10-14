@@ -4,6 +4,7 @@ import { ConfirmModal } from '@/components/feedback';
 import { Spinner } from '@/components/feedback/PageState';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
+import { Icon } from '@/components/ui/Icon';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { api, toApiError } from '@/api/client';
@@ -43,59 +44,76 @@ export function DecideFooter({ detail, done, allowResolve = true }: { detail: St
     }
   }
 
+  const offense = options.status === 'ready' ? options.data.options.offenseNumber : null;
   return (
     <>
-      <p className="text-sm font-semibold text-ink">Decide on a sanction</p>
-      {options.status === 'loading' ? (
-        <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-          <Spinner />
-          Loading the handbook options…
-        </p>
-      ) : null}
-      {options.status === 'error' ? <p className="text-[13px] text-danger">{options.error.message}</p> : null}
-      {options.status === 'ready' ? (
-        <>
-          {options.data.options.sanctions.length === 0 ? (
-            <p className="text-[13px] text-muted">The handbook defines no sanction for this violation.</p>
-          ) : (
-            <Select
-              label="Sanction"
-              hint={`Offense ${options.data.options.offenseNumber} for this violation.`}
-              value={sanctionId ?? ''}
-              onChange={(event) => setPicked(Number(event.target.value))}
-            >
-              {choices.map((choice) => (
-                <option key={choice.sanctionId} value={choice.sanctionId}>
-                  {choice.sanctionCode} · {choice.type}
-                </option>
-              ))}
-            </Select>
-          )}
-          <div className="grid gap-3 @min-[420px]:grid-cols-[180px_1fr]">
-            <Field label="Due date" type="date" min={today} value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
-            <Textarea label="Instructions (optional)" rows={2} maxLength={1000} value={note} onChange={(event) => setNote(event.target.value)} />
+      <section aria-label="Decide on a sanction" className="flex flex-col gap-4 rounded-xl border border-line bg-white p-4">
+        <header className="flex items-center gap-3">
+          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-info-soft text-primary">
+            <Icon name="gavel" className="!text-xl" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-[15px] leading-tight font-bold text-ink">Decide on a sanction</h3>
+            <p className="text-xs text-muted">{offense !== null ? `Offense ${offense} for this violation` : 'Choose what the student must do'}</p>
           </div>
-        </>
-      ) : null}
-      {error ? (
-        <p role="alert" className="text-[13px] font-medium text-danger">
-          {error}
-        </p>
-      ) : null}
-      <div className="flex flex-col items-stretch gap-2 pt-1">
-        <Button size="xl" fullWidth busy={busy} disabled={sanctionId === undefined} disabledReason="Every allowed sanction is already assigned." onClick={() => void assign()}>
-          Assign sanction
-        </Button>
-        {allowResolve ? (
-          <button
-            type="button"
-            onClick={() => setResolving(true)}
-            className="inline-flex min-h-11 items-center gap-1.5 self-center rounded-full px-3.5 text-[13px] font-semibold text-success outline-none hover:bg-success-soft focus-visible:ring-[3px] focus-visible:ring-primary/25 rail:min-h-9"
-          >
-            Resolve without sanction
-          </button>
+        </header>
+        {options.status === 'loading' ? (
+          <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
+            <Spinner />
+            Loading the handbook options…
+          </p>
         ) : null}
-      </div>
+        {options.status === 'error' ? <p className="text-[13px] text-danger">{options.error.message}</p> : null}
+        {options.status === 'ready' ? (
+          <>
+            {options.data.options.sanctions.length === 0 ? (
+              <p className="text-[13px] text-muted">The handbook defines no sanction for this violation.</p>
+            ) : (
+              <Select label="Sanction" value={sanctionId ?? ''} onChange={(event) => setPicked(Number(event.target.value))}>
+                {choices.map((choice) => (
+                  <option key={choice.sanctionId} value={choice.sanctionId}>
+                    {choice.sanctionCode} · {choice.type}
+                  </option>
+                ))}
+              </Select>
+            )}
+            <div className="grid items-start gap-3 @min-[420px]:grid-cols-[minmax(0,200px)_minmax(0,1fr)]">
+              <Field label="Due date" type="date" min={today} value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+              <Textarea
+                label="Instructions (optional)"
+                rows={3}
+                maxLength={1000}
+                placeholder="Anything the student should know"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                className="min-h-[88px] resize-none"
+              />
+            </div>
+          </>
+        ) : null}
+        {error ? (
+          <p role="alert" className="text-[13px] font-medium text-danger">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-2.5 border-t border-line-soft pt-4">
+          <Button
+            size="xl"
+            className="flex-[2_1_180px]"
+            busy={busy}
+            disabled={sanctionId === undefined}
+            disabledReason="Every allowed sanction is already assigned."
+            onClick={() => void assign()}
+          >
+            Assign sanction
+          </Button>
+          {allowResolve ? (
+            <Button variant="neutral" size="xl" className="flex-[1_1_160px]" onClick={() => setResolving(true)}>
+              Resolve without sanction
+            </Button>
+          ) : null}
+        </div>
+      </section>
       <ConfirmModal
         open={resolving}
         tone="ok"

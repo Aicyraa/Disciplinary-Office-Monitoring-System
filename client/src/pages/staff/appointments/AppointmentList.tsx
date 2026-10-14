@@ -19,10 +19,9 @@ import { dayRange } from '@/utils/staffDashboard';
 /** Links inside the list carry this, so arriving from elsewhere (dashboard, bell) is told apart (5.4b). */
 const FROM_LIST = { fromList: true } as const;
 
-function FilterSelect({ label, aria, value, onChange, children }: { label: string; aria: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+function FilterSelect({ aria, value, onChange, children }: { aria: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
   return (
-    <label className="flex min-w-0 items-center gap-2">
-      <span className="w-11 shrink-0 text-xs font-semibold whitespace-nowrap text-muted">{label}</span>
+    <label className="flex min-w-0 items-center">
       <span className="relative block min-w-0 flex-1">
         <select
           aria-label={aria}
@@ -121,7 +120,6 @@ export function AppointmentList({
         </label>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,170px),1fr))] gap-2.5">
           <FilterSelect
-            label="Status"
             aria="Filter by status"
             value={status}
             onChange={(value) => {
@@ -136,7 +134,6 @@ export function AppointmentList({
             ))}
           </FilterSelect>
           <FilterSelect
-            label="Dates"
             aria="Filter by date range"
             value={range}
             onChange={(value) => {
@@ -151,7 +148,6 @@ export function AppointmentList({
             ))}
           </FilterSelect>
           <div className="flex min-w-0 items-center gap-2">
-            <span className="w-11 shrink-0 text-xs font-semibold text-muted">On</span>
             <input
               type="date"
               aria-label="Filter by a specific date"

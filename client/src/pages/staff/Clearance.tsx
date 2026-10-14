@@ -43,7 +43,6 @@ export function StaffClearancePage() {
     <>
       <h1 className="sr-only">Clearance</h1>
       <div className="mb-5 flex flex-wrap items-center gap-2.5">
-        <span className="text-[13px] font-semibold text-muted">Term</span>
         <ChipGroup
           label="Term"
           options={options.map((t) => ({ value: termParam(t), label: formatTerm(t.academicYear, t.semester) }))}

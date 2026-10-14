@@ -6,7 +6,7 @@ import { Spinner } from '@/components/feedback/PageState';
 import { ToastProvider } from '@/components/feedback';
 import { AppointmentsPage } from '@/pages/student/Appointments';
 import ChangePassword from '@/pages/account/ChangePassword';
-import { ClearancePage, ClearanceSlipPage } from '@/pages/student/Clearance';
+import { ClearancePage } from '@/pages/student/Clearance';
 import { StaffHome } from '@/pages/staff/Dashboard';
 import { StudentDashboard } from '@/pages/student/Dashboard';
 import { StudentHandbookPage } from '@/pages/student/Handbook';
@@ -107,7 +107,6 @@ function AppRoutes() {
             <Route path="violations/:id" element={<ViolationsPage />} />
             <Route path="sanctions" element={<SanctionsPage />} />
             <Route path="sanctions/:id" element={<SanctionsPage />} />
-            <Route path="clearance/slip" element={<ClearanceSlipPage />} />
           </Route>
           <Route element={<RoleOnly role="staff" />}>
             <Route path="cases" element={<CasesPage />} />

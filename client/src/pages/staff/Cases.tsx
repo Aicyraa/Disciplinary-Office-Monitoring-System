@@ -124,7 +124,6 @@ function CaseQueue({
         </label>
         <div className="flex flex-wrap items-center gap-2.5">
           <label className="flex min-w-0 flex-[1_1_220px] items-center gap-2">
-            <span className="text-xs font-semibold whitespace-nowrap text-muted">Status</span>
             <span className="relative block min-w-0 flex-1">
               <select
                 aria-label="Case queue"

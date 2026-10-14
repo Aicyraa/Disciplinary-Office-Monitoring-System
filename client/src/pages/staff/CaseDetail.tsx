@@ -14,6 +14,7 @@ import { useApi } from '@/hooks/useApi';
 import { CASE_STAGES, stageIndex, stageText } from '@/utils/caseView';
 import { codeOf, escalationNote, historyItems, latestRemark, sourceText } from '@/utils/caseWorkspace';
 import { formatDate } from '@/utils/format';
+import { CaseFilesTab } from './cases/CaseFilesTab';
 import { DecideFooter } from './cases/DecideFooter';
 import { ReviewFooter } from './cases/ReviewFooter';
 import { SanctionFooter } from './cases/SanctionFooter';
@@ -84,7 +85,7 @@ function detailRows(detail: StaffCaseDetail): DetailRow[] {
 export function CaseWorkspace({ caseId, onChanged }: { caseId: number; onChanged: () => void }) {
   const toast = useToast();
   const resource = useApi(() => api.staffCase(caseId), [caseId]);
-  const [tab, setTab] = useState<'details' | 'history'>('details');
+  const [tab, setTab] = useState<'details' | 'files' | 'history'>('details');
   const [remarking, setRemarking] = useState(false);
 
   if (resource.status === 'loading') {
@@ -149,14 +150,17 @@ export function CaseWorkspace({ caseId, onChanged }: { caseId: number; onChanged
         label="Case sections"
         options={[
           { value: 'details', label: 'Details' },
+          { value: 'files', label: 'Files' },
           { value: 'history', label: 'History' },
         ]}
         value={tab}
-        onChange={(value) => setTab(value as 'details' | 'history')}
+        onChange={(value) => setTab(value as 'details' | 'files' | 'history')}
         className="flex w-full [&>button]:flex-1 [&>button]:justify-center"
       />
 
-      {tab === 'details' ? <DetailTable rows={detailRows(detail)} /> : <HistoryList items={historyItems(detail)} />}
+      {tab === 'details' ? <DetailTable rows={detailRows(detail)} /> : null}
+      {tab === 'files' ? <CaseFilesTab detail={detail} onViewed={resource.reload} /> : null}
+      {tab === 'history' ? <HistoryList items={historyItems(detail)} /> : null}
 
       {tab === 'details' && open ? (
         <div className="flex items-center gap-3 rounded-[10px] border border-line bg-white px-3.5 py-3">

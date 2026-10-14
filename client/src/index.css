@@ -201,3 +201,10 @@ body {
     zoom: 1;
   }
 }
+
+/* Printing the clearance slip: only the portalled copy prints, not the app or the dialog around it. */
+@media print {
+  body:has(.print-slip-root) > *:not(.print-slip-root) {
+    display: none !important;
+  }
+}

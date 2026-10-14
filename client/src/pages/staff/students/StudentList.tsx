@@ -67,7 +67,7 @@ export function StudentList({ selectedId, onFirstRow }: { selectedId: string | n
           ]}
           value={filter}
           onChange={(value) => setFilter(value as Filter)}
-          className="gap-1.5 [&>button]:min-h-11 [&>button]:px-3 [&>button]:text-xs rail:[&>button]:min-h-[34px]"
+          className="gap-1.5 [&>button]:min-h-11 [&>button]:flex-1 [&>button]:justify-center [&>button]:px-3 [&>button]:text-xs rail:[&>button]:min-h-[34px]"
         />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">

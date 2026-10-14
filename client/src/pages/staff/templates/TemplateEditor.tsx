@@ -94,7 +94,7 @@ export function TemplateEditor({ template, meta, onChanged }: { template: Sancti
         </div>
         <div className="flex flex-col gap-4 p-4">
           <div>
-            <p className="mb-1.5 text-[13px] font-semibold text-ink">Template file</p>
+            <p className="mb-2 text-[13px] font-semibold text-ink">Template file</p>
             <input
               ref={pickRef}
               id={`tpl-file-${template.sanctionId}`}
@@ -113,6 +113,7 @@ export function TemplateEditor({ template, meta, onChanged }: { template: Sancti
                 onView={() => setPreviewing(true)}
                 onReplace={uploading ? undefined : () => pickRef.current?.click()}
                 onRemove={uploading ? undefined : () => setRemoving(true)}
+                className="bg-surface-2 [&>div:last-child]:w-full [&>div:last-child]:flex-wrap [&>div:last-child]:justify-end [&_.truncate]:break-words [&_.truncate]:whitespace-normal"
               />
             ) : (
               <label
@@ -147,6 +148,10 @@ export function TemplateEditor({ template, meta, onChanged }: { template: Sancti
                 {error}
               </p>
             ) : null}
+          </div>
+          <div className="border-t border-line-soft pt-4">
+            <p className="text-sm font-bold text-ink">What students see</p>
+            <p className="text-xs text-muted">The name, description and requirements shown beside the file.</p>
           </div>
           <Field
             label="Template name"
