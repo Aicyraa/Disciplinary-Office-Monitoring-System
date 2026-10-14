@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
-import { accountRows, passwordChangeError, passwordRules } from '@/utils/account';
+import { accountRows } from '@/utils/account';
+import { passwordChangeError, passwordRules } from '@/validators/account';
 import { initials } from '@/utils/nav';
 
 /** The live checklist under a new password (deck src 2058). */

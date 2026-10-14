@@ -10,15 +10,13 @@ import { notificationWhen } from '@/utils/inbox';
 import {
   YEAR_PILLS,
   categoryCounts,
-  detailsErrors,
   filterGateViolations,
-  violationsError,
   waitBeforeSubmit,
-  type DetailsErrors,
   type GateCategory,
   type GateFormValues,
   type GateViolation,
 } from '@/utils/gateForm';
+import { detailsErrors, violationsError, type DetailsErrors } from '@/validators/gateForm';
 import { GateInput, GateSelect, gateControl } from './gate/GateFields';
 import { GatePinned } from './gate/GatePinned';
 

@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { controlVariants } from '@/components/ui/FieldShell';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
-import { LOGIN_LOCK_SECONDS, LOGIN_MAX_ATTEMPTS, loginErrors, lockLabel, wrongCredentials, type LoginErrors } from '@/utils/account';
+import { LOGIN_LOCK_SECONDS, LOGIN_MAX_ATTEMPTS, lockLabel, wrongCredentials } from '@/utils/account';
+import { loginErrors, type LoginErrors } from '@/validators/account';
 import { cn } from '@/utils/cn';
 
 const FORGOT_TEXT = 'Visit the SDO in Room 204 for a temporary password.';

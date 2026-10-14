@@ -7,7 +7,8 @@ import { Icon } from '@/components/ui/Icon';
 import { Textarea } from '@/components/ui/Textarea';
 import { api, toApiError } from '@/api/client';
 import { manilaToday } from '@/utils/files';
-import { noticeErrors, noticeToasts, type NoticeDraft, type NoticeErrors } from '@/utils/notices';
+import { noticeToasts } from '@/utils/notices';
+import { noticeErrors, type NoticeDraft, type NoticeErrors } from '@/validators/notice';
 
 /** New or Edit notice (source src 1650 to 1662). */
 export function NoticeForm({ notice, onDone, onCancel }: { notice: NoticeView | null; onDone: (id: number | null) => void; onCancel: () => void }) {

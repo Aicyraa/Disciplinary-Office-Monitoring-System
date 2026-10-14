@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { NoticeView } from '@shared/types';
-import { noticeErrors, noticeFacts, noticeMeta, noticeToasts } from '@/utils/notices';
+import { noticeFacts, noticeMeta, noticeToasts } from '@/utils/notices';
+import { noticeErrors } from '@/validators/notice';
 
 const ok = { title: 'Uniform week', message: 'Inspection Oct 12 to 17.', instructions: '', expiresOn: '' };
 const TODAY = '2026-10-12';

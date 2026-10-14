@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { lockLabel, loginErrors, wrongCredentials } from '@/utils/account';
+import { lockLabel, wrongCredentials } from '@/utils/account';
+import { loginErrors } from '@/validators/account';
 
 describe('loginErrors: one message per field', () => {
   test('empty email and empty password', () => {

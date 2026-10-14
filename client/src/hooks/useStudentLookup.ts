@@ -3,8 +3,7 @@ import type { StudentProfileView } from '@shared/types';
 import { api, toApiError } from '@/api/client';
 import type { LookupState } from '@/components/ui/StudentLookup';
 import { ordinalYear } from '@/utils/account';
-
-export const STUDENT_ID = /^\d{4}-\d{7}$/;
+import { STUDENT_ID_PATTERN } from '@/validators/studentId';
 
 /**
  * Live "Maria Santos · BSN 2nd Year" under a student ID field (deck src 2790). Asks the staff student endpoint
@@ -19,7 +18,7 @@ export function useStudentLookup(rawId: string): { lookup: LookupState; profile:
   });
 
   useEffect(() => {
-    if (!STUDENT_ID.test(id)) return;
+    if (!STUDENT_ID_PATTERN.test(id)) return;
     let cancelled = false;
     const timer = setTimeout(() => {
       setState({ id, lookup: { status: 'checking' }, profile: null });
@@ -42,6 +41,6 @@ export function useStudentLookup(rawId: string): { lookup: LookupState; profile:
   }, [id]);
 
   // An incomplete ID, or one the answer is not about yet, shows nothing.
-  if (!STUDENT_ID.test(id) || state.id !== id) return { lookup: { status: 'idle' }, profile: null };
+  if (!STUDENT_ID_PATTERN.test(id) || state.id !== id) return { lookup: { status: 'idle' }, profile: null };
   return { lookup: state.lookup, profile: state.profile };
 }

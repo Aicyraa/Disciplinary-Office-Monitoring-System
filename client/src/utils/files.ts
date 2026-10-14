@@ -9,7 +9,7 @@ export const ACCEPT_ATTRIBUTE = '.pdf,application/pdf';
 
 export const notPdfMessage = (name: string): string => `${name} is not a PDF file.`;
 
-const isPdfName = (name: string): boolean => ACCEPTED_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
+export const isPdfName = (name: string): boolean => ACCEPTED_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
 
 /** The line under a file name (deck src 2438): "PDF · 242 KB · Uploaded Oct 7, 2:28 PM", Asia/Manila time. */
 export function fileMeta(file: { name: string; sizeBytes: number; dateUploaded?: string | null }, verb = 'Uploaded'): string {
@@ -44,47 +44,6 @@ export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/** Returns a message for the first problem, or null when the selection can be sent. */
-export function checkSelection(
-  files: ReadonlyArray<{ name: string; size: number }>,
-  existingCount: number,
-): string | null {
-  if (files.length === 0) return 'Choose at least one file.';
-  if (existingCount + files.length > MAX_FILES) return 'You can upload only one file per sanction.';
-  for (const file of files) {
-    if (!isPdfName(file.name)) return notPdfMessage(file.name);
-    if (file.size === 0) return `${file.name} is empty.`;
-    if (file.size > MAX_FILE_BYTES) return `${file.name} is larger than 10 MB.`;
-  }
-  return null;
-}
-
-/**
- * Picking or dropping files: keep the good ones, drop the rest and name the first problem (deck W71: a wrong file
- * is rejected inline and the other files stay). `existingCount` is what is already chosen or attached.
- */
-export function splitSelection<T extends { name: string; size: number }>(
-  files: ReadonlyArray<T>,
-  existingCount: number,
-): { accepted: T[]; error: string | null } {
-  const accepted: T[] = [];
-  let error: string | null = null;
-  for (const file of files) {
-    const problem = !isPdfName(file.name)
-      ? notPdfMessage(file.name)
-      : file.size === 0
-        ? `${file.name} is empty.`
-        : file.size > MAX_FILE_BYTES
-          ? `${file.name} is larger than 10 MB.`
-          : existingCount + accepted.length >= MAX_FILES
-            ? 'You can upload only one file per sanction.'
-            : null;
-    if (problem === null) accepted.push(file);
-    else error ??= problem;
-  }
-  return { accepted, error };
 }
 
 /** Add days to a YYYY-MM-DD calendar day (UTC arithmetic, so no time zone can shift it). */

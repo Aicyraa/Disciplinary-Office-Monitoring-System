@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { forcedPasswordError, loginProblem } from '@/utils/account';
-import { YEAR_PILLS, categoryCounts, detailsErrors, filterGateViolations, violationsError } from '@/utils/gateForm';
+import { forcedPasswordError, loginProblem } from '@/validators/account';
+import { YEAR_PILLS, categoryCounts, filterGateViolations } from '@/utils/gateForm';
+import { detailsErrors, violationsError } from '@/validators/gateForm';
 
 describe('loginProblem (src 2548)', () => {
   test('empty fields', () => {

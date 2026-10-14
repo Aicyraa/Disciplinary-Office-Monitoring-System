@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { MIN_FORM_AGE_MS, YEAR_LEVEL_OPTIONS, shortReference, stepProblem, waitBeforeSubmit, type GateFormValues } from '@/utils/gateForm';
+import { MIN_FORM_AGE_MS, YEAR_LEVEL_OPTIONS, shortReference, waitBeforeSubmit, type GateFormValues } from '@/utils/gateForm';
+import { stepProblem } from '@/validators/gateForm';
 
 const values: GateFormValues = {
   studentId: '2025-1030808',

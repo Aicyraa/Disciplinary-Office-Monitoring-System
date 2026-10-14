@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { accountRows, bellFooter, passwordChangeError, passwordRules } from '@/utils/account';
+import { accountRows, bellFooter } from '@/utils/account';
+import { passwordChangeError, passwordRules } from '@/validators/account';
 
 describe('passwordRules (src 2177): the live checklist', () => {
   test('two rules, each ticked when met', () => {

@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { useAuth } from '@/context/AuthContext';
-import { forcedPasswordError } from '@/utils/account';
+import { forcedPasswordError } from '@/validators/account';
 
 /**
  * "Set a new password" after signing in with a temporary password (deck W05, W06). Only the new password and

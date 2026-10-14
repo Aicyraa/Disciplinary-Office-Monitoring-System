@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/Button';
 import { StudentLookup } from '@/components/ui/StudentLookup';
 import { api, toApiError } from '@/api/client';
 import { useApi } from '@/hooks/useApi';
-import { STUDENT_ID, useStudentLookup } from '@/hooks/useStudentLookup';
+import { useStudentLookup } from '@/hooks/useStudentLookup';
+import { STUDENT_ID_PATTERN } from '@/validators/studentId';
 import { availableActions, codeOf } from '@/utils/caseWorkspace';
 
 const msg = (error: unknown): string => toApiError(error).message;
@@ -46,7 +47,7 @@ export function ReviewFooter({ detail, done, failed }: { detail: StaffCaseDetail
   }
 
   async function link() {
-    if (!STUDENT_ID.test(linkId.trim())) {
+    if (!STUDENT_ID_PATTERN.test(linkId.trim())) {
       setLinkError('Enter a valid student ID, e.g. 2025-1234567.');
       return;
     }

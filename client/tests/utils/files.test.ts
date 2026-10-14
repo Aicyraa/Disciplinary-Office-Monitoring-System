@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { ACCEPT_ATTRIBUTE, MAX_FILE_BYTES, addDays, checkSelection, formatSize, manilaToday, progressPercent, splitSelection, uploadButtonLabel } from '@/utils/files';
+import { ACCEPT_ATTRIBUTE, MAX_FILE_BYTES, addDays, formatSize, manilaToday, progressPercent, uploadButtonLabel } from '@/utils/files';
+import { checkSelection, splitSelection } from '@/validators/files';
 
 const file = (name: string, size = 1024) => ({ name, size });
 

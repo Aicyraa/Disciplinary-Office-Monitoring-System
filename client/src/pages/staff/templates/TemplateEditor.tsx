@@ -10,7 +10,8 @@ import { Icon } from '@/components/ui/Icon';
 import { Textarea } from '@/components/ui/Textarea';
 import { api, toApiError } from '@/api/client';
 import { cn } from '@/utils/cn';
-import { ACCEPT_ATTRIBUTE, checkSelection, fileMeta } from '@/utils/files';
+import { ACCEPT_ATTRIBUTE, fileMeta } from '@/utils/files';
+import { checkSelection } from '@/validators/files';
 import { templateToasts } from '@/utils/templates';
 
 /**

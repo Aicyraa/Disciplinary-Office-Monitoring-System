@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { FileRow } from '@/components/ui/FileRow';
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils/cn';
-import { ACCEPT_ATTRIBUTE, checkSelection, fileMeta, lastFileRemovalMessage, splitSelection } from '@/utils/files';
+import { ACCEPT_ATTRIBUTE, fileMeta, lastFileRemovalMessage } from '@/utils/files';
+import { checkSelection, splitSelection } from '@/validators/files';
 import { uploadPanel } from '@/utils/studentView';
 
 /**

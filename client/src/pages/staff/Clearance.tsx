@@ -10,15 +10,14 @@ import { parseTermParam, termParam } from '@/utils/clearance';
 import { formatTerm } from '@/utils/format';
 import { ClearancePane } from './clearance/ClearancePane';
 import { StudentRoster } from './clearance/StudentRoster';
-
-const STUDENT_ID = /^\d{4}-\d{7}$/;
+import { STUDENT_ID_PATTERN } from '@/validators/studentId';
 
 /** Staff Clearance (deck W50 to W56): term chips, every student of the term, one student's checklist (D3, D8). */
 export function StaffClearancePage() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const studentId = STUDENT_ID.test(id ?? '') ? (id as string) : null;
+  const studentId = STUDENT_ID_PATTERN.test(id ?? '') ? (id as string) : null;
   const terms = useApi(() => api.clearanceTerms(), []);
   const [firstRow, setFirstRow] = useState<string | null>(null);
   const rosterReload = useRef<(() => void) | null>(null);
