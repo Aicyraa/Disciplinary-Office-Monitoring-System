@@ -294,7 +294,7 @@ function ShellFrame({ user }: { user: AuthUser }) {
 
         <UnreadNudge role={role} />
 
-        <main className="ui-zoom w-full flex-1 p-4 pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
+        <main className="ui-zoom w-full flex-1 p-4pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
           <Outlet />
         </main>
       </div>

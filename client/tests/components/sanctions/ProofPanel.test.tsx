@@ -3,7 +3,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
 import type { StudentSanctionView } from '@shared/types';
 import { ProofPanel } from '@/components/sanctions/ProofPanel';
-import { ProofUploadDialog } from '@/components/sanctions/ProofUploadDialog';
 import { lastFileRemovalMessage } from '@/utils/files';
 
 const base: StudentSanctionView = {
@@ -45,70 +44,44 @@ const render = (sanction: StudentSanctionView) =>
     </MemoryRouter>,
   );
 
-const renderDialog = (selected: File[] = []) =>
-  renderToStaticMarkup(
-    <ProofUploadDialog
-      open
-      inputId="proof-7"
-      title="Upload proof of completion"
-      subtitle="Sanction S001 · Violation Slip"
-      submitLabel="Submit for verification"
-      selected={selected}
-      existingCount={0}
-      error={null}
-      busy={false}
-      percent={null}
-      onPick={() => {}}
-      onRemove={() => {}}
-      onPreview={() => {}}
-      onSubmit={() => {}}
-      onClose={() => {}}
-    />,
-  );
-
 describe('ProofPanel', () => {
-  test('an assigned sanction shows an Upload proof button, not the drop area', () => {
+  test('an assigned sanction offers a multi-file upload with a labelled input and the limits', () => {
     const html = render(base);
     expect(html).toContain('Upload proof of completion');
     expect(html).toContain('Sanction S001 · Violation Slip');
-    expect(html).toContain('Upload proof');
-    expect(html).not.toContain('Choose files to upload');
-    expect(html).not.toContain('role="dialog"');
+    expect(html).toContain('multiple');
+    expect(html).toContain('accept=".pdf,application/pdf"');
+    expect(html).toContain('5 files max');
     expect(html).not.toContain('Replace');
   });
 
-  test('the dialog has the labelled multi-file input, the limits and a hoverable keyboard-operable drop area', () => {
-    const html = renderDialog();
-    expect(html).toContain('role="dialog"');
-    expect(html).toContain('multiple');
-    expect(html).toContain('accept=".pdf,application/pdf"');
+  test('the drop area is one hoverable, keyboard-operable container that says what to do', () => {
+    const html = render(base);
     expect(html).toContain('Choose files to upload');
+    expect(html).toContain('Click to choose or drag files here');
     expect(html).toContain('PDF only, up to 10 MB each, 5 files max');
     expect(html).toMatch(/<div role="button" tabindex="0"[^>]*hover:border-primary/);
     expect(html).toContain('border-dashed');
-    expect(html).toMatch(/<input id="proof-7"[^>]*tabindex="-1"/);
   });
 
-  test('the dialog submit waits for a file: "Add a file to submit", disabled', () => {
-    const html = renderDialog();
+  test('the main button waits for a file: "Add a file to submit", disabled', () => {
+    const html = render(base);
     expect(html).toMatch(/<button type="button" disabled=""(?:(?!<\/button>)[^])*>Add a file to submit<\/button>/);
-    expect(html).not.toContain('Submit for verification');
+    expect(html).not.toContain('Submit proof');
   });
 
-  test('the dialog lists chosen files as not submitted yet and offers the submit label', () => {
-    const html = renderDialog([new File(['x'], 'slip.pdf', { type: 'application/pdf' })]);
-    expect(html).toContain('slip.pdf');
-    expect(html).toContain('Not submitted yet');
-    expect(html).toContain('Submit for verification');
+  test('the hidden file input is not a keyboard tab stop (the drop area is)', () => {
+    expect(render(base)).toMatch(/<input id="proof-7"[^>]*tabindex="-1"/);
   });
 
   test('no progress bar before an upload starts', () => {
     expect(render(base)).not.toContain('role="progressbar"');
   });
 
-  test('a returned sanction offers a new upload', () => {
+  test('a returned sanction still offers the drop area', () => {
     const html = render({ ...base, status: 'returned', canUpload: true, canChangeFiles: true, files: [file(1)] });
-    expect(html).toContain('Upload new proof');
+    expect(html).toContain('Choose files to upload');
+    expect(html).toContain('Add a file to submit');
   });
 
   test('pending and unreviewed: lists files with Replace and Remove, no new upload', () => {
@@ -148,7 +121,6 @@ describe('ProofPanel', () => {
     const html = render({ ...base, status: 'completed', canUpload: false, files: [file(1)] });
     expect(html).toContain('Verified by the SDO.');
     expect(html).toContain('This sanction is verified. Uploads are closed.');
-    expect(html).not.toContain('Upload proof</');
-    expect(html).not.toContain('Upload new proof');
+    expect(html).not.toContain('Choose files to upload');
   });
 });
