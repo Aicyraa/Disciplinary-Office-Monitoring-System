@@ -14,7 +14,7 @@ import {
   type CaseListFilter,
   type CaseQueries,
 } from './queries.js';
-import type { CaseRecord, CaseSanctionRecord, CaseStore, CaseTx, HandbookEntryLite } from '../../types/cases.types.js';
+import type { CaseRecord, CaseSanctionRecord, CaseStore, CaseTx, HandbookEntryLite } from './types.js';
 
 const CURRENT = 'handbook_entries_disciplinary_cases_handbook_entry_idTohandbook_entries';
 const ORIGINAL = 'handbook_entries_disciplinary_cases_original_handbook_entry_idTohandbook_entries';

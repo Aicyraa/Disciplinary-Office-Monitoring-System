@@ -4,7 +4,7 @@ import { createGateController } from '../controllers/gate.controller.js';
 import { requireFormToken } from '../middlewares/formToken.js';
 import { createRateLimiter } from '../middlewares/rateLimit.js';
 import type { GateService } from '../services/gate.service.js';
-import type { GateOptionsReader } from '../types/gate.types.js';
+import type { GateOptionsReader } from '../repositories/gate/types.js';
 
 export interface GateRouterOptions {
   service: GateService;

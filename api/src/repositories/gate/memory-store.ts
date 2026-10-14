@@ -1,5 +1,5 @@
 import { formatSubmissionCode } from '../../domain/codes.js';
-import type { GateEntry, GateNotificationInput, GateOptionsReader, GateStore, GateTx, NewGateCase } from '../../types/gate.types.js';
+import type { GateEntry, GateNotificationInput, GateOptionsReader, GateStore, GateTx, NewGateCase } from './types.js';
 
 export interface MemoryGateState {
   students: string[];

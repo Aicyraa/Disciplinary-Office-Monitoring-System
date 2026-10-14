@@ -1,5 +1,5 @@
 import type { PrismaClient } from '../../../generated/prisma/client.js';
-import type { NoticeStore } from '../../types/notices.types.js';
+import type { NoticeStore } from './types.js';
 
 type Db = Pick<PrismaClient, 'notices' | 'notifications' | 'student_accounts' | '$transaction'>;
 

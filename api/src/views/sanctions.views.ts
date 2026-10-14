@@ -1,5 +1,5 @@
 import type { StaffSanctionView } from '@shared/types.js';
-import type { CaseSanctionRecord } from '../types/cases.types.js';
+import type { CaseSanctionRecord } from '../repositories/cases/types.js';
 import { displayCode } from '../domain/codes.js';
 import { manilaToday } from './me.views.js';
 import { lateByDays } from '../domain/sanctions/rules.js';

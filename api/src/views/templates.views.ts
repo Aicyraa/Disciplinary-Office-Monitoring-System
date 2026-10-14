@@ -1,6 +1,6 @@
 import type { SanctionTemplateView } from '@shared/types.js';
 import { displayCode } from '../domain/codes.js';
-import type { TemplateRecord } from '../types/templates.types.js';
+import type { TemplateRecord } from '../repositories/templates/types.js';
 
 /** The public shape: text and file metadata only. Storage keys never leave the server. */
 export function toTemplateView(record: TemplateRecord): SanctionTemplateView {

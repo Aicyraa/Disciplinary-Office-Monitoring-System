@@ -1,5 +1,5 @@
 import { planEscalations, type EscalationGroup } from '../domain/cases/escalation.js';
-import type { CaseRecord, CaseStore, CaseTx } from '../types/cases.types.js';
+import type { CaseRecord, CaseStore, CaseTx } from '../repositories/cases/types.js';
 
 export type CaseFailureCode =
   | 'not_found'

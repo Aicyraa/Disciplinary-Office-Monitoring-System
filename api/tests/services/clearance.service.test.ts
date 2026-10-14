@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { createMemoryClearanceStore, type MemoryClearanceStore } from '../../src/repositories/clearance/memory-store.js';
 import { createClearanceService, isUniqueViolation, type ClearanceService } from '../../src/services/clearance.service.js';
-import type { ClearanceStore } from '../../src/types/clearance.types.js';
+import type { ClearanceStore } from '../../src/repositories/clearance/types.js';
 
 const STAFF = 'E001';
 const S1 = '2025-0000001';

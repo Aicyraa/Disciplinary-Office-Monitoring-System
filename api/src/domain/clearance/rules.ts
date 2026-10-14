@@ -1,4 +1,4 @@
-import type { ClearanceStatus, RequirementStatus } from '../../types/clearance.types.js';
+import type { ClearanceStatus, RequirementStatus } from '../../repositories/clearance/types.js';
 
 /** The seeded default requirement that the warning chip is about (SPEC 4.4). */
 export const NO_ACTIVE_VIOLATIONS_LABEL = 'No active violations';

@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '../../../generated/prisma/client.js';
 import type { Severity } from '@shared/types.js';
-import type { AdminEntryRecord, HandbookAdminStore, HandbookAdminTx } from '../../types/handbook-admin.types.js';
+import type { AdminEntryRecord, HandbookAdminStore, HandbookAdminTx } from './admin-types.js';
 
 const include = {
   violations: true,

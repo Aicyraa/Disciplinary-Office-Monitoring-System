@@ -1,5 +1,5 @@
 import type { ClearanceRosterRow } from '@shared/types.js';
-import type { ClearanceEventType, ClearanceRecord } from '../../types/clearance.types.js';
+import type { ClearanceEventType, ClearanceRecord } from './types.js';
 
 export const CLEARANCE_PAGE_SIZE = 10;
 

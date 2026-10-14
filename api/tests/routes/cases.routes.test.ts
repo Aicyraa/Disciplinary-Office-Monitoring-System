@@ -10,7 +10,7 @@ import {
 import { createMemoryCaseQueries } from '../../src/repositories/cases/memory-queries.js';
 import { createMemoryCaseStore, type MemoryCaseStore } from '../../src/repositories/cases/memory-store.js';
 import { createCaseService } from '../../src/services/cases.service.js';
-import type { CaseRecord } from '../../src/types/cases.types.js';
+import type { CaseRecord } from '../../src/repositories/cases/types.js';
 
 const S1 = STUDENT_A.id;
 const REF = '11111111-1111-4111-8111-111111111111';

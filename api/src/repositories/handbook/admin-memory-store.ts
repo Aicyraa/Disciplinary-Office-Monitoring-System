@@ -1,5 +1,5 @@
 import type { Severity } from '@shared/types.js';
-import type { AdminEntryRecord, HandbookAdminStore, HandbookAdminTx, SanctionChoice } from '../../types/handbook-admin.types.js';
+import type { AdminEntryRecord, HandbookAdminStore, HandbookAdminTx, SanctionChoice } from './admin-types.js';
 
 interface ViolationRow {
   violationId: number;

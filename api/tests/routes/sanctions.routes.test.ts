@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { createMemoryCaseStore, type MemoryCaseStore } from '../../src/repositories/cases/memory-store.js';
-import type { CaseRecord } from '../../src/types/cases.types.js';
+import type { CaseRecord } from '../../src/repositories/cases/types.js';
 import { DOCX_MIME, MAX_FILE_BYTES, PDF_MIME } from '../../src/domain/files/validate.js';
 import { HttpError } from '../../src/helpers/http.js';
 import { createMemoryStorage, type MemoryStorage } from '../../src/integrations/storage/memory.js';

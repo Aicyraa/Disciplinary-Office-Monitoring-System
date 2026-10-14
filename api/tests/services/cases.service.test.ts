@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { createMemoryCaseStore, type MemoryCaseStore } from '../../src/repositories/cases/memory-store.js';
 import { createCaseService, type CaseService } from '../../src/services/cases.service.js';
-import type { CaseRecord } from '../../src/types/cases.types.js';
+import type { CaseRecord } from '../../src/repositories/cases/types.js';
 
 const S1 = '2025-0000001';
 const S2 = '2025-0000002';

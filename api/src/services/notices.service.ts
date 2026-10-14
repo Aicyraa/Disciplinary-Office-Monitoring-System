@@ -1,5 +1,5 @@
 import { manilaToday } from '../views/me.views.js';
-import type { NoticeStore } from '../types/notices.types.js';
+import type { NoticeStore } from '../repositories/notices/types.js';
 
 export const MAX_NOTICE_TITLE = 120;
 export const MAX_NOTICE_TEXT = 1000;

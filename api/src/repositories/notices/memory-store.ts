@@ -1,5 +1,5 @@
 import type { MemoryNotifications } from '../notifications/memory.js';
-import type { NoticeRecord, NoticeStore } from '../../types/notices.types.js';
+import type { NoticeRecord, NoticeStore } from './types.js';
 
 interface StoredNotice extends NoticeRecord {
   employeeId: string;

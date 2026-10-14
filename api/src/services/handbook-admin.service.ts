@@ -1,5 +1,5 @@
 import type { Severity } from '@shared/types.js';
-import type { HandbookAdminStore, SanctionChoice } from '../types/handbook-admin.types.js';
+import type { HandbookAdminStore, SanctionChoice } from '../repositories/handbook/admin-types.js';
 
 export type HandbookAdminFailureCode = 'not_found' | 'invalid_input' | 'violation_exists' | 'violation_in_use';
 

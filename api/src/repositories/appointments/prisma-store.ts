@@ -9,7 +9,7 @@ import {
   type AppointmentQueries,
   type AppointmentRow,
 } from './queries.js';
-import type { AppointmentEventType, AppointmentRecord, AppointmentStore, AppointmentTx } from '../../types/appointments.types.js';
+import type { AppointmentEventType, AppointmentRecord, AppointmentStore, AppointmentTx } from './types.js';
 
 const LIVE = ['scheduled', 'rescheduled'];
 const asDay = (date: Date): string => date.toISOString().slice(0, 10);

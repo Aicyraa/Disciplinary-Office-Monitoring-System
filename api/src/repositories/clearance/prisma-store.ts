@@ -8,7 +8,7 @@ import type {
   ClearanceTx,
   RequirementRecord,
   RequirementStatus,
-} from '../../types/clearance.types.js';
+} from './types.js';
 
 type ItemRow = {
   requirement_id: number;

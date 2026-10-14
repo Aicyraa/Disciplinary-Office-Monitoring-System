@@ -1,6 +1,6 @@
 import type { CaseSanctionStatus, CaseStatus, Severity } from '@shared/types.js';
-import type { HandbookSanctionRow } from '../domain/sanctions/rules.js';
-import type { EscalationCandidate } from '../domain/cases/escalation.js';
+import type { HandbookSanctionRow } from '../../domain/sanctions/rules.js';
+import type { EscalationCandidate } from '../../domain/cases/escalation.js';
 
 export type CaseSource = 'gate' | 'staff';
 

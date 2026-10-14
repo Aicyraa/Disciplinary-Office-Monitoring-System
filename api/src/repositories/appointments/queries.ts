@@ -1,5 +1,5 @@
 import type { AppointmentStatus } from '@shared/types.js';
-import type { AppointmentEventType, AppointmentRecord } from '../../types/appointments.types.js';
+import type { AppointmentEventType, AppointmentRecord } from './types.js';
 
 /** 5 per page, as the deck's Appointments list (UI-POLISH-SPEC 5.4c). */
 export const APPOINTMENT_PAGE_SIZE = 5;

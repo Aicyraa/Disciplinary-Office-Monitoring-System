@@ -4,7 +4,7 @@ import { sendError, sendNotFound, sendOk } from '../helpers/http.js';
 import { parseId } from '../helpers/params.js';
 import { manilaToday } from '../views/me.views.js';
 import type { NoticeFailure, NoticeService } from '../services/notices.service.js';
-import type { NoticeStore } from '../types/notices.types.js';
+import type { NoticeStore } from '../repositories/notices/types.js';
 
 export interface NoticeControllerDeps {
   service: NoticeService;

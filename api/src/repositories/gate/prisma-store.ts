@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '../../../generated/prisma/client.js';
 import { loadSubmissionCodes } from '../cases/code-sql.js';
-import type { GateOptionsReader, GateStore, GateTx } from '../../types/gate.types.js';
+import type { GateOptionsReader, GateStore, GateTx } from './types.js';
 
 const MANILA_OFFSET = '+08:00';
 

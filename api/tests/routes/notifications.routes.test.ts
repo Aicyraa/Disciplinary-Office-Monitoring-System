@@ -2,7 +2,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createMemoryCaseStore } from '../../src/repositories/cases/memory-store.js';
 import { createCaseService } from '../../src/services/cases.service.js';
-import type { CaseRecord } from '../../src/types/cases.types.js';
+import type { CaseRecord } from '../../src/repositories/cases/types.js';
 import {
   buildHarnessApp,
   signedInAgent,

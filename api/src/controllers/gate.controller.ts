@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 import { signFormToken } from '../domain/gate/token.js';
 import { PUBLIC_REJECTION, sendError, sendOk } from '../helpers/http.js';
 import type { GateService } from '../services/gate.service.js';
-import type { GateOptionsReader } from '../types/gate.types.js';
+import type { GateOptionsReader } from '../repositories/gate/types.js';
 import { parseGateReportBody } from '../validators/gate.validators.js';
 
 /** The one answer for every refusal of a report, so a bot learns nothing about which check failed. */

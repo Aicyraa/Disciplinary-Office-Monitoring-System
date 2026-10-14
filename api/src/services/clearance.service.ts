@@ -1,5 +1,5 @@
 import { checkTerm, nextClearanceStatus, termLabel } from '../domain/clearance/rules.js';
-import type { ClearanceItemRecord, ClearanceRecord, ClearanceStore, ClearanceTx } from '../types/clearance.types.js';
+import type { ClearanceItemRecord, ClearanceRecord, ClearanceStore, ClearanceTx } from '../repositories/clearance/types.js';
 
 export type ClearanceFailureCode =
   | 'not_found'

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireStaff } from '../middlewares/auth.js';
 import { createNoticeController } from '../controllers/notices.controller.js';
 import type { NoticeService } from '../services/notices.service.js';
-import type { NoticeStore } from '../types/notices.types.js';
+import type { NoticeStore } from '../repositories/notices/types.js';
 
 export interface NoticeRouterOptions {
   service: NoticeService;

@@ -1,4 +1,4 @@
-import type { TemplateFileLookup, TemplateRecord, TemplateStore, TemplateTx } from '../../types/templates.types.js';
+import type { TemplateFileLookup, TemplateRecord, TemplateStore, TemplateTx } from './types.js';
 
 export interface MemoryTemplateState {
   sanctions: Array<{ sanctionId: number; sanctionType: string; description: string }>;

@@ -6,7 +6,7 @@ import type {
   ClearanceStore,
   ClearanceTx,
   RequirementRecord,
-} from '../../types/clearance.types.js';
+} from './types.js';
 
 export interface MemoryClearanceState {
   students: string[];

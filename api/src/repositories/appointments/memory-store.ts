@@ -13,7 +13,7 @@ import type {
   AppointmentRecord,
   AppointmentStore,
   AppointmentTx,
-} from '../../types/appointments.types.js';
+} from './types.js';
 
 export interface MemoryAppointmentState {
   students: string[];

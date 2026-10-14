@@ -1,5 +1,5 @@
 import { endDateFor, checkStartDate, windowsOverlap, type StartDateCheck } from '../domain/appointments/window.js';
-import type { AppointmentRecord, AppointmentStore, AppointmentTx } from '../types/appointments.types.js';
+import type { AppointmentRecord, AppointmentStore, AppointmentTx } from '../repositories/appointments/types.js';
 
 export type AppointmentFailureCode =
   | 'not_found'

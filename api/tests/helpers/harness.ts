@@ -1,5 +1,5 @@
 import type { NoticeService } from '../../src/services/notices.service.js';
-import type { NoticeStore } from '../../src/types/notices.types.js';
+import type { NoticeStore } from '../../src/repositories/notices/types.js';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
@@ -14,7 +14,7 @@ import type { CaseService } from '../../src/services/cases.service.js';
 import type { SanctionService } from '../../src/services/sanctions.service.js';
 import type { GateLimits } from '../../src/config/gate.js';
 import type { GateService } from '../../src/services/gate.service.js';
-import type { GateOptionsReader } from '../../src/types/gate.types.js';
+import type { GateOptionsReader } from '../../src/repositories/gate/types.js';
 import type { HandbookAdminService } from '../../src/services/handbook-admin.service.js';
 import type { HandbookRepo } from '../../src/repositories/handbook/repo.js';
 import type { TemplateReader } from '../../src/repositories/templates/reader.js';

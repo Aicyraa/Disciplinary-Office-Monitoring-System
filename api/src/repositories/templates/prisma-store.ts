@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '../../../generated/prisma/client.js';
 import type { TemplateReader } from './reader.js';
-import type { TemplateRecord, TemplateStore, TemplateTx } from '../../types/templates.types.js';
+import type { TemplateRecord, TemplateStore, TemplateTx } from './types.js';
 
 type SanctionRow = {
   sanction_id: number;

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { manilaToday } from '../views/me.views.js';
-import type { GateStore, GateTx } from '../types/gate.types.js';
+import type { GateStore, GateTx } from '../repositories/gate/types.js';
 import type { ParsedReport } from '../domain/gate/validate.js';
 
 /** `submittedAt` is when the report was filed (for a repeat: the first one), ISO UTC. */

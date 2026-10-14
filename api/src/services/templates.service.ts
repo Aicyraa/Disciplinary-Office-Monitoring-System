@@ -1,6 +1,6 @@
 import { validateUpload, type UploadErrorCode, notPdfMessage } from '../domain/files/validate.js';
 import { PRESIGN_TTL_SECONDS, templateKey, type ObjectStorage } from '../integrations/storage/types.js';
-import type { TemplateStore } from '../types/templates.types.js';
+import type { TemplateStore } from '../repositories/templates/types.js';
 
 export type TemplateFailureCode = UploadErrorCode | 'not_found' | 'invalid_input';
 

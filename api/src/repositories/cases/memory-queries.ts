@@ -12,7 +12,7 @@ import {
   pageFor,
   type CaseQueries,
 } from './queries.js';
-import type { CaseRecord } from '../../types/cases.types.js';
+import type { CaseRecord } from './types.js';
 
 /** In-memory fake of the staff query side, reading the same state as the memory store. */
 export function createMemoryCaseQueries(

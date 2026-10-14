@@ -1,5 +1,5 @@
 import { displayCode } from '../domain/codes.js';
-import type { CaseSanctionRecord, CaseStore, CaseTx } from '../types/cases.types.js';
+import type { CaseSanctionRecord, CaseStore, CaseTx } from '../repositories/cases/types.js';
 import { validateUpload, MAX_FILES_PER_SANCTION, type UploadErrorCode, notPdfMessage } from '../domain/files/validate.js';
 import { PRESIGN_TTL_SECONDS, proofKey, type ObjectStorage } from '../integrations/storage/types.js';
 import { allowedSanctions, offenseNumber, type HandbookSanctionRow } from '../domain/sanctions/rules.js';

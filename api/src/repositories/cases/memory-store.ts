@@ -12,7 +12,7 @@ import type {
   NotificationInput,
   SanctionHistoryInput,
   SanctionNotificationInput,
-} from '../../types/cases.types.js';
+} from './types.js';
 
 export interface MemoryState {
   cases: CaseRecord[];
