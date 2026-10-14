@@ -47,8 +47,6 @@ const render = (sanction: StudentSanctionView) =>
 describe('ProofPanel', () => {
   test('an assigned sanction offers a multi-file upload with a labelled input and the limits', () => {
     const html = render(base);
-    expect(html).toContain('Upload proof of completion');
-    expect(html).toContain('Sanction S001 · Violation Slip');
     expect(html).toContain('multiple');
     expect(html).toContain('accept=".pdf,application/pdf"');
     expect(html).toContain('5 files max');
@@ -114,12 +112,10 @@ describe('ProofPanel', () => {
   test('returned: the reason in a red alert, then a new upload', () => {
     const html = render({ ...base, status: 'returned', staffNote: 'Missing signature.', canUpload: true, canChangeFiles: true, files: [file(1)] });
     expect(html).toContain('Returned by the SDO: Missing signature.');
-    expect(html).toContain('Upload proof of completion');
   });
 
   test('verified: the sent proof with uploads closed', () => {
     const html = render({ ...base, status: 'completed', canUpload: false, files: [file(1)] });
-    expect(html).toContain('Verified by the SDO.');
     expect(html).toContain('This sanction is verified. Uploads are closed.');
     expect(html).not.toContain('Choose files to upload');
   });

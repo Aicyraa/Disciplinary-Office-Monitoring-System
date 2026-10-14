@@ -4,7 +4,6 @@ import type { StudentSanctionView } from '@shared/types';
 import { api, toApiError } from '@/api/client';
 import { ConfirmModal, useToast } from '@/components/feedback';
 import { FilePreview, type PreviewFile } from '@/components/feedback/FilePreview';
-import { StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { FileRow } from '@/components/ui/FileRow';
 import { Icon } from '@/components/ui/Icon';
@@ -100,20 +99,9 @@ export function ProofPanel({
   };
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-line">
-      <div className="flex items-center gap-3 border-b border-line-soft bg-surface-2 px-4 py-3.5">
-        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-info-soft text-primary">
-          <Icon name="upload_file" className="!text-xl" />
-        </span>
-        <span className="min-w-0 flex-1 leading-snug">
-          <span className="block text-[15px] font-bold text-ink">{panel.title}</span>
-          <span className="block truncate text-xs text-muted">{panel.sub}</span>
-        </span>
-        <StatusPill status={sanction.status} kind="sanction" />
-      </div>
-
+    <div className="flex flex-col">
       {panel.returned ? (
-        <p role="alert" className="mx-4 mt-3.5 flex items-center gap-2 rounded-[10px] bg-bad-soft px-3.5 py-2.5 text-[13px] text-pretty text-bad-ink">
+        <p role="alert" className="mb-3.5 flex items-center gap-2 rounded-[10px] bg-bad-soft px-3.5 py-2.5 text-[13px] text-pretty text-bad-ink">
           <Icon name="undo" className="!text-lg" />
           {panel.returned}
         </p>
@@ -174,7 +162,7 @@ export function ProofPanel({
           }}
           onDrop={onDrop}
           className={cn(
-            'mx-4 mt-3.5 flex min-h-32 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed px-4 py-[18px] text-center outline-none transition-colors hover:border-primary hover:bg-upload-hover focus-visible:ring-[3px] focus-visible:ring-primary/35',
+            'flex min-h-32 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed px-4 py-[18px] text-center outline-none transition-colors hover:border-primary hover:bg-upload-hover focus-visible:ring-[3px] focus-visible:ring-primary/35',
             dragging ? 'border-primary bg-upload-hover' : 'border-upload-line bg-upload-bg',
             busy && 'cursor-not-allowed opacity-60',
           )}
@@ -189,7 +177,7 @@ export function ProofPanel({
       ) : null}
 
       {error ? (
-        <p role="alert" className="mx-4 mt-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-danger">
+        <p role="alert" className="mt-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-danger">
           <Icon name="error" className="!text-lg" />
           {error}
         </p>
@@ -198,15 +186,21 @@ export function ProofPanel({
       {panel.open && handbookEntryId !== undefined ? (
         <Link
           to={`/handbook/${handbookEntryId}`}
-          className="mx-3 mt-2.5 inline-flex min-h-9 items-center gap-1.5 self-start rounded-lg px-2 text-[13px] font-semibold text-primary outline-none hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25"
+          aria-label="View this offense in the Handbook"
+          className="group relative mt-2.5 grid size-9 place-items-center self-start rounded-full text-primary outline-none hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25"
         >
-          <Icon name="menu_book" className="!text-lg" />
-          View this offense in the Handbook
+          <Icon name="menu_book" className="!text-xl" />
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute top-1/2 left-full ml-2 -translate-y-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          >
+            View this offense in the Handbook
+          </span>
         </Link>
       ) : null}
 
       {sanction.files.length + selected.length > 0 ? (
-        <div className="mx-4 mt-3.5 overflow-hidden rounded-[10px] border border-line-soft" aria-label="Proof files">
+        <div className="mt-3.5 overflow-hidden rounded-[10px] border border-line-soft" aria-label="Proof files">
           {sanction.files.map((file) => (
             <FileRow
               key={file.id}
@@ -241,7 +235,7 @@ export function ProofPanel({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-2 px-4 pt-3.5 pb-4">
+      <div className="flex flex-col gap-2 pt-3.5">
         {panel.open && sanction.canUpload ? (
           <Button
             size="xl"
