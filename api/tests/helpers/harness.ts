@@ -12,7 +12,7 @@ import type { ClearanceQueries } from '../../src/repositories/clearance/queries.
 import type { ClearanceService } from '../../src/services/clearance.service.js';
 import type { CaseService } from '../../src/services/cases.service.js';
 import type { SanctionService } from '../../src/services/sanctions.service.js';
-import type { GateLimits } from '../../src/routes/gate.routes.js';
+import type { GateLimits } from '../../src/config/gate.js';
 import type { GateService } from '../../src/services/gate.service.js';
 import type { GateOptionsReader } from '../../src/types/gate.types.js';
 import type { HandbookAdminService } from '../../src/services/handbook-admin.service.js';

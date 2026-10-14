@@ -16,3 +16,16 @@ export function trustProxyFromEnv(value: string | undefined): number | boolean |
   if (hops === 0) return false;
   return hops <= 5 ? hops : undefined;
 }
+
+export interface GateLimits {
+  windowMs: number;
+  /** Report submits per IP per window (SPEC 4.10: for example 5 per 10 minutes). */
+  submits: number;
+  /** Token and options requests per IP per window; looser than the submit limit. */
+  tokens: number;
+}
+
+export const DEFAULT_GATE_LIMITS: GateLimits = { windowMs: 10 * 60_000, submits: 5, tokens: 30 };
+
+/** A report is a few short fields; anything bigger than this is not one. */
+export const MAX_REPORT_BODY_CHARACTERS = 8_000;
