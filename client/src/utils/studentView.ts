@@ -1,13 +1,12 @@
 import type { CaseTimelineEntry, Severity, StudentCaseDetailView, StudentCaseView, StudentSanctionView } from '@shared/types';
 import type { HistoryItem } from '@/components/ui/HistoryList';
+import { isActiveCase } from '@/utils/studentRecord';
 
 /** Student My violations and My sanctions (deck W62 to W67, src 2950 to 3017). The API decides every rule. */
 
-const ACTIVE_CASE: ReadonlyArray<StudentCaseView['status']> = ['reported', 'validated', 'for_sanction'];
-
 /** Active cases only (D14); "Show resolved cases" swaps in the resolved and not-verified ones. */
 export function violationBase<T extends Pick<StudentCaseView, 'status'>>(cases: readonly T[], showResolved: boolean): T[] {
-  return cases.filter((item) => ACTIVE_CASE.includes(item.status) !== showResolved);
+  return cases.filter((item) => isActiveCase(item) !== showResolved);
 }
 
 export type ClassKey = 'all' | Severity;

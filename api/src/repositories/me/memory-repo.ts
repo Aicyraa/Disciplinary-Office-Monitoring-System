@@ -1,4 +1,5 @@
-import { assignCaseCodes } from '../../domain/codes.js';
+import { OPEN_CASE_STATUSES } from '../../domain/cases/status.js';
+import { assignCaseCodes, unknownCaseCode } from '../../domain/codes.js';
 import type {
   AppointmentRecord,
   CaseHistoryRecord,
@@ -48,7 +49,7 @@ export function createMemoryStudentViewRepo(data: MemoryStudentData = {}): Stude
   const clearances = data.clearances ?? [];
   const profiles = data.profiles ?? [];
   const codes = assignCaseCodes(cases.map((row) => ({ id: row.caseId, caseDate: row.caseDate })));
-  const codeOf = (caseId: number): string => codes.get(caseId) ?? `SDO-0000-${String(caseId).padStart(3, '0')}`;
+  const codeOf = (caseId: number): string => codes.get(caseId) ?? unknownCaseCode(caseId);
 
   return {
     async listCases(studentId) {
@@ -101,7 +102,7 @@ export function createMemoryStudentViewRepo(data: MemoryStudentData = {}): Stude
             : [p.studentId, `${p.firstName} ${p.lastName}`, p.email, p.program].some((text) => text.toLowerCase().includes(needle)),
         )
         .sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
-      const openStatuses = ['reported', 'validated', 'for_sanction'];
+      const openStatuses: readonly string[] = OPEN_CASE_STATUSES;
       const activeStatuses = ['assigned', 'pending_verification', 'returned'];
       const rows: StudentSummaryRecord[] = matches.slice((page - 1) * pageSize, page * pageSize).map((p) => ({
         ...p,

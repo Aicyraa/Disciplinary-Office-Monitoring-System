@@ -6,7 +6,7 @@ export const MINOR_THRESHOLD = 3;
 const ACTIVE_CASE_STATUSES: ReadonlyArray<StudentCaseView['status']> = ['reported', 'validated', 'for_sanction'];
 const COUNTING_STATUSES: ReadonlyArray<StudentCaseView['status']> = ['validated', 'for_sanction', 'resolved'];
 
-export function isActiveCase(item: StudentCaseView): boolean {
+export function isActiveCase(item: Pick<StudentCaseView, 'status'>): boolean {
   return ACTIVE_CASE_STATUSES.includes(item.status);
 }
 

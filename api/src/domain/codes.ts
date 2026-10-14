@@ -50,3 +50,6 @@ export function assignCaseCodes(cases: ReadonlyArray<{ id: number; caseDate: Dat
   }
   return codes;
 }
+
+/** What a case code reads when the id has no code row (a case that no longer exists). */
+export const unknownCaseCode = (caseId: number): string => `SDO-0000-${pad3(caseId)}`;

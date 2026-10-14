@@ -8,8 +8,6 @@ import type {
 
 export const CASE_PAGE_SIZE = 6;
 
-export const ALL_CASE_STATUSES: readonly CaseStatus[] = ['reported', 'validated', 'for_sanction', 'resolved', 'rejected'];
-
 export function emptyStatusCounts(): Record<CaseStatus, number> {
   return { reported: 0, validated: 0, for_sanction: 0, resolved: 0, rejected: 0 };
 }

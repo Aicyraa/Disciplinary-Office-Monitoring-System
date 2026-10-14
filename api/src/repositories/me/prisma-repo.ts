@@ -1,3 +1,4 @@
+import { OPEN_CASE_STATUSES as OPEN_STATUSES } from '../../domain/cases/status.js';
 import type { PrismaClient } from '../../../generated/prisma/client.js';
 import type { AppointmentStatus, CaseSanctionStatus, CaseStatus, Severity } from '@shared/types.js';
 import { loadCaseCodes, loadSubmissionCodes } from '../cases/code-sql.js';
@@ -76,7 +77,7 @@ const ACCOUNT_SELECT = {
   programs: { select: { program_name: true } },
 } as const;
 
-const OPEN_CASE_STATUSES = ['reported', 'validated', 'for_sanction'];
+const OPEN_CASE_STATUSES = [...OPEN_STATUSES];
 const ACTIVE_SANCTION_STATUSES = ['assigned', 'pending_verification', 'returned'];
 
 /** Prisma-backed student views. Every query is scoped by the student id passed in from the session. */

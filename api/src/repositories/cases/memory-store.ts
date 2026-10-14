@@ -1,5 +1,5 @@
 import type { Severity } from '@shared/types.js';
-import { assignCaseCodes } from '../../domain/codes.js';
+import { assignCaseCodes, unknownCaseCode } from '../../domain/codes.js';
 import type { HandbookSanctionRow } from '../../domain/sanctions/rules.js';
 import type {
   CasePatch,
@@ -141,7 +141,7 @@ export function createMemoryCaseStore(seed: Partial<MemoryState> = {}): MemoryCa
         },
         async caseCode(caseId) {
           const codes = assignCaseCodes(working.cases.map((c) => ({ id: c.caseId, caseDate: c.caseDate })));
-          return codes.get(caseId) ?? `SDO-0000-${String(caseId).padStart(3, '0')}`;
+          return codes.get(caseId) ?? unknownCaseCode(caseId);
         },
         async getCase(caseId) {
           store.calls.push('getCase');

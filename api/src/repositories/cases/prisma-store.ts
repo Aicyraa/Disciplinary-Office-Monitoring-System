@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '../../../generated/prisma/client.js';
 import type { CaseSanctionStatus, CaseStatus, Severity, StaffCaseDetail, StaffCaseRow } from '@shared/types.js';
-import { displayCode, parseCaseCode } from '../../domain/codes.js';
+import { displayCode, parseCaseCode, unknownCaseCode } from '../../domain/codes.js';
 import { findCaseIdByCode, loadCaseCodes, loadSubmissionCodes } from './code-sql.js';
 import { lateByDays } from '../../domain/sanctions/rules.js';
 import { toStaffSanctionView } from '../../views/sanctions.views.js';
@@ -137,7 +137,7 @@ function createTx(db: Prisma.TransactionClient): CaseTx {
 
   return {
     async caseCode(caseId) {
-      return (await loadCaseCodes(db, [caseId])).get(caseId) ?? `SDO-0000-${String(caseId).padStart(3, '0')}`;
+      return (await loadCaseCodes(db, [caseId])).get(caseId) ?? unknownCaseCode(caseId);
     },
     async lockStudent(studentId) {
       // Serialises escalation counting for this student across concurrent validations.

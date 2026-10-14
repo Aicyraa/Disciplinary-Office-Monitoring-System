@@ -1,8 +1,9 @@
 import type { CaseStatus, Severity } from '@shared/types.js';
 import { STUDENT_ID_PATTERN } from '../domain/auth/policy.js';
+import { CASE_STATUSES } from '../domain/cases/status.js';
 import { invalid, valid, type Validated } from '../helpers/validation.js';
 
-const STATUSES: readonly CaseStatus[] = ['reported', 'validated', 'for_sanction', 'resolved', 'rejected'];
+const STATUSES = CASE_STATUSES;
 const SEVERITIES: readonly Severity[] = ['Minor', 'Major'];
 const SANCTION_FILTERS = ['active', 'pending_verification', 'overdue'] as const;
 export type SanctionQueueFilter = (typeof SANCTION_FILTERS)[number];
