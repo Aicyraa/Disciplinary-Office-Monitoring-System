@@ -8,7 +8,8 @@ import { Field } from '@/components/ui/Field';
 import { FileRow } from '@/components/ui/FileRow';
 import { Icon } from '@/components/ui/Icon';
 import { Textarea } from '@/components/ui/Textarea';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { templatesApi } from '@/api/templates';
 import { cn } from '@/utils/cn';
 import { ACCEPT_ATTRIBUTE, fileMeta } from '@/utils/files';
 import { checkSelection } from '@/validators/files';
@@ -44,7 +45,7 @@ export function TemplateEditor({ template, meta, onChanged }: { template: Sancti
     setError(null);
     setUploading(true);
     try {
-      await api.uploadTemplateFiles(template.sanctionId, [file]);
+      await templatesApi.uploadTemplateFiles(template.sanctionId, [file]);
       toast.show(current ? toasts.replaced : toasts.uploaded, 'success');
       onChanged();
     } catch (caught) {
@@ -57,7 +58,7 @@ export function TemplateEditor({ template, meta, onChanged }: { template: Sancti
   async function saveDetails() {
     setSaving(true);
     try {
-      await api.saveTemplateText(template.sanctionId, {
+      await templatesApi.saveTemplateText(template.sanctionId, {
         title: draft.title.trim(),
         description: draft.description.trim(),
         requirements: draft.requirements.trim(),
@@ -201,7 +202,7 @@ export function TemplateEditor({ template, meta, onChanged }: { template: Sancti
       {previewing && current ? (
         <FilePreview
           file={{ name: current.name, meta: fileMeta(current, 'Posted') }}
-          loadUrl={async () => (await api.templateFileUrl(current.id)).url}
+          loadUrl={async () => (await templatesApi.templateFileUrl(current.id)).url}
           onClose={() => setPreviewing(false)}
         />
       ) : null}
@@ -216,7 +217,7 @@ export function TemplateEditor({ template, meta, onChanged }: { template: Sancti
         onConfirm={async () => {
           if (!current) return;
           try {
-            await api.deleteTemplateFile(current.id);
+            await templatesApi.deleteTemplateFile(current.id);
           } catch (caught) {
             throw new Error(toApiError(caught).message);
           }

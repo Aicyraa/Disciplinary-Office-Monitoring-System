@@ -1,6 +1,8 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import type { AuthUser, StudentProfileView } from '@shared/types';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { authApi } from '@/api/auth';
+import { meApi } from '@/api/me';
 import { Dialog } from '@/components/feedback/Dialog';
 import { useToast } from '@/components/feedback';
 import { Button } from '@/components/ui/Button';
@@ -44,7 +46,7 @@ export function AccountDetailsModal({
   useEffect(() => {
     if (!open || user.role !== 'student') return;
     let cancelled = false;
-    api.myProfile().then(
+    meApi.myProfile().then(
       (data) => !cancelled && setProfile(data.profile),
       () => undefined,
     );
@@ -119,7 +121,7 @@ export function ChangePasswordModal({ open, onClose }: { open: boolean; onClose:
     }
     setBusy(true);
     try {
-      const { user } = await api.changePassword(current, next);
+      const { user } = await authApi.changePassword(current, next);
       setUser(user);
       toast.show('Password changed.', 'success');
       onClose();

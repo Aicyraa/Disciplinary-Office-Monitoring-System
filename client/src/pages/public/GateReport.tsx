@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { gateApi } from '@/api/gate';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -72,7 +73,7 @@ export default function GateReportPage() {
   async function openForm() {
     setLoadError(null);
     try {
-      const [loaded, issued] = await Promise.all([api.gateOptions(), api.gateToken()]);
+      const [loaded, issued] = await Promise.all([gateApi.gateOptions(), gateApi.gateToken()]);
       token.current = { value: issued.token, openedAt: Date.now() };
       setOptions(loaded);
     } catch (error) {
@@ -107,7 +108,7 @@ export default function GateReportPage() {
     try {
       // The API refuses a form younger than 3 seconds. A person rarely gets there, but autofill can.
       await sleep(waitBeforeSubmit(Date.now() - token.current.openedAt));
-      const result = await api.submitGateReport({
+      const result = await gateApi.submitGateReport({
         token: token.current.value,
         studentId: values.studentId.trim(),
         name: values.name.trim(),
@@ -131,7 +132,7 @@ export default function GateReportPage() {
       });
       // A token is good for one sitting; get a fresh one so the next try is not refused for being stale.
       try {
-        token.current = { value: (await api.gateToken()).token, openedAt: Date.now() };
+        token.current = { value: (await gateApi.gateToken()).token, openedAt: Date.now() };
       } catch {
         /* the next submit will say so */
       }

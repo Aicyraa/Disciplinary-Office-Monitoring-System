@@ -8,7 +8,8 @@ import { HistoryList } from '@/components/ui/HistoryList';
 import { Icon } from '@/components/ui/Icon';
 import { Pill } from '@/components/ui/Pill';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { clearanceApi } from '@/api/clearance';
 import { useApi } from '@/hooks/useApi';
 import { clearanceCopy, clearanceHistoryItems, clearanceStatus } from '@/utils/clearance';
 import { formatTerm } from '@/utils/format';
@@ -21,11 +22,11 @@ export function ClearancePane({ studentId, term, onChanged }: { studentId: strin
   const [settingUp, setSettingUp] = useState(false);
   // The student's roster row says who they are and whether this term is set up.
   const row = useApi(async () => {
-    const roster = await api.clearanceRoster(term.academicYear, term.semester, { q: studentId });
+    const roster = await clearanceApi.clearanceRoster(term.academicYear, term.semester, { q: studentId });
     return roster.students.find((r) => r.studentId === studentId) ?? null;
   }, [studentId, term.academicYear, term.semester]);
   const clearanceId = row.status === 'ready' ? (row.data?.clearance?.id ?? null) : null;
-  const detail = useApi(() => (clearanceId === null ? Promise.resolve(null) : api.staffClearance(clearanceId).then((r) => r.clearance)), [clearanceId]);
+  const detail = useApi(() => (clearanceId === null ? Promise.resolve(null) : clearanceApi.staffClearance(clearanceId).then((r) => r.clearance)), [clearanceId]);
   const termText = formatTerm(term.academicYear, term.semester);
 
   if (row.status === 'loading' || (clearanceId !== null && detail.status === 'loading')) {
@@ -65,7 +66,7 @@ export function ClearancePane({ studentId, term, onChanged }: { studentId: strin
   async function setUp() {
     setSettingUp(true);
     try {
-      await api.setUpClearance({ studentId: student!.studentId, academicYear: term.academicYear, semester: term.semester });
+      await clearanceApi.setUpClearance({ studentId: student!.studentId, academicYear: term.academicYear, semester: term.semester });
       toast.show(clearanceCopy(student!.name, termText).setUp, 'success');
       reload();
     } catch (error) {

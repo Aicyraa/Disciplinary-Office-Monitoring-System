@@ -8,7 +8,8 @@ import { DetailTable } from '@/components/ui/DetailTable';
 import { HistoryList } from '@/components/ui/HistoryList';
 import { Icon } from '@/components/ui/Icon';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { appointmentsApi } from '@/api/appointments';
 import { useApi } from '@/hooks/useApi';
 import { appointmentHistory, appointmentToasts, lastUpdated, studentMeta, whenText } from '@/utils/appointments';
 import { cn } from '@/utils/cn';
@@ -27,7 +28,7 @@ export function AppointmentPane({
   onEdit: (appointment: StaffAppointmentView) => void;
 }) {
   const toast = useToast();
-  const resource = useApi(() => api.staffAppointment(appointmentId), [appointmentId]);
+  const resource = useApi(() => appointmentsApi.staffAppointment(appointmentId), [appointmentId]);
   const [tab, setTab] = useState<'details' | 'history'>('details');
   const [modal, setModal] = useState<'complete' | 'cancel' | null>(null);
 
@@ -149,7 +150,7 @@ export function AppointmentPane({
         onClose={() => setModal(null)}
         onConfirm={async () => {
           try {
-            await api.completeAppointment(a.id);
+            await appointmentsApi.completeAppointment(a.id);
           } catch (error) {
             throw new Error(toApiError(error).message);
           }
@@ -168,7 +169,7 @@ export function AppointmentPane({
         onClose={() => setModal(null)}
         onConfirm={async (reason) => {
           try {
-            await api.cancelAppointment(a.id, reason);
+            await appointmentsApi.cancelAppointment(a.id, reason);
           } catch (error) {
             throw new Error(toApiError(error).message);
           }

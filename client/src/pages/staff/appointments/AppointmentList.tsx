@@ -10,7 +10,7 @@ import { GroupHead } from '@/components/ui/GroupHead';
 import { Icon } from '@/components/ui/Icon';
 import { ListCard } from '@/components/ui/ListCard';
 import { Pager } from '@/components/ui/Pager';
-import { api } from '@/api/client';
+import { appointmentsApi } from '@/api/appointments';
 import { useApi } from '@/hooks/useApi';
 import { groupHeadsFor, RANGE_OPTIONS, statusOptions } from '@/utils/appointments';
 import { cn } from '@/utils/cn';
@@ -79,7 +79,7 @@ export function AppointmentList({
 
   const resource = useApi(
     () =>
-      api.staffAppointments({
+      appointmentsApi.staffAppointments({
         bucket: 'all',
         q,
         status,

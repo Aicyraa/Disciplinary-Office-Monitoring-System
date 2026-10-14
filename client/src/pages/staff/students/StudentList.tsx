@@ -7,7 +7,8 @@ import { controlVariants } from '@/components/ui/FieldShell';
 import { Icon } from '@/components/ui/Icon';
 import { ListCard } from '@/components/ui/ListCard';
 import { Pager } from '@/components/ui/Pager';
-import { api } from '@/api/client';
+import { casesApi } from '@/api/cases';
+import { studentsApi } from '@/api/students';
 import { useApi } from '@/hooks/useApi';
 import { cn } from '@/utils/cn';
 import { initials } from '@/utils/nav';
@@ -24,9 +25,9 @@ export function StudentList({ selectedId, onFirstRow }: { selectedId: string | n
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [page, setPage] = useState(1);
-  const list = useApi(() => api.students({ q: query.trim() || undefined, page }), [query, page]);
+  const list = useApi(() => studentsApi.students({ q: query.trim() || undefined, page }), [query, page]);
   // Sanctions waiting for verification, counted per student (the gold badge).
-  const queue = useApi(() => api.sanctionQueue({ filter: 'pending_verification' }), []);
+  const queue = useApi(() => casesApi.sanctionQueue({ filter: 'pending_verification' }), []);
   const toVerify = useMemo(() => {
     const counts = new Map<string, number>();
     if (queue.status === 'ready') {

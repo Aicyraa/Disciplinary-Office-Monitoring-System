@@ -7,7 +7,9 @@ import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
 import { StudentLookup } from '@/components/ui/StudentLookup';
 import { Textarea } from '@/components/ui/Textarea';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { casesApi } from '@/api/cases';
+import { handbookApi } from '@/api/handbook';
 import { useApi } from '@/hooks/useApi';
 import { useStudentLookup } from '@/hooks/useStudentLookup';
 import { cn } from '@/utils/cn';
@@ -25,7 +27,7 @@ const CLASSES: Array<{ value: Exclude<ClassFilter, ''>; label: string }> = [
 export function RecordViolationModal({ onClose }: { onClose: () => void }) {
   const toast = useToast();
   const navigate = useNavigate();
-  const handbook = useApi(() => api.handbook(), []);
+  const handbook = useApi(() => handbookApi.handbook(), []);
   const [studentId, setStudentId] = useState('');
   const [query, setQuery] = useState('');
   const [cls, setCls] = useState<Exclude<ClassFilter, ''>>('Minor');
@@ -47,8 +49,8 @@ export function RecordViolationModal({ onClose }: { onClose: () => void }) {
     }
     setSaving(true);
     try {
-      const result = await api.recordViolation(profile.studentId, picked, remarks.trim());
-      const created = await api.staffCase(result.caseId).catch(() => null);
+      const result = await casesApi.recordViolation(profile.studentId, picked, remarks.trim());
+      const created = await casesApi.staffCase(result.caseId).catch(() => null);
       const code = created?.case.code ?? 'The case';
       toast.show(recordedToast(code, `${profile.firstName} ${profile.lastName}`, result.conversions.length > 0), 'success');
       onClose();

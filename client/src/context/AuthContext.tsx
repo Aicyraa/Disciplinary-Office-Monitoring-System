@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { AuthUser } from '@shared/types';
-import { api, ApiError, setSessionEndedHandler } from '@/api/client';
+import { ApiError, setSessionEndedHandler } from '@/api/client';
+import { authApi } from '@/api/auth';
 
 export type AuthState =
   | { status: 'loading' }
@@ -23,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Restore the session from the cookie. A 401 simply means "not signed in".
   useEffect(() => {
     let cancelled = false;
-    api.me().then(
+    authApi.me().then(
       ({ user }) => {
         if (!cancelled) setState({ status: 'authenticated', user });
       },
@@ -45,14 +46,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { user } = await api.login(email, password);
+    const { user } = await authApi.login(email, password);
     setState({ status: 'authenticated', user });
     return user;
   }, []);
 
   const signOut = useCallback(async () => {
     try {
-      await api.logout();
+      await authApi.logout();
     } finally {
       setState({ status: 'anonymous' });
     }

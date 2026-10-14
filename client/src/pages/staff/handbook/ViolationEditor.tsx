@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import type { HandbookEntryView } from '@shared/types';
 import { useToast } from '@/components/feedback';
 import { Button } from '@/components/ui/Button';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { handbookApi } from '@/api/handbook';
 import { formErrors, isDirty, toPicks, toSanctionList, type ViolationFormValues } from '@/utils/handbookForm';
 import { ViolationFields, useViolationForm, type SanctionChoice } from './ViolationFields';
 
@@ -50,7 +51,7 @@ export function ViolationEditor({
     const name = values.violationType.trim();
     try {
       // An unchanged category is not sent: the API refuses a category change once cases use the violation.
-      await api.updateViolation(entry.id, {
+      await handbookApi.updateViolation(entry.id, {
         violationType: name,
         severity: values.severity === entry.severity ? undefined : values.severity,
         section: values.section.trim().replace(/^Sec\.?\s*/i, ''),

@@ -2,7 +2,8 @@ import { useParams } from 'react-router-dom';
 import { PageError, Spinner } from '@/components/feedback/PageState';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
-import { api } from '@/api/client';
+import { handbookApi } from '@/api/handbook';
+import { templatesApi } from '@/api/templates';
 import { useApi } from '@/hooks/useApi';
 import { categoryMeta, sanctionCategories } from '@/utils/templates';
 import { TemplateEditor } from './templates/TemplateEditor';
@@ -11,9 +12,9 @@ import { TemplateList } from './templates/TemplateList';
 /** Staff "Sanction templates" (deck W47 to W49): its own page and nav item (UI-POLISH-SPEC 5.12). */
 export function SanctionTemplatesPage() {
   const { id } = useParams();
-  const templates = useApi(() => api.sanctionTemplates(), []);
+  const templates = useApi(() => templatesApi.sanctionTemplates(), []);
   // The violations say which category a sanction belongs to (sanctions carry none).
-  const handbook = useApi(() => api.handbook(), []);
+  const handbook = useApi(() => handbookApi.handbook(), []);
   const selectedId = /^\d+$/.test(id ?? '') ? Number(id) : null;
 
   if (templates.status === 'loading' || handbook.status === 'loading') {

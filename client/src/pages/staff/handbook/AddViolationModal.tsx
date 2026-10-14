@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { HandbookEntryView } from '@shared/types';
 import { FormModal, useToast } from '@/components/feedback';
 import { Button } from '@/components/ui/Button';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { handbookApi } from '@/api/handbook';
 import { formErrors, toSanctionList } from '@/utils/handbookForm';
 import { ViolationFields, useViolationForm, type SanctionChoice } from './ViolationFields';
 
@@ -32,7 +33,7 @@ export function AddViolationModal({
     setBusy(true);
     const name = values.violationType.trim();
     try {
-      const { handbookEntryId } = await api.createViolation({
+      const { handbookEntryId } = await handbookApi.createViolation({
         violationType: name,
         severity: values.severity,
         section: values.section.trim().replace(/^Sec\.?\s*/i, ''),

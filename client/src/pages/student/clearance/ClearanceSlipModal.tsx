@@ -4,7 +4,7 @@ import { FormModal } from '@/components/feedback';
 import { PageError, Spinner } from '@/components/feedback/PageState';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { api } from '@/api/client';
+import { meApi } from '@/api/me';
 import { useApi } from '@/hooks/useApi';
 import { formatDate, formatTerm } from '@/utils/format';
 
@@ -52,7 +52,7 @@ function SlipDocument({ slip }: { slip: ClearanceSlipView }) {
  * The API refuses the slip until every requirement is done.
  */
 export function ClearanceSlipModal({ academicYear, semester, onClose }: { academicYear: number; semester: number; onClose: () => void }) {
-  const slip = useApi(() => api.myClearanceSlip(academicYear, semester), [academicYear, semester]);
+  const slip = useApi(() => meApi.myClearanceSlip(academicYear, semester), [academicYear, semester]);
   const ready = slip.status === 'ready';
   return (
     <>

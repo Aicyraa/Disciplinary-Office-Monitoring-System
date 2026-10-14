@@ -6,7 +6,8 @@ import { Spinner } from '@/components/feedback/PageState';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Tag } from '@/components/ui/Tag';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { clearanceApi } from '@/api/clearance';
 import { clearanceCopy } from '@/utils/clearance';
 import { cn } from '@/utils/cn';
 
@@ -31,7 +32,7 @@ export function Requirements({ view, name, term, onChanged }: { view: StaffClear
   async function mark(item: StaffClearanceItemView) {
     setSaving(item.requirementId);
     try {
-      await api.markRequirementDone(view.id, item.requirementId, '');
+      await clearanceApi.markRequirementDone(view.id, item.requirementId, '');
       finish(copy.marked(item.label));
     } catch (error) {
       toast.show(toApiError(error).message, 'error');
@@ -125,7 +126,7 @@ export function Requirements({ view, name, term, onChanged }: { view: StaffClear
         onClose={() => setPending(null)}
         onConfirm={async (reason) => {
           if (pending?.kind !== 'reverse') return;
-          await api.reverseRequirement(view.id, pending.item.requirementId, reason).catch(fail);
+          await clearanceApi.reverseRequirement(view.id, pending.item.requirementId, reason).catch(fail);
           finish(copy.reversed(pending.item.label));
         }}
       />
@@ -139,7 +140,7 @@ export function Requirements({ view, name, term, onChanged }: { view: StaffClear
         onClose={() => setPending(null)}
         onConfirm={async () => {
           if (pending?.kind !== 'remove') return;
-          await api.removeRequirement(view.id, pending.item.requirementId).catch(fail);
+          await clearanceApi.removeRequirement(view.id, pending.item.requirementId).catch(fail);
           finish(copy.removed(pending.item.label));
         }}
       />
@@ -152,7 +153,7 @@ export function Requirements({ view, name, term, onChanged }: { view: StaffClear
         confirmLabel="Add requirement"
         onClose={() => setPending(null)}
         onConfirm={async (label) => {
-          await api.addRequirement(view.id, label).catch(fail);
+          await clearanceApi.addRequirement(view.id, label).catch(fail);
           finish(copy.added);
         }}
       />

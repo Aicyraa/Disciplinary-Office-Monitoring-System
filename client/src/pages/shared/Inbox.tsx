@@ -9,7 +9,8 @@ import { ChipGroup } from '@/components/ui/ChipGroup';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { Icon } from '@/components/ui/Icon';
 import { Pager } from '@/components/ui/Pager';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { notificationsApi } from '@/api/notifications';
 import { useAuth } from '@/context/AuthContext';
 import { useUnread } from '@/context/UnreadContext';
 import { useApi } from '@/hooks/useApi';
@@ -53,7 +54,7 @@ export function InboxPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const { setUnreadCount } = useUnread();
-  const resource = useApi(() => api.notifications(role), [role]);
+  const resource = useApi(() => notificationsApi.notifications(role), [role]);
   const [category, setCategory] = useState<InboxCategory>('all');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [page, setPage] = useState(1);
@@ -69,7 +70,7 @@ export function InboxPage() {
     setOpen(item);
     if (item.isRead) return;
     try {
-      const { unreadCount } = await api.markNotificationRead(role, item.id);
+      const { unreadCount } = await notificationsApi.markNotificationRead(role, item.id);
       setUnreadCount(unreadCount);
       resource.reload();
     } catch {
@@ -79,7 +80,7 @@ export function InboxPage() {
 
   async function markAll() {
     try {
-      const { unreadCount } = await api.markAllNotificationsRead(role);
+      const { unreadCount } = await notificationsApi.markAllNotificationsRead(role);
       setUnreadCount(unreadCount);
       toast.show('All notifications marked as read.', 'success');
       resource.reload();

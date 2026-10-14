@@ -5,7 +5,7 @@ import { PageError, Spinner } from '@/components/feedback/PageState';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ClassTiles } from '@/components/student/ClassTiles';
 import { ChipGroup } from '@/components/ui/ChipGroup';
-import { api } from '@/api/client';
+import { meApi } from '@/api/me';
 import { useApi } from '@/hooks/useApi';
 import { matchesSanctionChip, sanctionChips, type ClassKey, type SanctionChip } from '@/utils/studentView';
 import { SanctionDetail } from './sanctions/SanctionDetail';
@@ -16,9 +16,9 @@ export function SanctionsPage() {
   const { id } = useParams();
   const location = useLocation();
   const selectedId = /^\d+$/.test(id ?? '') ? Number(id) : null;
-  const sanctions = useApi(() => api.mySanctions(), []);
+  const sanctions = useApi(() => meApi.mySanctions(), []);
   // The violation name and section of each sanction's case.
-  const cases = useApi(() => api.myCases(), []);
+  const cases = useApi(() => meApi.myCases(), []);
   const [cls, setCls] = useState<ClassKey>('all');
   const [chip, setChip] = useState<SanctionChip>('all');
 

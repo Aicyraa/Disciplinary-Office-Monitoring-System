@@ -1,6 +1,8 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { api, defaultMessage, http, setSessionEndedHandler, toApiError } from '@/api/client';
+import { defaultMessage, http, setSessionEndedHandler, toApiError } from '@/api/client';
+import { authApi } from '@/api/auth';
+import { casesApi } from '@/api/cases';
 
 describe('defaultMessage', () => {
   test.each([
@@ -84,12 +86,12 @@ describe('the shared response envelope (one success type, one failure type)', ()
 
   test('a success envelope is unwrapped to its data', async () => {
     http.defaults.adapter = succeedWith({ ok: true, data: { user: { id: 'E001' } } });
-    await expect(api.me()).resolves.toEqual({ user: { id: 'E001' } });
+    await expect(authApi.me()).resolves.toEqual({ user: { id: 'E001' } });
   });
 
   test('data may be null (logout, delete)', async () => {
     http.defaults.adapter = succeedWith({ ok: true, data: null });
-    await expect(api.logout()).resolves.toBeNull();
+    await expect(authApi.logout()).resolves.toBeNull();
   });
 
   test('a failure envelope becomes an ApiError with the code and message', async () => {
@@ -97,7 +99,7 @@ describe('the shared response envelope (one success type, one failure type)', ()
       ok: false,
       error: { code: 'already_decided', message: 'This report was already validated or rejected.' },
     });
-    await expect(api.validateSubmission('11111111-1111-4111-8111-111111111111')).rejects.toMatchObject({
+    await expect(casesApi.validateSubmission('11111111-1111-4111-8111-111111111111')).rejects.toMatchObject({
       name: 'ApiError',
       status: 409,
       code: 'already_decided',
@@ -112,11 +114,11 @@ describe('the shared response envelope (one success type, one failure type)', ()
     ['null', null],
   ])('a 200 that is not the envelope (%s) is a failure, never data', async (_label, body) => {
     http.defaults.adapter = succeedWith(body);
-    await expect(api.me()).rejects.toMatchObject({ name: 'ApiError', status: 200, code: null });
+    await expect(authApi.me()).rejects.toMatchObject({ name: 'ApiError', status: 200, code: null });
   });
 
   test('a network failure keeps status 0 and no code', async () => {
     http.defaults.adapter = () => Promise.reject(new AxiosError('Network Error', 'ERR_NETWORK'));
-    await expect(api.me()).rejects.toMatchObject({ status: 0, code: null });
+    await expect(authApi.me()).rejects.toMatchObject({ status: 0, code: null });
   });
 });

@@ -7,7 +7,9 @@ import { StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Tag } from '@/components/ui/Tag';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { clearanceApi } from '@/api/clearance';
+import { studentsApi } from '@/api/students';
 import { useApi } from '@/hooks/useApi';
 import { ordinalYear } from '@/utils/account';
 import { cn } from '@/utils/cn';
@@ -118,11 +120,11 @@ function RecordLists({ data, tab }: { data: StaffStudentRecord; tab: RecordTab }
 
 export function StudentRecordPane({ studentId }: { studentId: string }) {
   const navigate = useNavigate();
-  const record = useApi(() => api.student(studentId), [studentId]);
+  const record = useApi(() => studentsApi.student(studentId), [studentId]);
   // The Clearance tile reads this student's row of the current term (D3).
   const clearance = useApi(async () => {
-    const { current } = await api.clearanceTerms();
-    const roster = await api.clearanceRoster(current.academicYear, current.semester, { q: studentId });
+    const { current } = await clearanceApi.clearanceTerms();
+    const roster = await clearanceApi.clearanceRoster(current.academicYear, current.semester, { q: studentId });
     return { term: current, row: roster.students.find((row) => row.studentId === studentId) ?? null };
   }, [studentId]);
   const [tab, setTab] = useState<RecordTab | null>(null);
@@ -201,7 +203,7 @@ export function StudentRecordPane({ studentId }: { studentId: string }) {
         onClose={() => setConfirming(false)}
         onConfirm={async () => {
           try {
-            const result = await api.resetStudentPassword(profile.studentId);
+            const result = await studentsApi.resetStudentPassword(profile.studentId);
             setConfirming(false);
             setTemp(result.tempPassword);
           } catch (error) {

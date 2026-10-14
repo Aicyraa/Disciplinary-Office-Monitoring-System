@@ -3,7 +3,8 @@ import type { StaffCaseDetail } from '@shared/types';
 import { ConfirmModal } from '@/components/feedback';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { casesApi } from '@/api/cases';
 import { availableActions } from '@/utils/caseWorkspace';
 import { DecideFooter } from './DecideFooter';
 
@@ -61,7 +62,7 @@ export function SanctionFooter({ detail, done }: { detail: StaffCaseDetail; done
         onClose={() => setResolving(false)}
         onConfirm={async () => {
           try {
-            await api.resolveCase(detail.id);
+            await casesApi.resolveCase(detail.id);
           } catch (error) {
             throw new Error(msg(error));
           }

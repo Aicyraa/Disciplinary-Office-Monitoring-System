@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AccountRole } from '@shared/types';
-import { api } from '@/api/client';
+import { notificationsApi } from '@/api/notifications';
 
 /** How often the badge refreshes while the app is open. */
 const POLL_MS = 60_000;
@@ -34,7 +34,7 @@ export function UnreadProvider({ role, children }: { role: AccountRole; children
   const announced = useRef(false);
 
   const refresh = useCallback(() => {
-    api.notifications(role, { limit: 1 }).then(
+    notificationsApi.notifications(role, { limit: 1 }).then(
       ({ unreadCount: count }) => {
         setUnreadCount(count);
         // The "you have N unread" toast is shown once per sign-in, on the first load.

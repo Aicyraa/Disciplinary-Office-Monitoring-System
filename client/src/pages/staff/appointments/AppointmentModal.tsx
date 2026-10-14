@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { StudentLookup } from '@/components/ui/StudentLookup';
 import { Textarea } from '@/components/ui/Textarea';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { appointmentsApi } from '@/api/appointments';
 import { useStudentLookup } from '@/hooks/useStudentLookup';
 import { ordinalYear } from '@/utils/account';
 import { appointmentToasts, formErrors, overlapMessage, reviewNote, reviewRows, startDateError, studentMeta } from '@/utils/appointments';
@@ -62,7 +63,7 @@ export function AppointmentModal({
     setChecking(true);
     try {
       const end = appointmentEndDate(startDate) ?? startDate;
-      const others = await api.staffAppointments({ bucket: 'upcoming', q: student.id });
+      const others = await appointmentsApi.staffAppointments({ bucket: 'upcoming', q: student.id });
       const clash = others.appointments.find(
         (other) => other.student.id === student.id && other.id !== editing?.id && other.startDate <= end && other.endDate >= startDate,
       );
@@ -84,8 +85,8 @@ export function AppointmentModal({
     setSaving(true);
     try {
       if (editing === null) {
-        const { appointmentId } = await api.createAppointment({ studentId: student.id, startDate, purpose: reason.trim(), notes: remarks.trim() });
-        const created = await api.staffAppointment(appointmentId).catch(() => null);
+        const { appointmentId } = await appointmentsApi.createAppointment({ studentId: student.id, startDate, purpose: reason.trim(), notes: remarks.trim() });
+        const created = await appointmentsApi.staffAppointment(appointmentId).catch(() => null);
         toast.show(appointmentToasts(created?.appointment.code ?? 'The appointment', student.name).assigned, 'success');
         onSaved(appointmentId);
         return;
@@ -98,7 +99,7 @@ export function AppointmentModal({
       if (Object.keys(changes).length === 0) {
         toast.show('No changes to save.', 'info');
       } else {
-        await api.updateAppointment(editing.id, changes);
+        await appointmentsApi.updateAppointment(editing.id, changes);
         toast.show(moved ? toasts.moved(startDate) : toasts.updated, 'success');
       }
       onSaved(editing.id);

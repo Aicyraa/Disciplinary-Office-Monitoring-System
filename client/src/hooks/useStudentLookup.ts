@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { StudentProfileView } from '@shared/types';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { studentsApi } from '@/api/students';
 import type { LookupState } from '@/components/ui/StudentLookup';
 import { ordinalYear } from '@/utils/account';
 import { STUDENT_ID_PATTERN } from '@/validators/studentId';
@@ -22,7 +23,7 @@ export function useStudentLookup(rawId: string): { lookup: LookupState; profile:
     let cancelled = false;
     const timer = setTimeout(() => {
       setState({ id, lookup: { status: 'checking' }, profile: null });
-      api.student(id).then(
+      studentsApi.student(id).then(
         ({ profile }) => {
           if (!cancelled) {
             setState({ id, lookup: { status: 'found', summary: `${profile.firstName} ${profile.lastName} · ${profile.program} ${ordinalYear(profile.yearLevel)}` }, profile });

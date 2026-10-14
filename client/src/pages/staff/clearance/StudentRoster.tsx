@@ -4,7 +4,7 @@ import type { TermRef } from '@shared/types';
 import { PageError, Spinner } from '@/components/feedback/PageState';
 import { ListCard } from '@/components/ui/ListCard';
 import { Pager } from '@/components/ui/Pager';
-import { api } from '@/api/client';
+import { clearanceApi } from '@/api/clearance';
 import { useApi } from '@/hooks/useApi';
 import { ordinalYear } from '@/utils/account';
 import { rosterProgress, termParam } from '@/utils/clearance';
@@ -24,7 +24,7 @@ export function StudentRoster({
   reloadRef: React.MutableRefObject<(() => void) | null>;
 }) {
   const [page, setPage] = useState(1);
-  const roster = useApi(() => api.clearanceRoster(term.academicYear, term.semester, { page }), [term.academicYear, term.semester, page]);
+  const roster = useApi(() => clearanceApi.clearanceRoster(term.academicYear, term.semester, { page }), [term.academicYear, term.semester, page]);
   useEffect(() => {
     reloadRef.current = roster.reload;
   }, [reloadRef, roster.reload]);

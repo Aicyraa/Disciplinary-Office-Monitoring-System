@@ -4,7 +4,7 @@ import { PageError, Spinner } from '@/components/feedback/PageState';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
-import { api } from '@/api/client';
+import { clearanceApi } from '@/api/clearance';
 import { useApi } from '@/hooks/useApi';
 import { parseTermParam, termParam } from '@/utils/clearance';
 import { formatTerm } from '@/utils/format';
@@ -18,7 +18,7 @@ export function StaffClearancePage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const studentId = STUDENT_ID_PATTERN.test(id ?? '') ? (id as string) : null;
-  const terms = useApi(() => api.clearanceTerms(), []);
+  const terms = useApi(() => clearanceApi.clearanceTerms(), []);
   const [firstRow, setFirstRow] = useState<string | null>(null);
   const rosterReload = useRef<(() => void) | null>(null);
   const reloadRoster = () => rosterReload.current?.();

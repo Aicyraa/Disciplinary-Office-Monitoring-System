@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { Textarea } from '@/components/ui/Textarea';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { noticesApi } from '@/api/notices';
 import { manilaToday } from '@/utils/files';
 import { noticeToasts } from '@/utils/notices';
 import { noticeErrors, type NoticeDraft, type NoticeErrors } from '@/validators/notice';
@@ -42,11 +43,11 @@ export function NoticeForm({ notice, onDone, onCancel }: { notice: NoticeView | 
     };
     try {
       if (notice) {
-        await api.editNotice(notice.id, body);
+        await noticesApi.editNotice(notice.id, body);
         toast.show(noticeToasts.updated, 'success');
         onDone(notice.id);
       } else {
-        const result = await api.publishNotice(body);
+        const result = await noticesApi.publishNotice(body);
         toast.show(noticeToasts.published(result.recipients), 'success');
         onDone(result.noticeId);
       }

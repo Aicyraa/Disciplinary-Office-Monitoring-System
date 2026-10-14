@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { authApi } from '@/api/auth';
 import { PasswordRuleList } from '@/components/account/AccountModals';
 import { useToast } from '@/components/feedback';
 import { PublicSplit } from '@/components/layout/PublicSplit';
@@ -39,7 +40,7 @@ export default function ChangePassword() {
     setBusy(true);
     setError(null);
     try {
-      const { user: updated } = await api.changePassword(null, next);
+      const { user: updated } = await authApi.changePassword(null, next);
       setUser(updated);
       toast.show('Password set. Welcome back.', 'success');
       navigate('/', { replace: true });

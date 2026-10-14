@@ -7,7 +7,9 @@ import { Field } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { casesApi } from '@/api/cases';
+import { sanctionsApi } from '@/api/sanctions';
 import { useApi } from '@/hooks/useApi';
 import { addDays, manilaToday } from '@/utils/files';
 
@@ -19,7 +21,7 @@ type Done = (toast: string) => void;
 
 /** Validated: "Decide on a sanction" with the sanction, its due date and instructions (SPEC flexible due date). */
 export function DecideFooter({ detail, done, allowResolve = true }: { detail: StaffCaseDetail; done: Done; allowResolve?: boolean }) {
-  const options = useApi(() => api.sanctionOptions(detail.id), [detail.id]);
+  const options = useApi(() => sanctionsApi.sanctionOptions(detail.id), [detail.id]);
   const today = manilaToday();
   const [picked, setPicked] = useState<number | ''>('');
   const [dueDate, setDueDate] = useState(addDays(today, 14));
@@ -36,7 +38,7 @@ export function DecideFooter({ detail, done, allowResolve = true }: { detail: St
     setBusy(true);
     setError(null);
     try {
-      await api.assignSanction(detail.id, sanctionId, dueDate, note.trim());
+      await sanctionsApi.assignSanction(detail.id, sanctionId, dueDate, note.trim());
       done(`Sanction assigned for ${detail.code}.`);
     } catch (caught) {
       setError(msg(caught));
@@ -127,7 +129,7 @@ export function DecideFooter({ detail, done, allowResolve = true }: { detail: St
         onClose={() => setResolving(false)}
         onConfirm={async (reason) => {
           try {
-            await api.resolveWithoutSanction(detail.id, reason);
+            await casesApi.resolveWithoutSanction(detail.id, reason);
           } catch (error) {
             throw new Error(msg(error));
           }

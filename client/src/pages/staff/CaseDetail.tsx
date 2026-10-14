@@ -9,7 +9,8 @@ import { HistoryList } from '@/components/ui/HistoryList';
 import { Icon } from '@/components/ui/Icon';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { StageTracker } from '@/components/ui/StageTracker';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { casesApi } from '@/api/cases';
 import { useApi } from '@/hooks/useApi';
 import { CASE_STAGES, stageIndex, stageText } from '@/utils/caseView';
 import { codeOf, escalationNote, historyItems, latestRemark, sourceText } from '@/utils/caseWorkspace';
@@ -84,7 +85,7 @@ function detailRows(detail: StaffCaseDetail): DetailRow[] {
 /** The right pane of staff Cases (deck W17 to W29): header, tracker, note, tabs, remarks and the stage footer. */
 export function CaseWorkspace({ caseId, onChanged }: { caseId: number; onChanged: () => void }) {
   const toast = useToast();
-  const resource = useApi(() => api.staffCase(caseId), [caseId]);
+  const resource = useApi(() => casesApi.staffCase(caseId), [caseId]);
   const [tab, setTab] = useState<'details' | 'files' | 'history'>('details');
   const [remarking, setRemarking] = useState(false);
 
@@ -211,7 +212,7 @@ export function CaseWorkspace({ caseId, onChanged }: { caseId: number; onChanged
         onClose={() => setRemarking(false)}
         onConfirm={async (remarks) => {
           try {
-            await api.addRemark(detail.id, remarks);
+            await casesApi.addRemark(detail.id, remarks);
           } catch (error) {
             throw new Error(msg(error));
           }

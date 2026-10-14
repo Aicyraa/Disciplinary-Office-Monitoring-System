@@ -15,7 +15,7 @@ import { Icon } from '@/components/ui/Icon';
 import { ListCard } from '@/components/ui/ListCard';
 import { Pager } from '@/components/ui/Pager';
 import { Tag } from '@/components/ui/Tag';
-import { api } from '@/api/client';
+import { casesApi } from '@/api/cases';
 import { useApi } from '@/hooks/useApi';
 import { caseRowView, groupHeads, queueFromParam, queueOptions, type QueueKey } from '@/utils/caseView';
 import { cn } from '@/utils/cn';
@@ -75,7 +75,7 @@ function CaseQueue({
 
   const resource = useApi(
     () =>
-      api.staffCases({
+      casesApi.staffCases({
         status: queue.status,
         class: severity,
         q,

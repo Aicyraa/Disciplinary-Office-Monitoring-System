@@ -5,7 +5,7 @@ import { PageError, Spinner } from '@/components/feedback/PageState';
 import { StatusPill } from '@/components/ui';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
-import { api } from '@/api/client';
+import { meApi } from '@/api/me';
 import { useApi } from '@/hooks/useApi';
 import { cn } from '@/utils/cn';
 import { formatDate } from '@/utils/format';
@@ -64,7 +64,7 @@ function AppointmentCard({ appointment, selected }: { appointment: StudentAppoin
 export function AppointmentsPage() {
   const { id } = useParams();
   const selectedId = /^\d+$/.test(id ?? '') ? Number(id) : null;
-  const resource = useApi(() => api.myAppointments(), []);
+  const resource = useApi(() => meApi.myAppointments(), []);
   const [chosen, setChosen] = useState<Tab | null>(null);
 
   if (resource.status === 'loading') {

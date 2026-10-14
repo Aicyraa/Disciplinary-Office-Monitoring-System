@@ -8,7 +8,7 @@ import { DetailTable, type DetailRow } from '@/components/ui/DetailTable';
 import { HistoryList } from '@/components/ui/HistoryList';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { StageTracker } from '@/components/ui/StageTracker';
-import { api } from '@/api/client';
+import { meApi } from '@/api/me';
 import { useApi } from '@/hooks/useApi';
 import { CASE_STAGES, stageIndex } from '@/utils/caseView';
 import { caseEventSentence } from '@/utils/caseWorkspace';
@@ -53,7 +53,7 @@ function rows(record: StudentCaseDetailView): DetailRow[] {
 
 /** The selected case (deck W62 to W64, W68 to W76): tracker card, Details / Timeline, next step. Proof upload lives in My Sanctions. */
 export function ViolationDetail({ caseId }: { caseId: number }) {
-  const resource = useApi(() => api.myCase(caseId), [caseId]);
+  const resource = useApi(() => meApi.myCase(caseId), [caseId]);
   const [tab, setTab] = useState<'details' | 'timeline'>('details');
 
   if (resource.status === 'loading') {

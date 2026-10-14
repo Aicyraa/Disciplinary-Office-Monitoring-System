@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { AccountRole, NotificationView } from '@shared/types';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { notificationsApi } from '@/api/notifications';
 import { useToast } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -52,7 +53,7 @@ export function BellPopover({ role }: { role: AccountRole }) {
 
   function load() {
     setError(null);
-    api.notifications(role, { limit: 5 }).then(
+    notificationsApi.notifications(role, { limit: 5 }).then(
       (data) => {
         setItems(data.notifications);
         setUnreadCount(data.unreadCount);
@@ -86,7 +87,7 @@ export function BellPopover({ role }: { role: AccountRole }) {
     setOpen(false);
     if (!item.isRead) {
       try {
-        const { unreadCount: count } = await api.markNotificationRead(role, item.id);
+        const { unreadCount: count } = await notificationsApi.markNotificationRead(role, item.id);
         setUnreadCount(count);
       } catch {
         // Opening still works; the dot simply stays until the next refresh.
@@ -97,7 +98,7 @@ export function BellPopover({ role }: { role: AccountRole }) {
 
   async function markAll() {
     try {
-      const { unreadCount: count } = await api.markAllNotificationsRead(role);
+      const { unreadCount: count } = await notificationsApi.markAllNotificationsRead(role);
       setUnreadCount(count);
       setItems((current) => current?.map((item) => ({ ...item, isRead: true })) ?? null);
       toast.show('All notifications marked as read.', 'success');

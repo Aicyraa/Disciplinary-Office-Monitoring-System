@@ -11,7 +11,8 @@ import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { Icon } from '@/components/ui/Icon';
 import { ListCard } from '@/components/ui/ListCard';
 import { Pill } from '@/components/ui/Pill';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { noticesApi } from '@/api/notices';
 import { useApi } from '@/hooks/useApi';
 import { cn } from '@/utils/cn';
 import { noticeFacts, noticeMeta, noticeToasts } from '@/utils/notices';
@@ -60,7 +61,7 @@ function NoticeDetail({ notice, onEdit, onRemoved }: { notice: NoticeView; onEdi
         onClose={() => setRemoving(false)}
         onConfirm={async () => {
           try {
-            await api.removeNotice(notice.id);
+            await noticesApi.removeNotice(notice.id);
           } catch (error) {
             throw new Error(toApiError(error).message);
           }
@@ -75,7 +76,7 @@ function NoticeDetail({ notice, onEdit, onRemoved }: { notice: NoticeView; onEdi
 
 /** Staff Notices (source src 1609 to 1668; not in the deck, UI-POLISH-SPEC 5.13): list, detail, form. */
 export function NoticesPage() {
-  const resource = useApi(() => api.notices(), []);
+  const resource = useApi(() => noticesApi.notices(), []);
   const [selected, setSelected] = useState<number | null>(null);
   const [mode, setMode] = useState<'detail' | 'new' | 'edit'>('detail');
   usePageAction('New notice', 'campaign', () => setMode('new'));

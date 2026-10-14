@@ -5,7 +5,7 @@ import { PageError, Spinner } from '@/components/feedback/PageState';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ClassTiles } from '@/components/student/ClassTiles';
 import { ChipGroup } from '@/components/ui/ChipGroup';
-import { api } from '@/api/client';
+import { meApi } from '@/api/me';
 import { useApi } from '@/hooks/useApi';
 import { classTiles, statusChips, violationBase, type CaseStatusKey, type ClassKey } from '@/utils/studentView';
 import { ViolationDetail } from './violations/ViolationDetail';
@@ -18,7 +18,7 @@ export function ViolationsPage() {
   const { id } = useParams();
   const location = useLocation();
   const caseId = /^\d+$/.test(id ?? '') ? Number(id) : null;
-  const resource = useApi(() => api.myCases(), []);
+  const resource = useApi(() => meApi.myCases(), []);
   const [cls, setCls] = useState<ClassKey>('all');
   const [status, setStatus] = useState<CaseStatusKey>('all');
   const [showResolved, setShowResolved] = useState(false);

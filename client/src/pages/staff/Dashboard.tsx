@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '@/api/client';
+import { appointmentsApi } from '@/api/appointments';
+import { casesApi } from '@/api/cases';
+import { clearanceApi } from '@/api/clearance';
 import { ACTION_PILL, AllClear, CardBody as Body, DashRow, DashboardCard, Flag, RowBox, StatRow } from '@/components/dashboard/DashboardCards';
 import { Spinner } from '@/components/feedback/PageState';
 import { useToast } from '@/components/feedback';
@@ -13,7 +15,7 @@ import { appointmentRow, clearanceRows, decisionRow, reportRows, sanctionRows } 
 
 /** "Will escalate": validating this report would turn the student's third minor into a Major (SPEC 4.2). */
 function WillEscalate({ submissionRef }: { submissionRef: string }) {
-  const preview = useApi(() => api.escalationPreview(submissionRef), [submissionRef]);
+  const preview = useApi(() => casesApi.escalationPreview(submissionRef), [submissionRef]);
   if (preview.status !== 'ready' || preview.data.conversions.length === 0) return null;
   return <Flag>Will escalate</Flag>;
 }
@@ -24,13 +26,13 @@ const count = (value: number, one: string, many: string) => `${value} ${value ==
 export function StaffHome() {
   const toast = useToast();
   const today = manilaToday();
-  const reported = useApi(() => api.staffCases({ status: 'reported', sort: 'oldest' }), []);
-  const validated = useApi(() => api.staffCases({ status: 'validated', sort: 'oldest' }), []);
-  const appointments = useApi(() => api.staffAppointments({ bucket: 'upcoming' }), []);
-  const queue = useApi(() => api.sanctionQueue({ filter: 'active' }), []);
+  const reported = useApi(() => casesApi.staffCases({ status: 'reported', sort: 'oldest' }), []);
+  const validated = useApi(() => casesApi.staffCases({ status: 'validated', sort: 'oldest' }), []);
+  const appointments = useApi(() => appointmentsApi.staffAppointments({ bucket: 'upcoming' }), []);
+  const queue = useApi(() => casesApi.sanctionQueue({ filter: 'active' }), []);
   const roster = useApi(async () => {
-    const { current } = await api.clearanceTerms();
-    return { term: current, data: await api.clearanceRoster(current.academicYear, current.semester) };
+    const { current } = await clearanceApi.clearanceTerms();
+    return { term: current, data: await clearanceApi.clearanceRoster(current.academicYear, current.semester) };
   }, []);
   const [checkedAt, setCheckedAt] = useState(() => new Date());
   const [checking, setChecking] = useState(false);

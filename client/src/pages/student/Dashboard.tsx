@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { api } from '@/api/client';
+import { meApi } from '@/api/me';
 import { CardBody as Body, DashboardCard, DateTile, EmptyLine, LinkRow, ProgressBar, RowBox, StatRow } from '@/components/dashboard/DashboardCards';
 import { StatusPill } from '@/components/ui';
 import { StatTile } from '@/components/ui/StatTile';
@@ -21,10 +21,10 @@ import { formatTerm } from '@/utils/format';
 
 /** Student dashboard (deck W57, M67, M68; src 1003 to 1086). No header: the nudge greets the student. */
 export function StudentDashboard() {
-  const cases = useApi(() => api.myCases(), []);
-  const sanctions = useApi(() => api.mySanctions(), []);
-  const appointments = useApi(() => api.myAppointments(), []);
-  const clearance = useApi(() => api.myClearance(), []);
+  const cases = useApi(() => meApi.myCases(), []);
+  const sanctions = useApi(() => meApi.mySanctions(), []);
+  const appointments = useApi(() => meApi.myAppointments(), []);
+  const clearance = useApi(() => meApi.myClearance(), []);
 
   const caseTotals = cases.status === 'ready' ? caseCounts(cases.data.cases) : null;
   const sanctionTotals = sanctions.status === 'ready' ? sanctionCounts(sanctions.data.sanctions) : null;

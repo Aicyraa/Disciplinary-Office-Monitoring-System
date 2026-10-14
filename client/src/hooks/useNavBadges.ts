@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccountRole } from '@shared/types';
-import { api } from '@/api/client';
+import { casesApi } from '@/api/cases';
 
 export interface NavBadges {
   /** Staff: reports waiting for review. */
@@ -20,7 +20,7 @@ export function useNavBadges(role: AccountRole, refreshKey: string): NavBadges {
 
   const refresh = useCallback(() => {
     if (role !== 'staff') return;
-    void Promise.all([api.staffCases({ status: 'reported', page: 1 }), api.sanctionQueue({ filter: 'pending_verification' })]).then(
+    void Promise.all([casesApi.staffCases({ status: 'reported', page: 1 }), casesApi.sanctionQueue({ filter: 'pending_verification' })]).then(
       ([cases, queue]) => setBadges({ cases: cases.total, students: queue.counts.pendingVerification }),
       () => undefined,
     );

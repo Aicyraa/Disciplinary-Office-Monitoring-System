@@ -3,7 +3,8 @@ import type { HandbookEntryView, SanctionTemplateView } from '@shared/types';
 import { FilePreview, downloadFile } from '@/components/feedback/FilePreview';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { ApiError, api } from '@/api/client';
+import { ApiError } from '@/api/client';
+import { templatesApi } from '@/api/templates';
 import { useToast } from '@/components/feedback';
 import { fileMeta } from '@/utils/files';
 import { ladder, postedTemplates } from '@/utils/handbook';
@@ -19,7 +20,7 @@ function PostedTemplate({ template }: { template: SanctionTemplateView }) {
   async function download(target: TemplateFile) {
     setDownloading(true);
     try {
-      const { url } = await api.templateFileUrl(target.id);
+      const { url } = await templatesApi.templateFileUrl(target.id);
       await downloadFile(url, target.name);
     } catch (error) {
       toast.show(error instanceof ApiError || error instanceof Error ? error.message : 'The file could not be downloaded. Try again.', 'error');
@@ -62,7 +63,7 @@ function PostedTemplate({ template }: { template: SanctionTemplateView }) {
         </div>
       ) : null}
       {previewing && file ? (
-        <FilePreview file={{ name: file.name, meta: fileMeta(file, 'Posted') }} loadUrl={async () => (await api.templateFileUrl(file.id)).url} onClose={() => setPreviewing(false)} />
+        <FilePreview file={{ name: file.name, meta: fileMeta(file, 'Posted') }} loadUrl={async () => (await templatesApi.templateFileUrl(file.id)).url} onClose={() => setPreviewing(false)} />
       ) : null}
     </div>
   );

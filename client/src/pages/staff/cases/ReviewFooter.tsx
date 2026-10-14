@@ -3,7 +3,8 @@ import type { StaffCaseDetail } from '@shared/types';
 import { ConfirmModal } from '@/components/feedback';
 import { Button } from '@/components/ui/Button';
 import { StudentLookup } from '@/components/ui/StudentLookup';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { casesApi } from '@/api/cases';
 import { useApi } from '@/hooks/useApi';
 import { useStudentLookup } from '@/hooks/useStudentLookup';
 import { STUDENT_ID_PATTERN } from '@/validators/studentId';
@@ -27,7 +28,7 @@ export function ReviewFooter({ detail, done, failed }: { detail: StaffCaseDetail
   const count = detail.siblingCaseIds.length + 1;
   const label = `Validate report (${count} violation${count === 1 ? '' : 's'})`;
   const preview = useApi(
-    () => (ref && actions.includes('validate') ? api.escalationPreview(ref) : Promise.resolve({ conversions: [] })),
+    () => (ref && actions.includes('validate') ? casesApi.escalationPreview(ref) : Promise.resolve({ conversions: [] })),
     [ref, detail.status, detail.student?.id],
   );
   const conversions = preview.status === 'ready' ? preview.data.conversions : [];
@@ -36,7 +37,7 @@ export function ReviewFooter({ detail, done, failed }: { detail: StaffCaseDetail
     if (!ref) return;
     setBusy(true);
     try {
-      const result = await api.validateSubmission(ref);
+      const result = await casesApi.validateSubmission(ref);
       const majors = result.conversions.map((c) => codeOf(detail, c.majorCaseId)).join(', ');
       done(`${gi} validated.${majors ? ` ${majors} is now treated as Major.` : ''}`);
     } catch (error) {
@@ -54,7 +55,7 @@ export function ReviewFooter({ detail, done, failed }: { detail: StaffCaseDetail
     setLinkError(undefined);
     setLinking(true);
     try {
-      await api.linkStudent(detail.id, linkId.trim());
+      await casesApi.linkStudent(detail.id, linkId.trim());
       setLinkId('');
       done('Student linked.');
     } catch (error) {
@@ -111,7 +112,7 @@ export function ReviewFooter({ detail, done, failed }: { detail: StaffCaseDetail
         onClose={() => setRejecting(false)}
         onConfirm={async (reason) => {
           try {
-            await api.rejectSubmission(ref as string, reason);
+            await casesApi.rejectSubmission(ref as string, reason);
           } catch (error) {
             throw new Error(msg(error));
           }

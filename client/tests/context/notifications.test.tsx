@@ -2,7 +2,8 @@ import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from '
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { NotificationView } from '@shared/types';
-import { api, http } from '@/api/client';
+import { http } from '@/api/client';
+import { notificationsApi } from '@/api/notifications';
 import { InboxRow } from '@/pages/shared/Inbox';
 import { badgeText, unreadMessage } from '@/context/UnreadContext';
 
@@ -88,9 +89,9 @@ describe('inbox API calls choose the route by role', () => {
 
   test('a student uses /me/notifications', async () => {
     const calls = recording();
-    await api.notifications('student', { limit: 5, unread: true });
-    await api.markNotificationRead('student', 7);
-    await api.markAllNotificationsRead('student');
+    await notificationsApi.notifications('student', { limit: 5, unread: true });
+    await notificationsApi.markNotificationRead('student', 7);
+    await notificationsApi.markAllNotificationsRead('student');
     expect(calls).toEqual([
       { method: 'get', url: '/me/notifications', params: { limit: 5, unread: 'true' } },
       { method: 'post', url: '/me/notifications/7/read', params: undefined },
@@ -100,13 +101,13 @@ describe('inbox API calls choose the route by role', () => {
 
   test('staff use the shared /notifications inbox', async () => {
     const calls = recording();
-    await api.notifications('staff');
-    await api.markNotificationRead('staff', 9);
+    await notificationsApi.notifications('staff');
+    await notificationsApi.markNotificationRead('staff', 9);
     expect(calls.map((call) => call.url)).toEqual(['/notifications', '/notifications/9/read']);
   });
 
   test('a failing refresh rejects with an ApiError (the badge handles it quietly)', async () => {
     http.defaults.adapter = () => Promise.reject(new AxiosError('Network Error', 'ERR_NETWORK'));
-    await expect(api.notifications('student')).rejects.toMatchObject({ name: 'ApiError', status: 0 });
+    await expect(notificationsApi.notifications('student')).rejects.toMatchObject({ name: 'ApiError', status: 0 });
   });
 });

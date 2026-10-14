@@ -6,7 +6,7 @@ import { Icon } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { Pill } from '@/components/ui/Pill';
-import { api } from '@/api/client';
+import { meApi } from '@/api/me';
 import { studentNextStep } from '@/utils/clearance';
 import { cn } from '@/utils/cn';
 import { formatTerm } from '@/utils/format';
@@ -29,7 +29,7 @@ export function ClearancePage() {
   // The term list is kept here, outside the loading state, so the chips stay while a term loads.
   const [terms, setTerms] = useState<ClearanceTermView[]>([]);
   const [slipOpen, setSlipOpen] = useState(false);
-  const resource = useApi(() => api.myClearance(term ?? undefined), [term?.academicYear, term?.semester]);
+  const resource = useApi(() => meApi.myClearance(term ?? undefined), [term?.academicYear, term?.semester]);
 
   // Depend on the loaded list, not on `resource` (a new object every render).
   const loadedTerms = resource.status === 'ready' ? resource.data.terms : null;

@@ -6,7 +6,8 @@ import { StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { FileRow } from '@/components/ui/FileRow';
 import { Icon } from '@/components/ui/Icon';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { sanctionsApi } from '@/api/sanctions';
 import { sanctionFooter } from '@/utils/caseWorkspace';
 import { fileMeta } from '@/utils/files';
 
@@ -30,7 +31,7 @@ export function ProofBlock({ detail, sanction, done, failed, onViewed }: {
   async function verify() {
     setBusy(true);
     try {
-      await api.verifySanction(sanction.id);
+      await sanctionsApi.verifySanction(sanction.id);
       setPreviewing(null);
       done(`${sanction.sanctionCode} verified.`);
     } catch (error) {
@@ -105,7 +106,7 @@ export function ProofBlock({ detail, sanction, done, failed, onViewed }: {
       {previewing ? (
         <FilePreview
           file={{ name: previewing.name, meta: fileMeta(previewing) }}
-          loadUrl={async () => (await api.fileUrl(previewing.id)).url}
+          loadUrl={async () => (await sanctionsApi.fileUrl(previewing.id)).url}
           onLoaded={onViewed}
           onClose={() => setPreviewing(null)}
           footer={
@@ -132,7 +133,7 @@ export function ProofBlock({ detail, sanction, done, failed, onViewed }: {
         onClose={() => setReturning(false)}
         onConfirm={async (reason) => {
           try {
-            await api.returnSanction(sanction.id, reason);
+            await sanctionsApi.returnSanction(sanction.id, reason);
           } catch (error) {
             throw new Error(msg(error));
           }

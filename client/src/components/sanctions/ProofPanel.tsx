@@ -1,6 +1,7 @@
 import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import type { StudentSanctionView } from '@shared/types';
-import { api, toApiError } from '@/api/client';
+import { toApiError } from '@/api/client';
+import { sanctionsApi } from '@/api/sanctions';
 import { ConfirmModal, useToast } from '@/components/feedback';
 import { FilePreview, type PreviewFile } from '@/components/feedback/FilePreview';
 import { Button } from '@/components/ui/Button';
@@ -73,7 +74,7 @@ export function ProofPanel({
       return;
     }
     const replacing = sanction.files[0]?.id;
-    void run(() => api.uploadProof(sanction.id, selected, replacing, setPercent).then(() => undefined), `Proof submitted for ${sanction.sanctionCode}.`);
+    void run(() => sanctionsApi.uploadProof(sanction.id, selected, replacing, setPercent).then(() => undefined), `Proof submitted for ${sanction.sanctionCode}.`);
   }
 
   function askRemove(file: { id: number; name: string }) {
@@ -138,7 +139,7 @@ export function ProofPanel({
             return;
           }
           const old = sanction.files.find((f) => f.id === replaceTarget)?.name ?? 'the file';
-          void run(() => api.uploadProof(sanction.id, [file], replaceTarget, setPercent).then(() => undefined), `Replaced ${old} with ${file.name}.`);
+          void run(() => sanctionsApi.uploadProof(sanction.id, [file], replaceTarget, setPercent).then(() => undefined), `Replaced ${old} with ${file.name}.`);
         }}
       />
 
@@ -188,7 +189,7 @@ export function ProofPanel({
               key={file.id}
               name={file.name}
               meta={fileMeta(file)}
-              onView={() => setPreviewing({ file: { name: file.name, meta: fileMeta(file) }, loadUrl: async () => (await api.fileUrl(file.id)).url })}
+              onView={() => setPreviewing({ file: { name: file.name, meta: fileMeta(file) }, loadUrl: async () => (await sanctionsApi.fileUrl(file.id)).url })}
               onReplace={
                 canChange
                   ? () => {
@@ -251,7 +252,7 @@ export function ProofPanel({
           const target = removing;
           if (!target) return;
           try {
-            await api.deleteProofFile(target.id);
+            await sanctionsApi.deleteProofFile(target.id);
           } catch (caught) {
             throw new Error(toApiError(caught).message);
           }
