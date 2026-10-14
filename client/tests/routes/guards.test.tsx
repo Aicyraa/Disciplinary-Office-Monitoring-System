@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
 import type { AuthUser } from '@shared/types';
-import { resolveAccess } from '@/App';
+import { resolveAccess } from '@/routes/guards';
 import { AuthProvider } from '@/context/AuthContext';
 import { StatusPill } from '@/components/ui';
 import { navGroups } from '@/utils/nav';
