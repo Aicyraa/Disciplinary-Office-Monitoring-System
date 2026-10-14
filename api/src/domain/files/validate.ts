@@ -2,7 +2,7 @@ export const PDF_MIME = 'application/pdf';
 /** Kept so a DOCX can be named in tests and messages; it is refused since files became PDF only (UI-POLISH-SPEC D7). */
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
-export const MAX_FILES_PER_SANCTION = 5;
+export const MAX_FILES_PER_SANCTION = 1;
 
 export type UploadErrorCode = 'unsupported_type' | 'empty' | 'too_large' | 'too_many_files' | 'content_mismatch';
 export type UploadValidation = { ok: true; ext: 'pdf' } | { ok: false; code: UploadErrorCode };

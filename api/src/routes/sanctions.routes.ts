@@ -39,7 +39,7 @@ function sendFailure(response: Response, failure: SanctionFailure): void {
 
 /**
  * Sanction assignment, proof files and staff verification (SPEC 4.3, 6.1, 7). Uploads go through Express:
- * memory storage, 10 MB per file, at most 5 files per request; the service re-checks type, size and magic
+ * memory storage, 10 MB per file, one file per request; the service re-checks type, size and magic
  * bytes and enforces every status rule, so the API is the authority no matter what the client sends.
  */
 export function createSanctionRouter({ service, now = () => new Date() }: SanctionRouterOptions): Router {
@@ -123,7 +123,7 @@ export function createSanctionRouter({ service, now = () => new Date() }: Sancti
           message = 'A file is larger than 10 MB.';
         } else if (error.code === 'LIMIT_UNEXPECTED_FILE' || error.code === 'LIMIT_FILE_COUNT') {
           code = 'too_many_files';
-          message = 'You can upload at most 5 files.';
+          message = 'You can upload only one file per sanction.';
         }
       }
       sendError(response, HTTP_STATUS[code], code, message);

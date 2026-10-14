@@ -1,6 +1,7 @@
 /** Client-side limits that mirror the API (SPEC 4.3 / 6.1). The API stays the authority. */
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
-export const MAX_FILES = 5;
+/** One proof file per sanction; a returned sanction's file is replaced, not added to. */
+export const MAX_FILES = 1;
 /** Files are PDF only so every file can be previewed inside the app (UI-POLISH-SPEC D7). */
 export const ACCEPTED_EXTENSIONS = ['.pdf'] as const;
 /** The `accept` attribute of every file input. */
@@ -51,7 +52,7 @@ export function checkSelection(
   existingCount: number,
 ): string | null {
   if (files.length === 0) return 'Choose at least one file.';
-  if (existingCount + files.length > MAX_FILES) return `You can attach at most ${MAX_FILES} files.`;
+  if (existingCount + files.length > MAX_FILES) return 'You can upload only one file per sanction.';
   for (const file of files) {
     if (!isPdfName(file.name)) return notPdfMessage(file.name);
     if (file.size === 0) return `${file.name} is empty.`;
@@ -78,7 +79,7 @@ export function splitSelection<T extends { name: string; size: number }>(
         : file.size > MAX_FILE_BYTES
           ? `${file.name} is larger than 10 MB.`
           : existingCount + accepted.length >= MAX_FILES
-            ? `You can upload up to ${MAX_FILES} files.`
+            ? 'You can upload only one file per sanction.'
             : null;
     if (problem === null) accepted.push(file);
     else error ??= problem;

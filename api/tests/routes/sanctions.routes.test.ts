@@ -167,7 +167,20 @@ describe('staff: assign', () => {
 });
 
 describe('student: proof upload', () => {
-  test('uploads several files in one request and the sanction becomes pending_verification', async () => {
+  test('uploads one file and the sanction becomes pending_verification', async () => {
+    const id = await assign();
+    const agent = await signedInAgent(build(), STUDENT_A.email);
+    const response = await agent
+      .post('/files')
+      .field('caseSanctionId', String(id))
+      .attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME });
+    expect(response.status).toBe(201);
+    expect(response.body.data.fileIds).toHaveLength(1);
+    expect(store.state.caseSanctions[0].status).toBe('pending_verification');
+    expect(storage.objects.size).toBe(1);
+  });
+
+  test('a second file in the same request is refused and nothing is stored', async () => {
     const id = await assign();
     const agent = await signedInAgent(build(), STUDENT_A.email);
     const response = await agent
@@ -175,10 +188,9 @@ describe('student: proof upload', () => {
       .field('caseSanctionId', String(id))
       .attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME })
       .attach('files', pdfBytes, { filename: 'b.pdf', contentType: PDF_MIME });
-    expect(response.status).toBe(201);
-    expect(response.body.data.fileIds).toHaveLength(2);
-    expect(store.state.caseSanctions[0].status).toBe('pending_verification');
-    expect(storage.objects.size).toBe(2);
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('too_many_files');
+    expect(storage.objects.size).toBe(0);
   });
 
   test('PDF only (D7): a DOCX is refused with 400 and "is not a PDF file", nothing is stored', async () => {
@@ -272,9 +284,8 @@ describe('student: proof upload', () => {
     const first = await agent
       .post('/files')
       .field('caseSanctionId', String(id))
-      .attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME })
-      .attach('files', pdfBytes, { filename: 'b.pdf', contentType: PDF_MIME });
-    const [fileA, fileB] = first.body.data.fileIds as number[];
+      .attach('files', pdfBytes, { filename: 'a.pdf', contentType: PDF_MIME });
+    const [fileA] = first.body.data.fileIds as number[];
 
     const replaced = await agent
       .post('/files')
@@ -283,7 +294,6 @@ describe('student: proof upload', () => {
       .attach('files', pdfBytes, { filename: 'a2.pdf', contentType: PDF_MIME });
     expect(replaced.status).toBe(201);
 
-    expect((await agent.delete(`/files/${fileB}`)).status).toBe(200);
     const lastId = store.state.caseSanctions[0].files[0].caseSanctionFileId;
     const last = await agent.delete(`/files/${lastId}`);
     expect(last.status).toBe(409);
@@ -346,6 +356,7 @@ describe('download link and staff review', () => {
     const again = await student
       .post('/files')
       .field('caseSanctionId', String(id))
+      .field('replaceFileId', String(fileId))
       .attach('files', pdfBytes, { filename: 'signed.pdf', contentType: PDF_MIME });
     expect(again.status).toBe(201);
     expect(store.state.caseSanctions[0].status).toBe('pending_verification');

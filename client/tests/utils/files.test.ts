@@ -5,7 +5,7 @@ const file = (name: string, size = 1024) => ({ name, size });
 
 describe('checkSelection', () => {
   test('accepts PDF files within the limits (any case of the extension)', () => {
-    expect(checkSelection([file('a.pdf'), file('B.PDF')], 0)).toBeNull();
+    expect(checkSelection([file('B.PDF')], 0)).toBeNull();
   });
 
   test('PDF only (D7): a DOCX is refused with "is not a PDF file."', () => {
@@ -16,10 +16,9 @@ describe('checkSelection', () => {
     expect(checkSelection([], 0)).toMatch(/at least one/i);
   });
 
-  test('counts files already attached toward the limit of five', () => {
-    const three = [file('a.pdf'), file('b.pdf'), file('c.pdf')];
-    expect(checkSelection(three, 2)).toBeNull();
-    expect(checkSelection(three, 3)).toMatch(/at most 5/);
+  test('allows one file per sanction', () => {
+    expect(checkSelection([file('a.pdf')], 0)).toBeNull();
+    expect(checkSelection([file('a.pdf'), file('b.pdf')], 0)).toBe('You can upload only one file per sanction.');
   });
 
   test.each([
@@ -38,8 +37,8 @@ describe('checkSelection', () => {
 
 describe('splitSelection (a wrong file is rejected, the others stay)', () => {
   test('keeps the PDFs, drops the rest and names the first problem', () => {
-    const result = splitSelection([file('a.pdf'), file('photo-of-letter.png'), file('b.pdf')], 0);
-    expect(result.accepted.map((f) => f.name)).toEqual(['a.pdf', 'b.pdf']);
+    const result = splitSelection([file('a.pdf'), file('photo-of-letter.png')], 0);
+    expect(result.accepted.map((f) => f.name)).toEqual(['a.pdf']);
     expect(result.error).toBe('photo-of-letter.png is not a PDF file.');
   });
 
@@ -48,10 +47,11 @@ describe('splitSelection (a wrong file is rejected, the others stay)', () => {
     expect(splitSelection([file('zero.pdf', 0)], 0).error).toBe('zero.pdf is empty.');
   });
 
-  test('stops at five files in all and says so', () => {
-    const result = splitSelection([file('a.pdf'), file('b.pdf'), file('c.pdf')], 3);
-    expect(result.accepted.map((f) => f.name)).toEqual(['a.pdf', 'b.pdf']);
-    expect(result.error).toBe('You can upload up to 5 files.');
+  test('stops at one file and says so', () => {
+    const result = splitSelection([file('a.pdf'), file('b.pdf')], 0);
+    expect(result.accepted.map((f) => f.name)).toEqual(['a.pdf']);
+    expect(result.error).toBe('You can upload only one file per sanction.');
+    expect(splitSelection([file('c.pdf')], 1)).toEqual({ accepted: [], error: 'You can upload only one file per sanction.' });
   });
 
   test('nothing wrong: no error', () => {

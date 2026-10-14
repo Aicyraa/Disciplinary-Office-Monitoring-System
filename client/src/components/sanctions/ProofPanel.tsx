@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { FileRow } from '@/components/ui/FileRow';
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils/cn';
-import { ACCEPT_ATTRIBUTE, MAX_FILES, checkSelection, fileMeta, lastFileRemovalMessage, splitSelection } from '@/utils/files';
+import { ACCEPT_ATTRIBUTE, checkSelection, fileMeta, lastFileRemovalMessage, splitSelection } from '@/utils/files';
 import { uploadPanel } from '@/utils/studentView';
 
 /**
@@ -59,18 +59,20 @@ export function ProofPanel({
   function addFiles(picked: File[]) {
     if (picked.length === 0) return;
     const fresh = picked.filter((file) => !selected.some((c) => c.name === file.name && c.size === file.size));
-    const { accepted, error: problem } = splitSelection(fresh, sanction.files.length + selected.length);
+    // A returned sanction still holds its old file: the new one replaces it, so only the chosen file counts.
+    const { accepted, error: problem } = splitSelection(fresh, selected.length);
     setSelected((current) => [...current, ...accepted]);
     setError(problem);
   }
 
   function submit() {
-    const problem = checkSelection(selected, sanction.files.length);
+    const problem = checkSelection(selected, 0);
     if (problem) {
       setError(problem);
       return;
     }
-    void run(() => api.uploadProof(sanction.id, selected, undefined, setPercent).then(() => undefined), `Proof submitted for ${sanction.sanctionCode}.`);
+    const replacing = sanction.files[0]?.id;
+    void run(() => api.uploadProof(sanction.id, selected, replacing, setPercent).then(() => undefined), `Proof submitted for ${sanction.sanctionCode}.`);
   }
 
   function askRemove(file: { id: number; name: string }) {
@@ -107,7 +109,6 @@ export function ProofPanel({
         ref={pickRef}
         id={`proof-${sanction.id}`}
         type="file"
-        multiple
         accept={ACCEPT_ATTRIBUTE}
         className="sr-only"
         tabIndex={-1}
@@ -140,12 +141,12 @@ export function ProofPanel({
         }}
       />
 
-      {panel.open && sanction.canUpload ? (
+      {panel.open && sanction.canUpload && selected.length === 0 ? (
         <div
           role="button"
           tabIndex={0}
           aria-disabled={busy}
-          aria-label="Choose files to upload"
+          aria-label="Choose a file to upload"
           onClick={openPicker}
           onKeyDown={onZoneKey}
           onDragEnter={(event) => {
@@ -164,10 +165,10 @@ export function ProofPanel({
           )}
         >
           <Icon name="cloud_upload" className="!text-[32px] text-primary" />
-          <span className="text-[15px] font-bold text-ink">Choose files to upload</span>
+          <span className="text-[15px] font-bold text-ink">Choose a file to upload</span>
           <span className="text-[13px] text-pretty text-muted">
             <span className="rail:hidden">Tap to choose</span>
-            <span className="hidden rail:inline">Click to choose or drag files here</span> · PDF only, up to 10 MB each, {MAX_FILES} files max
+            <span className="hidden rail:inline">Click to choose or drag your file here</span> · One PDF per sanction, up to 10 MB
           </span>
         </div>
       ) : null}

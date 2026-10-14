@@ -22,6 +22,14 @@ const docx = (name = 'proof.docx'): UploadedFile => ({
   bytes: Uint8Array.from([0x50, 0x4b, 0x03, 0x04, 0x00]),
 });
 
+/** Older data may hold several files for one sanction: add another row beside the first one. */
+function seedLegacyFile(id: number, name: string): void {
+  const first = sanction(id).files[0];
+  const copy = { ...first, caseSanctionFileId: first.caseSanctionFileId + 100, originalName: name, storageKey: `${first.storageKey}-${name}`, dateViewed: null };
+  storage.objects.set(copy.storageKey, storage.objects.get(first.storageKey) as never);
+  sanction(id).files.push(copy);
+}
+
 let store: MemoryCaseStore;
 let storage: MemoryStorage;
 let service: SanctionService;
@@ -196,25 +204,25 @@ describe('uploadProof', () => {
     expect(store.state.sanctionNotifications.at(-1)).toMatchObject({ recipient: 'staff', studentId: null });
   });
 
-  test('PDF only (D7): a DOCX among the files refuses the whole submission and stores nothing', async () => {
+  test('PDF only (D7): a DOCX is refused and stores nothing', async () => {
     const id = await assigned();
-    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), docx('letter.docx')] });
+    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [docx('letter.docx')] });
     expect(result).toMatchObject({ ok: false, code: 'unsupported_type', message: 'letter.docx is not a PDF file.' });
     expect(storage.objects.size).toBe(0);
     expect(sanction(id).files).toHaveLength(0);
   });
 
-  test('accepts up to five files in one submission', async () => {
+  test('accepts one file per sanction', async () => {
     const id = await assigned();
-    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf'), pdf('d.pdf'), pdf('e.pdf')] });
+    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf')] });
     expect(result).toMatchObject({ ok: true });
-    expect(sanction(id).files).toHaveLength(5);
-    expect(storage.objects.size).toBe(5);
+    expect(sanction(id).files).toHaveLength(1);
+    expect(storage.objects.size).toBe(1);
   });
 
-  test('refuses a sixth file and stores nothing', async () => {
+  test('refuses a second file and stores nothing', async () => {
     const id = await assigned();
-    const files = Array.from({ length: 6 }, (_, i) => pdf(`f${i}.pdf`));
+    const files = [pdf('a.pdf'), pdf('b.pdf')];
     expect(await service.uploadProof({ studentId: S1, caseSanctionId: id, files })).toMatchObject({ ok: false, code: 'too_many_files' });
     expect(storage.objects.size).toBe(0);
     expect(sanction(id).status).toBe('assigned');
@@ -226,7 +234,7 @@ describe('uploadProof', () => {
     ['an empty file', { name: 'a.pdf', mimeType: PDF_MIME, bytes: new Uint8Array() }, 'empty'],
   ])('rejects %s and leaves nothing behind', async (_label, file, code) => {
     const id = await assigned();
-    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('ok.pdf'), file] });
+    const result = await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [file] });
     expect(result).toMatchObject({ ok: false, code });
     expect(storage.objects.size).toBe(0);
     expect(sanction(id)).toMatchObject({ status: 'assigned', files: [] });
@@ -290,12 +298,9 @@ describe('uploadProof', () => {
     expect(sanction(id).files[0].originalName).toBe('old.pdf');
   });
 
-  test('replace needs exactly one file and an existing file id', async () => {
+  test('replace needs an existing file id', async () => {
     const id = await assigned();
     await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf()] });
-    expect(
-      await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf')], replaceCaseSanctionFileId: 1 }),
-    ).toMatchObject({ ok: false, code: 'invalid_input' });
     expect(
       await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf')], replaceCaseSanctionFileId: 999 }),
     ).toMatchObject({ ok: false, code: 'not_found' });
@@ -365,7 +370,8 @@ describe('upload regressions from the step 5 review', () => {
 
   test('a failed delete after a removal still reports success', async () => {
     const id = await assigned();
-    await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf')] });
+    await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf')] });
+    seedLegacyFile(id, 'b.pdf');
     const flaky = withStorage({
       delete: async () => {
         throw new Error('bucket unavailable');
@@ -376,17 +382,14 @@ describe('upload regressions from the step 5 review', () => {
     expect(sanction(id).files).toHaveLength(1);
   });
 
-  test('a put that fails halfway removes the objects already stored and inserts nothing', async () => {
+  test('a put that fails stores nothing and inserts nothing', async () => {
     const id = await assigned();
-    let puts = 0;
     const flaky = withStorage({
-      put: async (key: string, body: Uint8Array, type: string) => {
-        puts += 1;
-        if (puts === 2) throw new Error('bucket unavailable');
-        storage.objects.set(key, { body, contentType: type });
+      put: async () => {
+        throw new Error('bucket unavailable');
       },
     });
-    await expect(flaky.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf')] })).rejects.toThrow(
+    await expect(flaky.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf')] })).rejects.toThrow(
       /bucket unavailable/,
     );
     expect(storage.objects.size).toBe(0);
@@ -440,8 +443,8 @@ describe('upload regressions from the step 5 review', () => {
 describe('removeProof', () => {
   async function submitted(count: number) {
     const id = await assigned();
-    const files = Array.from({ length: count }, (_, i) => pdf(`p${i}.pdf`));
-    await service.uploadProof({ studentId: S1, caseSanctionId: id, files });
+    await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('p0.pdf')] });
+    for (let i = 1; i < count; i += 1) seedLegacyFile(id, `p${i}.pdf`);
     return id;
   }
 
@@ -526,7 +529,8 @@ describe('fileDownloadUrl', () => {
 describe('verify', () => {
   test('is blocked until every file has been opened, then completes the sanction', async () => {
     const id = await assigned();
-    await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf'), pdf('b.pdf')] });
+    await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('a.pdf')] });
+    seedLegacyFile(id, 'b.pdf');
     const [first, second] = sanction(id).files;
 
     const blocked = await service.verify({ employeeId: STAFF, caseSanctionId: id });
@@ -596,9 +600,12 @@ describe('returnForRevision and re-upload', () => {
     await service.fileDownloadUrl({ requester: { role: 'staff', id: STAFF }, caseSanctionFileId: sanction(id).files[0].caseSanctionFileId });
     await service.returnForRevision({ employeeId: STAFF, caseSanctionId: id, reason: 'Sign it' });
 
-    expect(await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('v2.pdf')] })).toMatchObject({ ok: true });
+    // One file per sanction: after a return the new file takes the old one's place.
+    expect(await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('v2.pdf')] })).toMatchObject({ ok: false, code: 'too_many_files' });
+    const old = sanction(id).files[0].caseSanctionFileId;
+    expect(await service.uploadProof({ studentId: S1, caseSanctionId: id, files: [pdf('v2.pdf')], replaceCaseSanctionFileId: old })).toMatchObject({ ok: true });
     expect(sanction(id).status).toBe('pending_verification');
-    expect(sanction(id).files).toHaveLength(2);
+    expect(sanction(id).files).toHaveLength(1);
 
     expect(await service.verify({ employeeId: STAFF, caseSanctionId: id })).toMatchObject({ ok: false, code: 'files_not_viewed' });
     const newest = sanction(id).files.find((f) => f.originalName === 'v2.pdf')!;

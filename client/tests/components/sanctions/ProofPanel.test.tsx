@@ -45,19 +45,19 @@ const render = (sanction: StudentSanctionView) =>
   );
 
 describe('ProofPanel', () => {
-  test('an assigned sanction offers a multi-file upload with a labelled input and the limits', () => {
+  test('an assigned sanction offers a single-file upload with a labelled input and the limits', () => {
     const html = render(base);
-    expect(html).toContain('multiple');
+    expect(html).not.toContain('multiple');
     expect(html).toContain('accept=".pdf,application/pdf"');
-    expect(html).toContain('5 files max');
+    expect(html).toContain('One PDF per sanction');
     expect(html).not.toContain('Replace');
   });
 
   test('the drop area is one hoverable, keyboard-operable container that says what to do', () => {
     const html = render(base);
-    expect(html).toContain('Choose files to upload');
-    expect(html).toContain('Click to choose or drag files here');
-    expect(html).toContain('PDF only, up to 10 MB each, 5 files max');
+    expect(html).toContain('Choose a file to upload');
+    expect(html).toContain('Click to choose or drag your file here');
+    expect(html).toContain('One PDF per sanction, up to 10 MB');
     expect(html).toMatch(/<div role="button" tabindex="0"[^>]*hover:border-primary/);
     expect(html).toContain('border-dashed');
   });
@@ -78,7 +78,7 @@ describe('ProofPanel', () => {
 
   test('a returned sanction still offers the drop area', () => {
     const html = render({ ...base, status: 'returned', canUpload: true, canChangeFiles: true, files: [file(1)] });
-    expect(html).toContain('Choose files to upload');
+    expect(html).toContain('Choose a file to upload');
     expect(html).toContain('Add a file to submit');
   });
 

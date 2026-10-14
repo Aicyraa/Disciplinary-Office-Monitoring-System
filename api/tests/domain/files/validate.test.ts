@@ -6,7 +6,7 @@ const docxBytes = Uint8Array.from([0x50, 0x4b, 0x03, 0x04, 0x00]);
 
 describe('validateUpload (PDF only, UI-POLISH-SPEC D7)', () => {
   test('accepts a PDF and returns the pdf extension', () => {
-    expect(validateUpload({ mimeType: PDF_MIME, bytes: pdfBytes, existingCount: 4 })).toEqual({ ok: true, ext: 'pdf' });
+    expect(validateUpload({ mimeType: PDF_MIME, bytes: pdfBytes, existingCount: 0 })).toEqual({ ok: true, ext: 'pdf' });
   });
 
   test('refuses a DOCX: files are PDF only so every file can be previewed in the app', () => {
@@ -34,7 +34,7 @@ describe('validateUpload (PDF only, UI-POLISH-SPEC D7)', () => {
     expect(validateUpload({ mimeType: PDF_MIME, bytes: over, existingCount: 0 })).toEqual({ ok: false, code: 'too_large' });
   });
 
-  test('rejects a sixth file', () => {
+  test('rejects a second file', () => {
     expect(
       validateUpload({ mimeType: PDF_MIME, bytes: pdfBytes, existingCount: MAX_FILES_PER_SANCTION }),
     ).toEqual({ ok: false, code: 'too_many_files' });

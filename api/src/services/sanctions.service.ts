@@ -142,7 +142,7 @@ export function createSanctionService({
       return fail('upload_not_allowed', 'Proof was already submitted. You can replace a file instead.');
     }
 
-    // Type, size, magic bytes and the 5-file cap, for every file, before anything is stored.
+    // Type, size, magic bytes and the one-file cap, for every file, before anything is stored.
     const existingCount = replacing ? record.files.length - 1 : record.files.length;
     const extensions: Array<'pdf'> = [];
     for (const [index, file] of files.entries()) {
@@ -254,7 +254,7 @@ export function createSanctionService({
 
     async uploadProof({ studentId, caseSanctionId, files, replaceCaseSanctionFileId }) {
       if (files.length === 0) return fail('invalid_input', 'Choose at least one file.');
-      if (files.length > MAX_FILES_PER_SANCTION) return fail('too_many_files', 'You can upload at most 5 files.');
+      if (files.length > MAX_FILES_PER_SANCTION) return fail('too_many_files', 'You can upload only one file per sanction.');
       if (replaceCaseSanctionFileId !== undefined && files.length !== 1) {
         return fail('invalid_input', 'Replace one file with exactly one file.');
       }
@@ -266,7 +266,7 @@ export function createSanctionService({
       });
       if (!early.ok) return early;
 
-      // Phase 2 (no transaction open): the slow part. Up to 5 x 10 MB must not hold a row lock or run into
+      // Phase 2 (no transaction open): the slow part. A 10 MB file must not hold a row lock or run into
       // the database transaction timeout.
       const stored: string[] = [];
       try {
@@ -498,7 +498,7 @@ function uploadMessage(code: UploadErrorCode, name: string): string {
     case 'too_large':
       return `${name} is larger than 10 MB.`;
     case 'too_many_files':
-      return 'You can attach at most 5 files.';
+      return 'You can upload only one file per sanction.';
     case 'content_mismatch':
       return notPdfMessage(name);
   }
