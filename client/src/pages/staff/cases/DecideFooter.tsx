@@ -68,27 +68,28 @@ export function DecideFooter({ detail, done, allowResolve = true }: { detail: St
           <>
             {options.data.options.sanctions.length === 0 ? (
               <p className="text-[13px] text-muted">The handbook defines no sanction for this violation.</p>
-            ) : (
-              <Select label="Sanction" value={sanctionId ?? ''} onChange={(event) => setPicked(Number(event.target.value))}>
-                {choices.map((choice) => (
-                  <option key={choice.sanctionId} value={choice.sanctionId}>
-                    {choice.sanctionCode} · {choice.type}
-                  </option>
-                ))}
-              </Select>
-            )}
-            <div className="grid items-start gap-3 @min-[420px]:grid-cols-[minmax(0,200px)_minmax(0,1fr)]">
+            ) : null}
+            <div className="grid items-start gap-3 @min-[420px]:grid-cols-[minmax(0,1fr)_minmax(0,180px)]">
+              {options.data.options.sanctions.length > 0 ? (
+                <Select label="Sanction" value={sanctionId ?? ''} onChange={(event) => setPicked(Number(event.target.value))}>
+                  {choices.map((choice) => (
+                    <option key={choice.sanctionId} value={choice.sanctionId}>
+                      {choice.sanctionCode} · {choice.type}
+                    </option>
+                  ))}
+                </Select>
+              ) : null}
               <Field label="Due date" type="date" min={today} value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
-              <Textarea
-                label="Instructions (optional)"
-                rows={3}
-                maxLength={1000}
-                placeholder="Anything the student should know"
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                className="min-h-[88px] resize-none"
-              />
             </div>
+            <Textarea
+              label="Instructions (optional)"
+              rows={3}
+              maxLength={1000}
+              placeholder="Anything the student should know"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              className="min-h-[88px] w-full resize-none"
+            />
           </>
         ) : null}
         {error ? (

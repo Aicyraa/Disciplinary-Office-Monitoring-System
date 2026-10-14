@@ -40,7 +40,7 @@ export type Queue = (typeof QUEUES)[number];
 export type QueueKey = Queue['key'];
 
 export function queueFromParam(param: string | null): Queue {
-  return QUEUES.find((queue) => queue.key === param) ?? QUEUES[0];
+  return QUEUES.find((queue) => queue.key === param) ?? QUEUES[4];
 }
 
 /** "Needs review (6)"; All cases counts every status, rejected included. */

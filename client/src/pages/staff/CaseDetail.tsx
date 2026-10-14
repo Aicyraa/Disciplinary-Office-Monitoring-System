@@ -159,7 +159,7 @@ export function CaseWorkspace({ caseId, onChanged }: { caseId: number; onChanged
       />
 
       {tab === 'details' ? <DetailTable rows={detailRows(detail)} /> : null}
-      {tab === 'files' ? <CaseFilesTab detail={detail} onViewed={resource.reload} /> : null}
+      {tab === 'files' ? <CaseFilesTab detail={detail} done={done} failed={failed} onViewed={resource.reload} /> : null}
       {tab === 'history' ? <HistoryList items={historyItems(detail)} /> : null}
 
       {tab === 'details' && open ? (
@@ -184,7 +184,7 @@ export function CaseWorkspace({ caseId, onChanged }: { caseId: number; onChanged
         <div className="@container -mx-6 mt-auto -mb-6 flex flex-col gap-3 rounded-b-xl border-t border-line-soft bg-surface-2 px-6 pt-4 pb-5">
           {detail.status === 'reported' ? <ReviewFooter detail={detail} done={done} failed={failed} /> : null}
           {detail.status === 'validated' ? <DecideFooter detail={detail} done={done} /> : null}
-          {detail.status === 'for_sanction' ? <SanctionFooter detail={detail} done={done} failed={failed} onViewed={resource.reload} /> : null}
+          {detail.status === 'for_sanction' ? <SanctionFooter detail={detail} done={done} /> : null}
           {detail.status === 'resolved' ? (
             <p role="status" className="flex items-center gap-2 text-sm font-semibold text-success">
               <Icon name="check_circle" className="!text-xl" />

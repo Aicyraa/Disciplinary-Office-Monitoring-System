@@ -26,9 +26,7 @@ export function PublicSplit({ children }: { children: ReactNode }) {
         <div aria-hidden="true" className="absolute -right-12 -bottom-12 size-[220px] rounded-full border border-gold/25" />
 
         <div className="relative flex items-center gap-3.5">
-          <span className="grid size-14 shrink-0 place-items-center rounded-full bg-white/95 shadow-[0_6px_18px_rgba(0,0,0,0.25)]">
-            <img src={seal} alt="NU Fairview" className="size-11" />
-          </span>
+          <img src={seal} alt="NU Fairview" className="size-14 shrink-0 drop-shadow-[0_6px_16px_rgba(0,0,0,0.25)]" />
           <div className="leading-tight">
             <p className="text-lg font-bold text-gold">Student Discipline Office</p>
             <p className="text-xs font-semibold tracking-[0.14em] text-white/70 uppercase">NU Fairview</p>
@@ -36,11 +34,7 @@ export function PublicSplit({ children }: { children: ReactNode }) {
         </div>
 
         <div className="relative max-w-[520px]">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-xs font-bold tracking-wide text-gold uppercase">
-            <Icon name="shield_person" className="!text-base" />
-            Student portal
-          </span>
-          <h2 className="mt-5 text-[clamp(30px,3.6vw,48px)] leading-[1.08] font-extrabold text-balance">Student Discipline Office Portal</h2>
+          <h2 className="text-[clamp(30px,3.6vw,48px)] leading-[1.08] font-extrabold text-balance">Student Discipline Office Portal</h2>
           <span aria-hidden="true" className="mt-5 block h-1 w-14 rounded-full bg-gold" />
           <p className="mt-5 max-w-[440px] text-base leading-relaxed text-pretty text-white/90">
             Follow your cases, sanctions, appointments and clearance in one place.

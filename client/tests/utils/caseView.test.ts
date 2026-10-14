@@ -42,8 +42,8 @@ describe('queues (deck src 2625)', () => {
     expect(QUEUES.map((q) => q.label)).toEqual(['Needs review', 'Awaiting decision', 'Sanction in progress', 'Resolved', 'All cases']);
     expect(queueFromParam('decide').status).toBe('validated');
     expect(queueFromParam('all').status).toBe('');
-    expect(queueFromParam(null).key).toBe('review');
-    expect(queueFromParam('bogus').key).toBe('review');
+    expect(queueFromParam(null).key).toBe('all');
+    expect(queueFromParam('bogus').key).toBe('all');
   });
 
   test('option labels carry the counts; All cases is the sum', () => {
