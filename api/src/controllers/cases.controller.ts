@@ -1,10 +1,9 @@
-import type { Request, RequestHandler, Response } from 'express';
-import type { AuthUser } from '@shared/types.js';
-import { sendError, sendOk } from '../helpers/http.js';
-import { parseId } from '../helpers/params.js';
+import type { RequestHandler } from 'express';
+import { sendError, sendFailure, sendNotFound, sendOk } from '../helpers/http.js';
+import { parseId, sessionUserId } from '../helpers/params.js';
 import { manilaToday } from '../views/me.views.js';
 import { CASE_PAGE_SIZE, type CaseQueries } from '../repositories/cases/queries.js';
-import type { CaseFailure, CaseFailureCode, CaseService } from '../services/cases.service.js';
+import type { CaseFailureCode, CaseService } from '../services/cases.service.js';
 import {
   parseCaseListQuery,
   parseLinkStudentBody,
@@ -33,12 +32,6 @@ const HTTP_STATUS: Record<CaseFailureCode, number> = {
   sanctions_incomplete: 409,
 };
 
-const staffId = (request: Request): string => (request.user as AuthUser).id;
-const notFound = (response: Response): void => sendError(response, 404, 'not_found', 'Not found.');
-
-function sendFailure(response: Response, failure: CaseFailure): void {
-  sendError(response, HTTP_STATUS[failure.code], failure.code, failure.message);
-}
 
 /** Staff case workflow handlers (SPEC 7): parse the request, call the service or queries, send the envelope. */
 export function createCaseController({ service, queries, now }: CaseControllerDeps) {
@@ -52,7 +45,7 @@ export function createCaseController({ service, queries, now }: CaseControllerDe
   const detail: RequestHandler = async (request, response) => {
     const caseId = parseId(String(request.params.id));
     const found = caseId === null ? null : await queries.detail(caseId, manilaToday(now()));
-    if (!found) return notFound(response);
+    if (!found) return sendNotFound(response);
     sendOk(response, { case: found });
   };
 
@@ -66,77 +59,77 @@ export function createCaseController({ service, queries, now }: CaseControllerDe
     const input = parseRecordViolationBody(request.body);
     if (!input.ok) return sendError(response, 400, 'invalid_input', input.message);
     const result = await service.recordViolation({
-      employeeId: staffId(request),
+      employeeId: sessionUserId(request),
       ...input.value,
       remarks: request.body?.remarks,
     });
-    if (!result.ok) return sendFailure(response, result);
+    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
     sendOk(response, { caseId: result.caseId, conversions: result.conversions }, 201);
   };
 
   const previewEscalation: RequestHandler = async (request, response) => {
     const ref = parseSubmissionRef(request.params.ref);
-    if (ref === null) return notFound(response);
+    if (ref === null) return sendNotFound(response);
     const result = await service.previewEscalation(ref);
-    if (!result.ok) return sendFailure(response, result);
+    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
     sendOk(response, { conversions: result.conversions });
   };
 
   const validateSubmission: RequestHandler = async (request, response) => {
     const ref = parseSubmissionRef(request.params.ref);
-    if (ref === null) return notFound(response);
-    const result = await service.validateSubmission({ employeeId: staffId(request), submissionRef: ref });
-    if (!result.ok) return sendFailure(response, result);
+    if (ref === null) return sendNotFound(response);
+    const result = await service.validateSubmission({ employeeId: sessionUserId(request), submissionRef: ref });
+    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
     sendOk(response, { caseIds: result.caseIds, conversions: result.conversions });
   };
 
   const rejectSubmission: RequestHandler = async (request, response) => {
     const ref = parseSubmissionRef(request.params.ref);
-    if (ref === null) return notFound(response);
+    if (ref === null) return sendNotFound(response);
     const result = await service.rejectSubmission({
-      employeeId: staffId(request),
+      employeeId: sessionUserId(request),
       submissionRef: ref,
       reason: request.body?.reason,
     });
-    if (!result.ok) return sendFailure(response, result);
+    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
     sendOk(response, { caseIds: result.caseIds });
   };
 
   const linkStudent: RequestHandler = async (request, response) => {
     const caseId = parseId(String(request.params.id));
-    if (caseId === null) return notFound(response);
+    if (caseId === null) return sendNotFound(response);
     const input = parseLinkStudentBody(request.body);
     if (!input.ok) return sendError(response, 400, 'invalid_input', input.message);
-    const result = await service.linkStudent({ employeeId: staffId(request), caseId, studentId: input.value.studentId });
-    if (!result.ok) return sendFailure(response, result);
+    const result = await service.linkStudent({ employeeId: sessionUserId(request), caseId, studentId: input.value.studentId });
+    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
     sendOk(response, { caseIds: result.caseIds });
   };
 
   const resolve: RequestHandler = async (request, response) => {
     const caseId = parseId(String(request.params.id));
-    if (caseId === null) return notFound(response);
-    const result = await service.resolveCase({ employeeId: staffId(request), caseId });
-    if (!result.ok) return sendFailure(response, result);
+    if (caseId === null) return sendNotFound(response);
+    const result = await service.resolveCase({ employeeId: sessionUserId(request), caseId });
+    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
     sendOk(response, { ok: true });
   };
 
   const resolveWithoutSanction: RequestHandler = async (request, response) => {
     const caseId = parseId(String(request.params.id));
-    if (caseId === null) return notFound(response);
+    if (caseId === null) return sendNotFound(response);
     const result = await service.resolveWithoutSanction({
-      employeeId: staffId(request),
+      employeeId: sessionUserId(request),
       caseId,
       reason: request.body?.reason,
     });
-    if (!result.ok) return sendFailure(response, result);
+    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
     sendOk(response, { ok: true });
   };
 
   const addRemark: RequestHandler = async (request, response) => {
     const caseId = parseId(String(request.params.id));
-    if (caseId === null) return notFound(response);
-    const result = await service.addRemark({ employeeId: staffId(request), caseId, remarks: request.body?.remarks });
-    if (!result.ok) return sendFailure(response, result);
+    if (caseId === null) return sendNotFound(response);
+    const result = await service.addRemark({ employeeId: sessionUserId(request), caseId, remarks: request.body?.remarks });
+    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
     sendOk(response, { ok: true }, 201);
   };
 

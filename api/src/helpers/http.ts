@@ -15,6 +15,20 @@ export function sendError(response: Response, status: number, code: ApiErrorCode
   response.status(status).json(body);
 }
 
+/** 404 `not_found`: an unknown id, or one that is not a valid id at all. */
+export function sendNotFound(response: Response): void {
+  sendError(response, 404, 'not_found', 'Not found.');
+}
+
+/** Answers a service failure `{ code, message }` with the status the feature maps that code to. */
+export function sendFailure<C extends ApiErrorCode>(
+  response: Response,
+  failure: { code: C; message: string },
+  statuses: Record<C, number>,
+): void {
+  sendError(response, statuses[failure.code], failure.code, failure.message);
+}
+
 /** Throw (or `next(new HttpError(...))`) from any handler to answer with that status, code and message. */
 export class HttpError extends Error {
   readonly status: number;
