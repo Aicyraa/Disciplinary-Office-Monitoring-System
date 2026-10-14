@@ -1,4 +1,4 @@
-import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StudentSanctionView } from '@shared/types';
 import { api, toApiError } from '@/api/client';
@@ -7,9 +7,9 @@ import { FilePreview, type PreviewFile } from '@/components/feedback/FilePreview
 import { StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { FileRow } from '@/components/ui/FileRow';
+import { ProofUploadDialog } from '@/components/sanctions/ProofUploadDialog';
 import { Icon } from '@/components/ui/Icon';
-import { cn } from '@/utils/cn';
-import { ACCEPT_ATTRIBUTE, MAX_FILES, checkSelection, fileMeta, lastFileRemovalMessage, splitSelection } from '@/utils/files';
+import { ACCEPT_ATTRIBUTE, checkSelection, fileMeta, lastFileRemovalMessage, splitSelection } from '@/utils/files';
 import { uploadPanel } from '@/utils/studentView';
 
 /**
@@ -31,14 +31,12 @@ export function ProofPanel({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [percent, setPercent] = useState<number | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const pickRef = useRef<HTMLInputElement>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const replaceRef = useRef<HTMLInputElement>(null);
   const [replaceTarget, setReplaceTarget] = useState<number | null>(null);
   const [previewing, setPreviewing] = useState<{ file: PreviewFile; loadUrl: () => Promise<string> } | null>(null);
   const [removing, setRemoving] = useState<{ id: number; name: string } | null>(null);
   const panel = uploadPanel(sanction);
-  const canEdit = sanction.canUpload && !busy;
   const canChange = sanction.canChangeFiles && !busy;
 
   async function run(work: () => Promise<void>, success: string) {
@@ -49,6 +47,7 @@ export function ProofPanel({
       await work();
       toast.show(success, 'success');
       setSelected([]);
+      setDialogOpen(false);
       onChanged();
     } catch (caught) {
       setError(toApiError(caught).message);
@@ -84,20 +83,11 @@ export function ProofPanel({
     else setRemoving(file);
   }
 
-  const openPicker = () => {
-    if (canEdit) pickRef.current?.click();
-  };
-  const onZoneKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      openPicker();
-    }
-  };
-  const onDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragging(false);
-    if (canEdit) addFiles(Array.from(event.dataTransfer.files));
-  };
+  function closeDialog() {
+    setDialogOpen(false);
+    setSelected([]);
+    setError(null);
+  }
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-line">
@@ -119,20 +109,6 @@ export function ProofPanel({
         </p>
       ) : null}
 
-      <input
-        ref={pickRef}
-        id={`proof-${sanction.id}`}
-        type="file"
-        multiple
-        accept={ACCEPT_ATTRIBUTE}
-        className="sr-only"
-        tabIndex={-1}
-        onChange={(event) => {
-          const picked = Array.from(event.target.files ?? []);
-          event.target.value = '';
-          addFiles(picked);
-        }}
-      />
       {/* One hidden input serves every Replace button. */}
       <input
         ref={replaceRef}
@@ -157,38 +133,16 @@ export function ProofPanel({
       />
 
       {panel.open && sanction.canUpload ? (
-        <div
-          role="button"
-          tabIndex={0}
-          aria-disabled={busy}
-          aria-label="Choose files to upload"
-          onClick={openPicker}
-          onKeyDown={onZoneKey}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            if (canEdit) setDragging(true);
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
-          }}
-          onDrop={onDrop}
-          className={cn(
-            'mx-4 mt-3.5 flex min-h-32 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed px-4 py-[18px] text-center outline-none transition-colors hover:border-primary hover:bg-upload-hover focus-visible:ring-[3px] focus-visible:ring-primary/35',
-            dragging ? 'border-primary bg-upload-hover' : 'border-upload-line bg-upload-bg',
-            busy && 'cursor-not-allowed opacity-60',
-          )}
-        >
-          <Icon name="cloud_upload" className="!text-[32px] text-primary" />
-          <span className="text-[15px] font-bold text-ink">Choose files to upload</span>
-          <span className="text-[13px] text-pretty text-muted">
-            <span className="rail:hidden">Tap to choose</span>
-            <span className="hidden rail:inline">Click to choose or drag files here</span> · PDF only, up to 10 MB each, {MAX_FILES} files max
-          </span>
+        <div className="mx-4 mt-3.5 flex flex-col gap-1.5">
+          <Button size="xl" fullWidth onClick={() => setDialogOpen(true)} disabled={busy}>
+            <Icon name="upload_file" className="!text-xl" />
+            {sanction.status === 'returned' ? 'Upload new proof' : 'Upload proof'}
+          </Button>
+          <p className="text-center text-xs text-muted">PDF only, up to 10 MB each. Opens a window to choose your files.</p>
         </div>
       ) : null}
 
-      {error ? (
+      {error && !dialogOpen ? (
         <p role="alert" className="mx-4 mt-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-danger">
           <Icon name="error" className="!text-lg" />
           {error}
@@ -205,7 +159,7 @@ export function ProofPanel({
         </Link>
       ) : null}
 
-      {sanction.files.length + selected.length > 0 ? (
+      {sanction.files.length > 0 ? (
         <div className="mx-4 mt-3.5 overflow-hidden rounded-[10px] border border-line-soft" aria-label="Proof files">
           {sanction.files.map((file) => (
             <FileRow
@@ -225,35 +179,10 @@ export function ProofPanel({
               className="-mb-px rounded-none border-0 border-b border-line-soft"
             />
           ))}
-          {selected.map((file) => {
-            const meta = `${fileMeta({ name: file.name, sizeBytes: file.size })} · Not submitted yet`;
-            return (
-              <FileRow
-                key={`${file.name}-${file.size}`}
-                name={file.name}
-                meta={meta}
-                onView={() => setPreviewing({ file: { name: file.name, meta }, loadUrl: async () => URL.createObjectURL(file) })}
-                onRemove={busy ? undefined : () => setSelected((current) => current.filter((c) => c !== file))}
-                className="-mb-px rounded-none border-0 border-b border-line-soft"
-              />
-            );
-          })}
         </div>
       ) : null}
 
       <div className="flex flex-col gap-2 px-4 pt-3.5 pb-4">
-        {panel.open && sanction.canUpload ? (
-          <Button
-            size="xl"
-            fullWidth
-            busy={busy}
-            busyLabel={`Uploading…${percent === null ? '' : ` ${percent}%`}`}
-            disabled={selected.length === 0}
-            onClick={submit}
-          >
-            {selected.length === 0 ? 'Add a file to submit' : panel.submitLabel}
-          </Button>
-        ) : null}
         {panel.note ? (
           <p role="status" className="flex items-center gap-2 text-[13px] text-pretty text-muted">
             <Icon name={panel.note.icon} className="!text-lg" />
@@ -262,6 +191,28 @@ export function ProofPanel({
         ) : null}
       </div>
 
+      <ProofUploadDialog
+        open={dialogOpen && panel.open && sanction.canUpload}
+        inputId={`proof-${sanction.id}`}
+        title={panel.title}
+        subtitle={panel.sub}
+        submitLabel={panel.submitLabel}
+        selected={selected}
+        existingCount={sanction.files.length}
+        error={error}
+        busy={busy}
+        percent={percent}
+        onPick={addFiles}
+        onRemove={(file) => setSelected((current) => current.filter((c) => c !== file))}
+        onPreview={(file) =>
+          setPreviewing({
+            file: { name: file.name, meta: `${fileMeta({ name: file.name, sizeBytes: file.size })} · Not submitted yet` },
+            loadUrl: async () => URL.createObjectURL(file),
+          })
+        }
+        onSubmit={submit}
+        onClose={closeDialog}
+      />
       {previewing ? <FilePreview file={previewing.file} loadUrl={previewing.loadUrl} onClose={() => setPreviewing(null)} /> : null}
       <ConfirmModal
         open={removing !== null}
