@@ -74,9 +74,3 @@ export function createSendToPowerAutomate({ urls, fetchImpl = fetch, timeoutMs =
     }
   };
 }
-
-/** Reads the flow URLs from the environment, at call time. They are never given a VITE_ prefix. */
-export const urlsFromEnv = (): { notify?: string; gate?: string } => ({
-  notify: process.env.PA_NOTIFY_URL || undefined,
-  gate: process.env.PA_GATE_URL || undefined,
-});

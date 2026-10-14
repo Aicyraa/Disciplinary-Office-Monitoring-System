@@ -13,7 +13,8 @@ import { createClearanceService } from './services/clearance.service.js';
 import { createPrismaCaseQueries, createPrismaCaseStore } from './repositories/cases/prisma-store.js';
 import { createCaseService } from './services/cases.service.js';
 import { createPrismaHandbookRepo } from './repositories/handbook/prisma-repo.js';
-import { createSendToPowerAutomate, urlsFromEnv } from './integrations/power-automate.js';
+import { createSendToPowerAutomate } from './integrations/power-automate.js';
+import { flowUrlsFromEnv, readServerEnv, s3Configured } from './config/env.js';
 import { createPrismaStudentViewRepo } from './repositories/me/prisma-repo.js';
 import { withAfterCommit } from './services/notifications/after-commit.js';
 import { deliverPending, type RetryEntry } from './services/notifications/delivery.js';
@@ -38,8 +39,7 @@ import { createTemplateService } from './services/templates.service.js';
 import { createS3Storage } from './integrations/storage/s3.js';
 import { createUnavailableStorage } from './integrations/storage/unavailable.js';
 
-const port = Number(process.env.SERVER_PORT ?? process.env.PORT ?? 3000);
-const isProduction = process.env.NODE_ENV === 'production';
+const { port, isProduction } = readServerEnv();
 /** How often the sweep looks for pending notifications (also catches rows left over by an outage). */
 const SWEEP_INTERVAL_MS = 60_000;
 /** Notifications looked at per pass, and the pause between two requests to the flow (a backlog trickles out). */
@@ -53,10 +53,11 @@ interface Built {
 }
 
 function buildApp(): Built {
-  const { DATABASE_URL, SESSION_SECRET } = process.env;
+  const env = readServerEnv();
+  const { databaseUrl: DATABASE_URL, sessionSecret: SESSION_SECRET } = env;
   // One browser origin, the same in development and production: the client app. `APP_BASE_URL` overrides the
   // default `http://localhost:<CLIENT_PORT>` when the client is hosted elsewhere.
-  const configuredOrigin = process.env.APP_BASE_URL ?? defaultClientOrigin(process.env.CLIENT_PORT);
+  const configuredOrigin = env.appBaseUrl ?? defaultClientOrigin(env.clientPort);
   const clientOrigin = clientOriginFrom(configuredOrigin);
   console.log(`Browser origin accepted by CORS: ${clientOrigin ?? '(none: invalid APP_BASE_URL)'}`);
 
@@ -82,7 +83,7 @@ function buildApp(): Built {
 
   // Email delivery (POWER-AUTOMATE.md sections 2, 4, 5). Notification rows are written inside each transaction;
   // once it commits, a delivery pass is kicked off in the background, and the sweep retries what stayed pending.
-  const flowsConfigured = Boolean(urlsFromEnv().notify);
+  const flowsConfigured = Boolean(flowUrlsFromEnv().notify);
   if (!flowsConfigured) {
     console.warn('PA_NOTIFY_URL is not set: notification emails are skipped (the in-app inbox still works).');
   }
@@ -91,7 +92,7 @@ function buildApp(): Built {
   let cursor = 0;
   // One helper and one cooldown memory for the life of the process: a row the flow did not answer for waits
   // (1 minute, doubling, at most 30) instead of being emailed again on every sweep.
-  const send = createSendToPowerAutomate({ urls: urlsFromEnv });
+  const send = createSendToPowerAutomate({ urls: flowUrlsFromEnv });
   const retryState = new Map<number, RetryEntry>();
   const scheduler = createDeliveryScheduler({
     intervalMs: SWEEP_INTERVAL_MS,
@@ -116,7 +117,7 @@ function buildApp(): Built {
 
   // File storage is optional in development (everything but proof files keeps working) and required in production.
   const filesBucket = filesBucketFromEnv();
-  const bucketConfigured = Boolean(filesBucket && process.env.AWS_ENDPOINT_URL_S3 && process.env.AWS_ACCESS_KEY_ID);
+  const bucketConfigured = Boolean(filesBucket && s3Configured());
   if (!bucketConfigured && isProduction) {
     throw new Error('STORAGE_BUCKET_FILES and the AWS_* variables are required in production');
   }
@@ -129,7 +130,7 @@ function buildApp(): Built {
   // Sanction templates have their own bucket and never fall back to the proof-files bucket. Without it the
   // template text still works; only file upload and download answer 503.
   const templatesBucket = templatesBucketFromEnv();
-  const templatesConfigured = Boolean(templatesBucket && process.env.AWS_ENDPOINT_URL_S3 && process.env.AWS_ACCESS_KEY_ID);
+  const templatesConfigured = Boolean(templatesBucket && s3Configured());
   if (!templatesConfigured) console.warn('STORAGE_BUCKET_TEMPLATES is not set: sanction template files are disabled.');
   const templateStorage =
     templatesConfigured && templatesBucket
@@ -146,7 +147,7 @@ function buildApp(): Built {
       // run over http://localhost must still be able to hold a session.
       secureCookies: clientOrigin.startsWith('https:'),
       // How many reverse proxies sit in front of the API (TRUST_PROXY=1 on most hosts). Unset on a laptop.
-      trustProxy: trustProxyFromEnv(process.env.TRUST_PROXY),
+      trustProxy: trustProxyFromEnv(env.trustProxy),
       // The notification never carries the temporary password.
       onPasswordReset: async (studentId) => {
         await notificationWriter.add({
