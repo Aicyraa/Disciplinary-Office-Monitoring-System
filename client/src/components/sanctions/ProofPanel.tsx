@@ -1,5 +1,4 @@
 import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
-import { Link } from 'react-router-dom';
 import type { StudentSanctionView } from '@shared/types';
 import { api, toApiError } from '@/api/client';
 import { ConfirmModal, useToast } from '@/components/feedback';
@@ -17,12 +16,9 @@ import { uploadPanel } from '@/utils/studentView';
  */
 export function ProofPanel({
   sanction,
-  handbookEntryId,
   onChanged,
 }: {
   sanction: StudentSanctionView;
-  /** The case's handbook entry, for "View this offense in the Handbook" (its templates are listed there). */
-  handbookEntryId?: number;
   onChanged: () => void;
 }) {
   const toast = useToast();
@@ -181,22 +177,6 @@ export function ProofPanel({
           <Icon name="error" className="!text-lg" />
           {error}
         </p>
-      ) : null}
-
-      {panel.open && handbookEntryId !== undefined ? (
-        <Link
-          to={`/handbook/${handbookEntryId}`}
-          aria-label="View this offense in the Handbook"
-          className="group relative mt-2.5 grid size-9 place-items-center self-start rounded-full text-primary outline-none hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25"
-        >
-          <Icon name="menu_book" className="!text-xl" />
-          <span
-            role="tooltip"
-            className="pointer-events-none absolute top-1/2 left-full ml-2 -translate-y-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-          >
-            View this offense in the Handbook
-          </span>
-        </Link>
       ) : null}
 
       {sanction.files.length + selected.length > 0 ? (

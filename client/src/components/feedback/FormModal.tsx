@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Icon } from '@/components/ui/Icon';
 import { Dialog } from './Dialog';
 
@@ -15,6 +16,7 @@ export function FormModal({
   busy = false,
   onClose,
   footer,
+  iconLink,
   maxWidth = 'max-w-[560px]',
   children,
 }: {
@@ -25,7 +27,10 @@ export function FormModal({
   /** A save is running: the dialog cannot be dismissed. */
   busy?: boolean;
   onClose: () => void;
-  footer: ReactNode;
+  /** Omit for a dialog that only has the header's close button. */
+  footer?: ReactNode;
+  /** The icon chip becomes a link with a hover tooltip. */
+  iconLink?: { to: string; tooltip: string };
   maxWidth?: string;
   children: ReactNode;
 }) {
@@ -33,9 +38,25 @@ export function FormModal({
   return (
     <Dialog open={open} labelledBy={titleId} onClose={busy ? undefined : onClose} maxWidth={maxWidth} bare>
       <header className="flex shrink-0 items-start gap-3.5 border-b border-line-soft px-6 py-5">
-        <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-xl bg-info-soft text-primary">
-          <Icon name={icon} className="!text-2xl" />
-        </span>
+        {iconLink ? (
+          <Link
+            to={iconLink.to}
+            aria-label={iconLink.tooltip}
+            className="group relative grid size-11 shrink-0 place-items-center rounded-xl bg-info-soft text-primary outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35"
+          >
+            <Icon name={icon} className="!text-2xl" />
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute top-full left-0 z-10 mt-2 rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+            >
+              {iconLink.tooltip}
+            </span>
+          </Link>
+        ) : (
+          <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-xl bg-info-soft text-primary">
+            <Icon name={icon} className="!text-2xl" />
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="text-lg leading-tight font-bold text-ink">
             {title}
@@ -53,9 +74,11 @@ export function FormModal({
         </button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
-      <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2.5 border-t border-line bg-surface-2 px-6 py-4 pb-[calc(16px+env(safe-area-inset-bottom))] rail:pb-4">
-        {footer}
-      </footer>
+      {footer ? (
+        <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2.5 border-t border-line bg-surface-2 px-6 py-4 pb-[calc(16px+env(safe-area-inset-bottom))] rail:pb-4">
+          {footer}
+        </footer>
+      ) : null}
     </Dialog>
   );
 }
