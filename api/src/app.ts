@@ -6,7 +6,8 @@ import type { HealthResponse } from '@shared/types.js';
 import { clientOriginFrom, defaultClientOrigin } from './config/cors.js';
 import { createAuthRouter, type LoginRateLimitOptions } from './routes/auth.routes.js';
 import type { AuthService } from './services/auth.service.js';
-import { errorHandler, notFoundHandler, sendError } from './helpers/http.js';
+import { sendError } from './helpers/http.js';
+import { errorHandler, notFoundHandler } from './middlewares/error.js';
 import { registerDataRoutes, type DataDeps } from './routes/index.js';
 
 export interface AppDeps {
