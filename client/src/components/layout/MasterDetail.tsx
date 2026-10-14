@@ -48,7 +48,7 @@ export function MasterDetail({ list, detail, emptyDetail, ratio = 'even', detail
     }
   }, [detailKey]);
 
-  const pane = 'min-w-0 @min-[800px]:h-[calc(100vh-128px)] @min-[800px]:overflow-y-auto';
+  const pane = 'min-w-0 @min-[800px]:h-[var(--page-h)] @min-[800px]:overflow-y-auto';
   return (
     <div className="@container">
       <div className={cn('grid gap-6', RATIOS[ratio])}>

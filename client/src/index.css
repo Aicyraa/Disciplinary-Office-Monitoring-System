@@ -89,7 +89,22 @@ body {
   background: var(--color-page);
   color: var(--color-body);
   font-family: var(--font-sans);
+  /* The prototype's base text (src 34): 15 px on a 1.5 line, so text without its own size is not 16 px. */
+  font-size: 15px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+:root {
+  /* Set by the app shell from the window width (utils/zoom.ts); 1 on a phone. */
+  --zoom: 1;
+  /* Height of the work area below the 64 px header and its 32 px padding, in unzoomed pixels (src 3527). */
+  --page-h: calc(100vh / var(--zoom) - 128px);
+}
+
+/* The prototype scales sidebar, header and content together with the window (src 264, 303, 384). */
+.ui-zoom {
+  zoom: var(--zoom);
 }
 
 .material-symbols-outlined {

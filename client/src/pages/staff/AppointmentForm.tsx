@@ -129,7 +129,7 @@ function AppointmentFormCard({ editing }: { editing: StaffAppointmentView | null
   }
 
   return (
-    <section className="flex min-h-[calc(100vh-128px)] flex-col gap-[22px] rounded-xl border border-line bg-white p-6">
+    <section className="flex min-h-[var(--page-h)] flex-col gap-[22px] rounded-xl border border-line bg-white p-6">
       {editing ? (
         <p className="flex items-center gap-2.5 rounded-[10px] bg-info-soft px-3.5 py-2.5 text-sm text-ink">
           <Icon name="edit_calendar" className="!text-xl text-primary" />

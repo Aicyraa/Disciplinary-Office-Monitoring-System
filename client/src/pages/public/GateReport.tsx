@@ -147,25 +147,26 @@ export default function GateReportPage() {
 
   const shell = (children: React.ReactNode) => (
     <div className="flex min-h-screen flex-col bg-page">
-      <header className="sticky top-0 z-40 flex h-16 items-center border-b border-line bg-white px-4 text-ink">
-        <div className="mx-auto flex w-full max-w-[560px] items-center gap-3">
+      {/* No navigation bar on the public form: only a way back and the form's name, on the page itself. */}
+      <main className="mx-auto flex w-full max-w-[560px] flex-1 flex-col gap-3.5 p-4">
+        <div className="flex items-center gap-3 pt-1">
           <button
             type="button"
             aria-label={backLabel}
             title={backLabel}
             onClick={() => (done || step === 1 ? navigate('/login') : go((step - 1) as 1 | 2))}
-            className="grid size-10 shrink-0 place-items-center rounded-full hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
+            className="grid size-11 shrink-0 place-items-center rounded-full text-ink hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
           >
             <Icon name="arrow_back" className="!text-2xl" />
           </button>
           <img src={seal} alt="" className="w-[34px] shrink-0" />
           <div className="min-w-0">
-            <h1 className="text-base leading-tight font-bold">Violation Form</h1>
+            <h1 className="text-base leading-tight font-bold text-ink">Violation Form</h1>
             <p className="text-xs text-muted">Student Discipline Office</p>
           </div>
         </div>
-      </header>
-      <main className="mx-auto flex w-full max-w-[560px] flex-1 flex-col gap-3.5 p-4">{children}</main>
+        {children}
+      </main>
     </div>
   );
 

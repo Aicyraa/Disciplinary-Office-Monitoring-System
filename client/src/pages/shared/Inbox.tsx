@@ -100,7 +100,7 @@ export function InboxPage() {
   return (
     <>
       <h1 className="sr-only">Inbox</h1>
-      <section className="flex min-h-[calc(100vh-128px)] flex-col overflow-hidden rounded-xl border border-line bg-white">
+      <section className="flex min-h-[var(--page-h)] flex-col overflow-hidden rounded-xl border border-line bg-white">
         <div className="flex flex-wrap items-center gap-2.5 border-b border-line-soft px-6 py-4">
           <ChipGroup
             label="Filter by category"

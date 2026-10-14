@@ -26,8 +26,10 @@ export function StageTracker({
         const done = index <= current;
         return (
           <li key={step} aria-current={index === current ? 'step' : undefined} className="relative flex flex-1 flex-col items-center text-center">
-            {index > 0 ? (
-              <span aria-hidden="true" className={cn('absolute right-1/2 w-full', look.line, index <= current ? 'bg-primary' : 'bg-line')} />
+            {/* The line belongs to the step before the next one and runs right from this circle's centre; the next
+                circle comes later in the DOM, so it paints over the end of the line (deck src 627). */}
+            {index < steps.length - 1 ? (
+              <span aria-hidden="true" className={cn('absolute left-1/2 w-full', look.line, index < current ? 'bg-primary' : 'bg-line')} />
             ) : null}
             <span
               className={cn(

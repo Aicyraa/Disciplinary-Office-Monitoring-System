@@ -63,7 +63,7 @@ export function RecordViolationPage() {
   return (
     <>
       <h1 className="sr-only">Record violation</h1>
-      <section className="flex min-h-[calc(100vh-128px)] flex-col gap-[22px] rounded-xl border border-line bg-white p-6">
+      <section className="flex min-h-[var(--page-h)] flex-col gap-[22px] rounded-xl border border-line bg-white p-6">
         <div className="flex flex-col gap-3">
           <SectionLabel index={1}>Student</SectionLabel>
           <div className="max-w-md">

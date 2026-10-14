@@ -8,7 +8,7 @@ describe('MasterDetail v2 (UI-POLISH-SPEC 5.1, D9)', () => {
     const html = renderToStaticMarkup(<MasterDetail ratio="cases" list={<p>list</p>} detail={<p>detail</p>} />);
     expect(html).toContain('@container');
     expect(html).toContain('@min-[800px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]');
-    expect(html).toContain('@min-[800px]:h-[calc(100vh-128px)]');
+    expect(html).toContain('@min-[800px]:h-[var(--page-h)]');
     expect(html).toContain('overflow-y-auto');
   });
 

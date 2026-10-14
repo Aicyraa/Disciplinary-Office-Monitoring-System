@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
 import { UnreadProvider, badgeText, useUnread } from '@/context/UnreadContext';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useUiZoom } from '@/hooks/useUiZoom';
 import { useNavBadges } from '@/hooks/useNavBadges';
 import { cn } from '@/utils/cn';
 import { breadcrumb, initials, navGroups, phoneTabs, type NavItem } from '@/utils/nav';
@@ -236,6 +237,7 @@ function ShellFrame({ user }: { user: AuthUser }) {
   const countFor = useBadgeCount();
   const location = useLocation();
   const navigate = useNavigate();
+  useUiZoom();
   const wide = useMediaQuery('(min-width: 1100px)');
   // null = follow the width (rail from 720 to 1100 px, full sidebar above); the header button overrides it.
   const [collapsedChoice, setCollapsedChoice] = useState<boolean | null>(null);
@@ -264,7 +266,7 @@ function ShellFrame({ user }: { user: AuthUser }) {
       </div>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-[calc(56px+env(safe-area-inset-top))] items-center gap-3 border-b border-line bg-white px-4 pt-[env(safe-area-inset-top)] text-ink print:hidden rail:h-16 rail:px-8 rail:pt-0">
+        <header className="ui-zoom sticky top-0 z-40 flex h-[calc(56px+env(safe-area-inset-top))] items-center gap-3 border-b border-line bg-white px-4 pt-[env(safe-area-inset-top)] text-ink print:hidden rail:h-16 rail:px-8 rail:pt-0">
           <button
             type="button"
             onClick={() => setCollapsedChoice(!collapsed)}
@@ -292,7 +294,7 @@ function ShellFrame({ user }: { user: AuthUser }) {
 
         <UnreadNudge role={role} />
 
-        <main className="w-full flex-1 p-4 pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
+        <main className="ui-zoom w-full flex-1 p-4pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
           <Outlet />
         </main>
       </div>

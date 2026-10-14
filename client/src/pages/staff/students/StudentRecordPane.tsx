@@ -155,7 +155,7 @@ export function StudentRecordPane({ studentId }: { studentId: string }) {
   const tiles = recordTiles(data, termInfo);
 
   return (
-    <section aria-label={`${name}, student record`} className="flex min-h-full flex-col gap-5 rounded-xl border border-line bg-white p-6">
+    <section aria-label={`${name}, student record`} className="@container flex min-h-full flex-col gap-5 rounded-xl border border-line bg-white p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-2xl leading-tight font-bold text-ink">{name}</h2>
@@ -177,7 +177,7 @@ export function StudentRecordPane({ studentId }: { studentId: string }) {
         </div>
       </header>
 
-      <div role="tablist" aria-label="Student record" className="@container grid grid-cols-2 gap-3 @min-[640px]:grid-cols-4">
+      <div role="tablist" aria-label="Student record" className="grid grid-cols-2 gap-3 @min-[760px]:grid-cols-4">
         {tiles.map((tile) => (
           <RecordTileButton
             key={tile.key}

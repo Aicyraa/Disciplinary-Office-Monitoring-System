@@ -80,7 +80,7 @@ export function Sidebar({
       aria-label="Main navigation"
       className={cn(
         'flex flex-col overflow-hidden border-r-4 border-gold bg-primary text-white print:hidden',
-        drawer ? 'h-full w-[284px] pt-[env(safe-area-inset-top)]' : cn('sticky top-0 h-screen shrink-0 transition-[width] duration-200', labels ? 'w-[264px]' : 'w-20'),
+        drawer ? 'h-full w-[284px] pt-[env(safe-area-inset-top)]' : cn('ui-zoom sticky top-0 h-[calc(100vh/var(--zoom))] shrink-0 transition-[width] duration-200',labels ? 'w-[264px]' : 'w-20'),
       )}
     >
       <div className={cn('flex h-[72px] shrink-0 items-center gap-3 border-b border-white/14 px-[18px]', labels ? 'justify-start' : 'justify-center')}>
