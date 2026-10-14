@@ -4,7 +4,7 @@ import type { StaffStudentRecord } from '@shared/types';
 import { ConfirmModal } from '@/components/feedback';
 import { PageError, Spinner } from '@/components/feedback/PageState';
 import { StatusPill } from '@/components/ui';
-import { buttonVariants, Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Tag } from '@/components/ui/Tag';
 import { api, toApiError } from '@/api/client';
@@ -170,10 +170,6 @@ export function StudentRecordPane({ studentId }: { studentId: string }) {
             <Icon name="key" className="!text-xl" />
             Reset password
           </Button>
-          <Link to={`/record?student=${profile.studentId}`} className={cn(buttonVariants({ variant: 'gold', size: 'md' }), 'min-h-11 px-3.5 rail:min-h-[42px]')}>
-            <Icon name="add" className="!text-xl" />
-            Record violation
-          </Link>
         </div>
       </header>
 

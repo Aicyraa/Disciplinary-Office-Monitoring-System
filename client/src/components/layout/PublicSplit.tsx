@@ -1,40 +1,49 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import hero from '@/assets/hero.png';
 import seal from '@/assets/seal.png';
 import { Icon } from '@/components/ui/Icon';
 
 /**
- * Sign-in and "Set a new password" (deck W01 to W06, src 37 to 116): the brand hero on the left (a band on top on
- * a phone) with a gold edge, and the card on the right with the violation form link under it.
+ * Sign-in and "Set a new password": a split layout. The left panel is the campus photo under a navy gradient
+ * with the seal, the office name, the portal title, one line of description and the location and hours, with
+ * a 6 px gold edge. On a phone it collapses to a thin top bar (seal, 4 px gold bottom border). The form sits
+ * on the right, at most 400 px wide.
  */
 export function PublicSplit({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-wrap bg-page">
+    <div className="flex min-h-screen flex-col bg-white min-[860px]:flex-row">
+      <header className="flex items-center gap-2.5 border-b-4 border-gold bg-primary px-4 py-2.5 text-white min-[860px]:hidden">
+        <img src={seal} alt="NU Fairview" className="size-8" />
+        <span className="text-sm leading-tight font-semibold">Student Discipline Office</span>
+      </header>
+
       <section
-        aria-hidden="true"
-        className="relative flex min-h-[260px] flex-[1_1_420px] items-center justify-center border-b-[5px] border-gold bg-primary bg-cover bg-center px-6 py-10 min-[860px]:min-h-screen min-[860px]:border-r-[6px] min-[860px]:border-b-0"
+        className="relative hidden flex-[1_1_50%] flex-col justify-between overflow-hidden border-r-[6px] border-gold bg-primary bg-cover bg-center p-12 text-white min-[860px]:flex"
         style={{ backgroundImage: `url(${hero})` }}
       >
-        <div className="absolute inset-0 bg-[rgba(38,47,115,0.72)]" />
-        <div className="relative flex flex-col items-center gap-2.5 text-center text-white">
-          <img src={seal} alt="" className="h-auto w-[88px] drop-shadow-[0_6px_16px_rgba(0,0,0,0.25)] min-[860px]:w-32" />
-          <p className="mt-2 text-[26px] font-bold tracking-[0.02em] min-[860px]:text-[34px]">NU FAIRVIEW</p>
-          <p className="text-base font-semibold text-gold">Student Discipline Office</p>
-          <p className="text-sm">Violations · Sanctions · Clearance</p>
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-[rgba(38,47,115,0.82)] via-[rgba(38,47,115,0.7)] to-[rgba(24,30,78,0.94)]" />
+        <div className="relative flex items-center gap-3.5">
+          <img src={seal} alt="NU Fairview" className="size-14 drop-shadow-[0_6px_16px_rgba(0,0,0,0.25)]" />
+          <p className="text-lg font-semibold text-gold">Student Discipline Office</p>
         </div>
+        <div className="relative max-w-[520px]">
+          <p className="text-[44px] leading-[1.1] font-extrabold text-balance">Student Discipline Office Portal</p>
+          <p className="mt-4 text-base text-pretty text-white/88">Follow your cases, sanctions, appointments and clearance in one place.</p>
+        </div>
+        <ul className="relative flex flex-col gap-2 text-sm text-white/88">
+          <li className="flex items-center gap-2">
+            <Icon name="location_on" className="!text-xl text-gold" />
+            NU Fairview · SDO Office, Room 204
+          </li>
+          <li className="flex items-center gap-2">
+            <Icon name="schedule" className="!text-xl text-gold" />
+            Monday to Saturday, 7:00 AM to 5:00 PM
+          </li>
+        </ul>
       </section>
-      <main className="flex flex-[1_1_420px] flex-col items-center justify-center gap-3.5 px-4 py-8">
-        <div className="w-full max-w-[420px] rounded-[14px] border border-line bg-white p-7 shadow-[0_1px_2px_rgba(28,36,69,0.04),0_8px_24px_rgba(28,36,69,0.06)]">
-          {children}
-        </div>
-        <Link
-          to="/report"
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-primary hover:bg-info-soft focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
-        >
-          <Icon name="qr_code_scanner" className="!text-lg" />
-          Open the violation form
-        </Link>
+
+      <main className="flex flex-[1_1_50%] items-center justify-center px-6 py-10">
+        <div className="w-full max-w-[400px]">{children}</div>
       </main>
     </div>
   );

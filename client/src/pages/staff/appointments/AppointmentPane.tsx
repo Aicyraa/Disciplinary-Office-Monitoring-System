@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import type { StaffAppointmentView } from '@shared/types';
 import { ConfirmModal, useToast } from '@/components/feedback';
 import { PageError, Spinner } from '@/components/feedback/PageState';
 import { StatusPill } from '@/components/ui';
@@ -16,9 +16,17 @@ import { formatDate } from '@/utils/format';
 import { dayRange } from '@/utils/staffDashboard';
 
 /** The right pane (deck W36, W37): window as the title, Details / History, the update footer. */
-export function AppointmentPane({ appointmentId, onChanged }: { appointmentId: number; onChanged: () => void }) {
+export function AppointmentPane({
+  appointmentId,
+  onChanged,
+  onEdit,
+}: {
+  appointmentId: number;
+  onChanged: () => void;
+  /** Opens the Edit appointment dialog for this appointment. */
+  onEdit: (appointment: StaffAppointmentView) => void;
+}) {
   const toast = useToast();
-  const navigate = useNavigate();
   const resource = useApi(() => api.staffAppointment(appointmentId), [appointmentId]);
   const [tab, setTab] = useState<'details' | 'history'>('details');
   const [modal, setModal] = useState<'complete' | 'cancel' | null>(null);
@@ -107,7 +115,7 @@ export function AppointmentPane({ appointmentId, onChanged }: { appointmentId: n
                   <Icon name="event_available" className="!text-xl" />
                   Mark completed
                 </Button>
-                <Button variant="secondary" size="xl" className="flex-[1_1_200px]" onClick={() => navigate(`/appointments/${a.id}/edit`)}>
+                <Button variant="secondary" size="xl" className="flex-[1_1_200px]" onClick={() => onEdit(a)}>
                   <Icon name="edit_calendar" className="!text-xl" />
                   Edit or reschedule
                 </Button>

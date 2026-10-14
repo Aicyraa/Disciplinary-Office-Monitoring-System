@@ -54,9 +54,6 @@ describe('navGroups destinations', () => {
     expect(paths('staff')).toEqual([
       '/',
       '/inbox',
-      '/record',
-      '/appointments/new',
-      '/handbook/new',
       '/cases',
       '/students',
       '/notices',
@@ -81,10 +78,13 @@ describe('Login', () => {
     expect(html).toContain('type="password"');
     expect(html).toContain('Sign in');
     expect(html).toContain('Forgot password?');
-    expect(html).toContain('href="/report"');
-    expect(html).toContain('NU FAIRVIEW');
-    // The help text shows only after "Forgot password?" (deck W04); no extra office-hours line.
-    expect(html).not.toContain('Room 204');
+    expect(html).toContain('Use your NU email and SDO Portal password.');
+    expect(html).toContain('Student Discipline Office Portal');
+    // Gate intake is reached by direct link or QR only: no link to the violation form on sign-in.
+    expect(html).not.toContain('/report');
+    expect(html).not.toContain('Open the violation form');
+    // The forgot-password note shows only after "Forgot password?".
+    expect(html).not.toContain('temporary password');
   });
 });
 

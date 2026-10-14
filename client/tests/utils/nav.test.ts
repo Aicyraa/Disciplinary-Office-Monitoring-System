@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { breadcrumb, initials, navGroups, phoneTabs } from '@/utils/nav';
+import { breadcrumb, initials, moreItems, navGroups, phoneTabs } from '@/utils/nav';
 
 describe('navGroups (deck src 2579)', () => {
-  test('staff groups: Overview, Create, Manage, Handbook', () => {
-    expect(navGroups('staff').map((group) => group.label)).toEqual(['Overview', 'Create', 'Manage', 'Handbook']);
+  test('staff groups: Overview, Manage, Handbook (create actions are dialogs, not nav items)', () => {
+    expect(navGroups('staff').map((group) => group.label)).toEqual(['Overview', 'Manage', 'Handbook']);
   });
 
   test('student groups: Overview, My record, Resources', () => {
@@ -24,9 +24,6 @@ describe('navGroups (deck src 2579)', () => {
     expect(items('staff')).toEqual([
       ['Dashboard', 'space_dashboard'],
       ['Inbox', 'inbox'],
-      ['Record violation', 'add_circle'],
-      ['Make appointment', 'edit_calendar'],
-      ['Add violation', 'post_add'],
       ['Cases', 'gavel'],
       ['Students', 'school'],
       ['Notices', 'campaign'],
@@ -49,6 +46,13 @@ describe('navGroups (deck src 2579)', () => {
       navGroups(role).flatMap((group) => group.items.filter((item) => item.badge).map((item) => item.badge));
     expect(badges('staff')).toEqual(['inbox', 'cases', 'students']);
     expect(badges('student')).toEqual(['inbox']);
+  });
+});
+
+describe('moreItems: the pages outside the tab bar', () => {
+  test('staff and student', () => {
+    expect(moreItems('staff').map((item) => item.to)).toEqual(['/inbox', '/notices', '/clearance', '/handbook', '/sanction-templates']);
+    expect(moreItems('student').map((item) => item.to)).toEqual(['/inbox', '/clearance', '/handbook']);
   });
 });
 
@@ -78,12 +82,8 @@ describe('breadcrumb: the role, then the page title (deck src 315)', () => {
     expect(breadcrumb('staff', '/')).toEqual(['Staff', 'Dashboard']);
     expect(breadcrumb('staff', '/cases')).toEqual(['Staff', 'Cases']);
     expect(breadcrumb('staff', '/cases/12')).toEqual(['Staff', 'Cases']);
-    expect(breadcrumb('staff', '/record')).toEqual(['Staff', 'Record violation']);
     expect(breadcrumb('staff', '/students/2025-1030808')).toEqual(['Staff', 'Students']);
     expect(breadcrumb('staff', '/appointments/4')).toEqual(['Staff', 'Appointments']);
-    expect(breadcrumb('staff', '/appointments/new')).toEqual(['Staff', 'Make appointment']);
-    expect(breadcrumb('staff', '/appointments/12/edit')).toEqual(['Staff', 'Edit appointment']);
-    expect(breadcrumb('staff', '/handbook/new')).toEqual(['Staff', 'Add violation']);
     expect(breadcrumb('staff', '/notices')).toEqual(['Staff', 'Notices']);
     expect(breadcrumb('staff', '/handbook/12')).toEqual(['Staff', 'Violations']);
     expect(breadcrumb('staff', '/sanction-templates/3')).toEqual(['Staff', 'Sanction templates']);

@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import type { AuthUser } from '@shared/types';
 import seal from '@/assets/seal.png';
 import { AccountDetailsModal, ChangePasswordModal } from '@/components/account/AccountModals';
+import { ModalOpenProvider, useAnyModalOpen } from '@/components/feedback/modalOpen';
 import { NudgeCard } from '@/components/feedback/PageState';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
@@ -11,9 +12,11 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUiZoom } from '@/hooks/useUiZoom';
 import { useNavBadges } from '@/hooks/useNavBadges';
 import { cn } from '@/utils/cn';
-import { breadcrumb, initials, navGroups, phoneTabs, type NavItem } from '@/utils/nav';
+import { breadcrumb, initials, moreItems, navGroups, phoneTabs, type NavItem } from '@/utils/nav';
 import { BellPopover } from './BellPopover';
-import { Sidebar, useIsActive } from './Sidebar';
+import { MoreSheet } from './MoreSheet';
+import { PageActionProvider, usePageActionValue } from './PageAction';
+import { Sidebar } from './Sidebar';
 
 type AccountDialog = 'details' | 'password' | null;
 
@@ -30,9 +33,6 @@ function useBadgeCount() {
     return 0;
   };
 }
-
-const roundIcon =
-  'grid size-10 shrink-0 place-items-center rounded-full text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none';
 
 /** Initials avatar with the account menu (deck W16, src 361): Account details, Change password, Sign out. */
 function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclude<AccountDialog, null>) => void }) {
@@ -149,7 +149,6 @@ function PhoneBar({
   moreActive: boolean;
   onMore: () => void;
 }) {
-  const isActive = useIsActive();
   const tab = 'flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 px-0.5 pt-1 pb-1.5 focus-visible:rounded-xl focus-visible:shadow-[inset_0_0_0_2px_rgba(53,64,142,0.35)] focus-visible:outline-none';
   const content = (icon: string, label: string, active: boolean, count: number) => {
     const text = badgeText(count);
@@ -170,7 +169,7 @@ function PhoneBar({
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-line bg-white px-1 pt-1.5 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(16,22,52,0.06)] print:hidden rail:hidden"
+      className="ui-zoom-phone fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-line bg-white px-1 pt-1.5 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(16,22,52,0.06)] print:hidden rail:hidden"
     >
       {phoneTabs(role).map((item) => (
         <NavLink
@@ -178,9 +177,9 @@ function PhoneBar({
           to={item.to}
           end={item.end ?? item.to === '/'}
           aria-label={countFor(item) > 0 ? `${item.label}, ${countFor(item)} waiting` : item.label}
-          className={({ isActive: routerActive }) => cn(tab, !moreActive && isActive(item, routerActive) ? 'text-primary' : 'text-muted-2')}
+          className={({ isActive }) => cn(tab, !moreActive && isActive ? 'text-primary' : 'text-muted-2')}
         >
-          {({ isActive: routerActive }) => content(item.icon, item.label, !moreActive && isActive(item, routerActive), countFor(item))}
+          {({ isActive }) => content(item.icon, item.label, !moreActive && isActive, countFor(item))}
         </NavLink>
       ))}
       <button type="button" onClick={onMore} aria-label="More pages" aria-haspopup="dialog" className={cn(tab, moreActive ? 'text-primary' : 'text-muted-2')}>
@@ -190,22 +189,58 @@ function PhoneBar({
   );
 }
 
-/** The phone "More" drawer: the blue sidebar slides in from the left over a scrim (deck M17). */
-function MoreDrawer({ role, countFor, onClose }: { role: 'staff' | 'student'; countFor: (item: NavItem) => number; onClose: () => void }) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    panelRef.current?.querySelector<HTMLElement>('button, a')?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+/** The header pill (desktop) of the page's create action, followed by a thin divider. */
+function HeaderAction() {
+  const action = usePageActionValue();
+  if (!action) return null;
   return (
-    <div className="fixed inset-0 z-[55] rail:hidden" role="dialog" aria-modal="true" aria-label="More pages">
-      <div aria-hidden="true" className="absolute inset-0 bg-[rgba(16,22,52,0.45)]" onClick={onClose} />
-      <div ref={panelRef} className="absolute inset-y-0 left-0 shadow-[0_10px_40px_rgba(16,22,52,0.35)]">
-        <Sidebar groups={navGroups(role)} countFor={countFor} role={role} labels drawer onNavigate={onClose} onClose={onClose} />
+    <>
+      <button
+        type="button"
+        onClick={action.onClick}
+        className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold whitespace-nowrap text-white outline-none hover:bg-primary-hover active:bg-primary-press focus-visible:ring-[3px] focus-visible:ring-primary/35"
+      >
+        <Icon name={action.icon} className="!text-xl" />
+        {action.label}
+      </button>
+      <span aria-hidden="true" className="mx-1 h-6 w-px bg-line" />
+    </>
+  );
+}
+
+/** The phone's extended floating action button; it steps aside while a dialog or the More sheet is open. */
+function FloatingAction({ hidden }: { hidden: boolean }) {
+  const action = usePageActionValue();
+  const modalOpen = useAnyModalOpen();
+  if (!action || hidden || modalOpen) return null;
+  return (
+    <button
+      type="button"
+      onClick={action.onClick}
+      className="ui-zoom-phone fixed right-[calc(16px/var(--phone-zoom))] bottom-[calc(84px/var(--phone-zoom))] z-[45] inline-flex h-[52px] items-center gap-2 rounded-2xl bg-primary px-5 text-[15px] font-semibold whitespace-nowrap text-white shadow-[0_6px_18px_rgba(16,22,52,0.3)] outline-none active:bg-primary-press focus-visible:ring-[3px] focus-visible:ring-gold print:hidden rail:hidden"
+    >
+      <Icon name={action.icon} className="!text-2xl" />
+      {action.label}
+    </button>
+  );
+}
+
+/** Phone page header: scrolls with the content, no bar. Seal line, the page title and the bell and avatar. */
+function PhoneTitle({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclude<AccountDialog, null>) => void }) {
+  const location = useLocation();
+  const [, page] = breadcrumb(user.role, location.pathname);
+  return (
+    <div className="mb-3 flex items-start gap-2 print:hidden rail:hidden">
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-muted">
+          <img src={seal} alt="" className="size-4" />
+          NU Fairview · SDO
+        </p>
+        <p className="mt-0.5 truncate text-[28px] leading-tight font-extrabold text-ink">{page}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <BellPopover role={user.role} />
+        <AccountMenu user={user} onOpen={onOpen} />
       </div>
     </div>
   );
@@ -216,7 +251,7 @@ function UnreadNudge({ role }: { role: 'staff' | 'student' }) {
   const { toast, dismissToast } = useUnread();
   if (toast === null || role !== 'student') return null;
   return (
-    <div className="fixed top-[68px] right-4 left-4 z-[70] flex justify-end rail:top-[76px] rail:right-5 rail:left-auto print:hidden">
+    <div className="fixed top-4 right-4 left-4 z-[70] flex justify-end rail:top-[76px] rail:right-5 rail:left-auto print:hidden">
       <NudgeCard text={toast} onDismiss={dismissToast} />
     </div>
   );
@@ -227,7 +262,11 @@ export function Shell() {
   if (state.status !== 'authenticated') return null;
   return (
     <UnreadProvider role={state.user.role}>
-      <ShellFrame user={state.user} />
+      <ModalOpenProvider>
+        <PageActionProvider>
+          <ShellFrame user={state.user} />
+        </PageActionProvider>
+      </ModalOpenProvider>
     </UnreadProvider>
   );
 }
@@ -239,7 +278,7 @@ function ShellFrame({ user }: { user: AuthUser }) {
   const navigate = useNavigate();
   useUiZoom();
   const wide = useMediaQuery('(min-width: 1100px)');
-  // null = follow the width (rail from 720 to 1100 px, full sidebar above); the header button overrides it.
+  // null = follow the width (rail from 720 to 1100 px, full sidebar above); the sidebar toggle overrides it.
   const [collapsedChoice, setCollapsedChoice] = useState<boolean | null>(null);
   const collapsed = collapsedChoice ?? !wide;
   const [moreOpen, setMoreOpen] = useState(false);
@@ -262,31 +301,16 @@ function ShellFrame({ user }: { user: AuthUser }) {
   return (
     <div className="min-h-screen rail:flex">
       <div className="hidden rail:block">
-        <Sidebar groups={groups} countFor={countFor} role={role} labels={!collapsed} />
+        <Sidebar groups={groups} countFor={countFor} role={role} labels={!collapsed} onToggle={() => setCollapsedChoice(!collapsed)} />
       </div>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="ui-zoom sticky top-0 z-40 flex h-[calc(56px+env(safe-area-inset-top))] items-center gap-3 border-b border-line bg-white px-4 pt-[env(safe-area-inset-top)] text-ink print:hidden rail:h-16 rail:px-8 rail:pt-0">
-          <button
-            type="button"
-            onClick={() => setCollapsedChoice(!collapsed)}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-expanded={!collapsed}
-            className={cn(roundIcon, 'hidden rail:grid')}
-          >
-            <Icon name={collapsed ? 'left_panel_open' : 'left_panel_close'} className="!text-2xl" />
-          </button>
-          <div className="flex min-w-0 items-center gap-2.5 rail:hidden">
-            <img src={seal} alt="" className="w-7" />
-            <div className="min-w-0">
-              <div className="text-sm leading-tight font-bold">NU FAIRVIEW</div>
-              <div className="text-[11px] leading-tight text-muted">Student Discipline Office</div>
-            </div>
-          </div>
-          <div className="hidden min-w-0 rail:block">
+        <header className="ui-zoom sticky top-0 z-40 hidden h-16 items-center gap-3 border-b border-line bg-white px-8 text-ink print:hidden rail:flex">
+          <div className="min-w-0">
             <Breadcrumb role={role} />
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <HeaderAction />
             <BellPopover role={role} />
             <AccountMenu user={user} onOpen={setDialog} />
           </div>
@@ -294,13 +318,15 @@ function ShellFrame({ user }: { user: AuthUser }) {
 
         <UnreadNudge role={role} />
 
-        <main className="ui-zoom w-full flex-1 p-4 pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
+        <main className="ui-zoom w-full flex-1 p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
+          <PhoneTitle user={user} onOpen={setDialog} />
           <Outlet />
         </main>
       </div>
 
       <PhoneBar role={role} countFor={countFor} moreCount={role === 'student' ? unreadCount : 0} moreActive={moreOpen || !onTab} onMore={() => setMoreOpen((value) => !value)} />
-      {moreOpen ? <MoreDrawer role={role} countFor={countFor} onClose={() => setMoreOpen(false)} /> : null}
+      <FloatingAction hidden={moreOpen} />
+      {moreOpen ? <MoreSheet items={moreItems(role)} countFor={countFor} onClose={() => setMoreOpen(false)} /> : null}
 
       <AccountDetailsModal open={dialog === 'details'} user={user} onClose={() => setDialog(null)} onChangePassword={() => setDialog('password')} />
       <ChangePasswordModal open={dialog === 'password'} onClose={() => setDialog(null)} />

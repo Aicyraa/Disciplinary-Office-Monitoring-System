@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import type { Severity } from '@shared/types';
 import { MasterDetail } from '@/components/layout/MasterDetail';
+import { usePageAction } from '@/components/layout/PageAction';
 import { PageError, Spinner } from '@/components/feedback/PageState';
 import { StatusPill } from '@/components/ui';
 import { ChipGroup } from '@/components/ui/ChipGroup';
@@ -20,6 +21,7 @@ import { cn } from '@/utils/cn';
 import { manilaToday } from '@/utils/files';
 import { formatDate } from '@/utils/format';
 import { CaseWorkspace } from './CaseDetail';
+import { RecordViolationModal } from './cases/RecordViolationModal';
 
 /** Links inside the queue carry this, so arriving from elsewhere (dashboard, bell) is told apart (5.4b). */
 const FROM_QUEUE = { fromQueue: true } as const;
@@ -224,10 +226,14 @@ export function CasesPage() {
   const reloadQueue = useRef<(() => void) | null>(null);
   // With nothing selected, the wide layout shows the first case of the queue (deck: `cs[0]`).
   const [firstRow, setFirstRow] = useState<number | null>(null);
+  // Record violation is a dialog over the queue; its trigger is the header pill (desktop) or the floating button.
+  const [recording, setRecording] = useState(false);
+  usePageAction('Record violation', 'add_circle', () => setRecording(true));
 
   return (
     <>
       <h1 className="sr-only">Cases</h1>
+      {recording ? <RecordViolationModal onClose={() => setRecording(false)} /> : null}
       <MasterDetail
         ratio="cases"
         detailKey={caseId}

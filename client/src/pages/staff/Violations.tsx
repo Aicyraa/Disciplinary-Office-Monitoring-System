@@ -1,21 +1,26 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageError, Spinner } from '@/components/feedback/PageState';
 import { MasterDetail } from '@/components/layout/MasterDetail';
+import { usePageAction } from '@/components/layout/PageAction';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { api } from '@/api/client';
 import { useApi } from '@/hooks/useApi';
+import { AddViolationModal } from './handbook/AddViolationModal';
 import { ViolationEditor, type SanctionChoice } from './handbook/ViolationEditor';
 import { ViolationList } from './handbook/ViolationList';
 
 /**
- * Staff "Violations" (deck W44 to W46): the handbook list and the editor. `/handbook/new` hides the list
- * and shows the empty editor ("Add violation"). Sanction templates have their own page.
+ * Staff "Violations" (deck W44 to W46): the handbook list and the editor. Add violation is a dialog over the
+ * list, opened from the header pill (desktop) or the floating button (phone). Sanction templates have their own page.
  */
-export function StaffViolationsPage({ adding = false }: { adding?: boolean }) {
+export function StaffViolationsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const handbook = useApi(() => api.handbook(), []);
   const sanctions = useApi(() => api.sanctionTemplates(), []);
+  const [adding, setAdding] = useState(false);
+  usePageAction('Add violation', 'post_add', () => setAdding(true));
   const selectedId = /^\d+$/.test(id ?? '') ? Number(id) : null;
 
   if (handbook.status === 'loading' || sanctions.status === 'loading') {
@@ -36,15 +41,6 @@ export function StaffViolationsPage({ adding = false }: { adding?: boolean }) {
     navigate(`/handbook/${savedId}`);
   };
 
-  if (adding) {
-    return (
-      <>
-        <h1 className="sr-only">Add violation</h1>
-        <ViolationEditor entry={null} entries={entries} choices={choices} onSaved={saved} />
-      </>
-    );
-  }
-
   const current = selectedId === null ? (entries[0] ?? null) : (entries.find((e) => e.id === selectedId) ?? null);
   const editor = current ? (
     <ViolationEditor key={`${current.id}-${current.violation}-${current.section}-${current.sanctions.length}`} entry={current} entries={entries} choices={choices} onSaved={saved} />
@@ -59,6 +55,17 @@ export function StaffViolationsPage({ adding = false }: { adding?: boolean }) {
   return (
     <>
       <h1 className="sr-only">Violations</h1>
+      {adding ? (
+        <AddViolationModal
+          entries={entries}
+          choices={choices}
+          onClose={() => setAdding(false)}
+          onAdded={(addedId) => {
+            setAdding(false);
+            saved(addedId);
+          }}
+        />
+      ) : null}
       <MasterDetail
         ratio="handbook"
         detailKey={selectedId}

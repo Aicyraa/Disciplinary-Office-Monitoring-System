@@ -107,6 +107,19 @@ body {
   zoom: var(--zoom);
 }
 
+/* Phones render the app at 90%: the tab bar, the floating button and every dialog or sheet use this; desktop is 1. */
+:root {
+  --phone-zoom: 0.9;
+}
+@media (min-width: 720px) {
+  :root {
+    --phone-zoom: 1;
+  }
+}
+.ui-zoom-phone {
+  zoom: var(--phone-zoom);
+}
+
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-weight: normal;

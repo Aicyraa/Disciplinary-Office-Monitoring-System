@@ -16,11 +16,10 @@ import GateReportPage from '@/pages/public/GateReport';
 import Login from '@/pages/public/Login';
 import { InboxPage } from '@/pages/shared/Inbox';
 import { NoAccessPage, NotFoundPage } from '@/pages/shared/Misc';
-import { RecordViolationPage } from '@/pages/staff/RecordViolation';
 import { StaffClearancePage } from '@/pages/staff/Clearance';
 import { NoticesPage } from '@/pages/staff/Notices';
 import { StudentsPage } from '@/pages/staff/Students';
-import { EditAppointmentPage, MakeAppointmentPage, StaffAppointmentsPage } from '@/pages/staff/Appointments';
+import { StaffAppointmentsPage } from '@/pages/staff/Appointments';
 import { CasesPage } from '@/pages/staff/Cases';
 import { SanctionsPage } from '@/pages/student/Sanctions';
 import { ViolationsPage } from '@/pages/student/Violations';
@@ -111,15 +110,11 @@ function AppRoutes() {
             <Route path="clearance/slip" element={<ClearanceSlipPage />} />
           </Route>
           <Route element={<RoleOnly role="staff" />}>
-            <Route path="record" element={<RecordViolationPage />} />
             <Route path="cases" element={<CasesPage />} />
             <Route path="cases/:id" element={<CasesPage />} />
             <Route path="notices" element={<NoticesPage />} />
             <Route path="students" element={<StudentsPage />} />
             <Route path="students/:id" element={<StudentsPage />} />
-            <Route path="appointments/new" element={<MakeAppointmentPage />} />
-            <Route path="appointments/:id/edit" element={<EditAppointmentPage />} />
-            <Route path="handbook/new" element={<StaffViolationsPage adding />} />
             <Route path="sanction-templates" element={<SanctionTemplatesPage />} />
             <Route path="sanction-templates/:id" element={<SanctionTemplatesPage />} />
           </Route>

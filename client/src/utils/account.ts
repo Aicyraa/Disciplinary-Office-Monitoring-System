@@ -49,6 +49,37 @@ export function loginProblem(email: string, password: string): string | null {
   return null;
 }
 
+export const LOGIN_MAX_ATTEMPTS = 5;
+export const LOGIN_LOCK_SECONDS = 60;
+
+export interface LoginErrors {
+  email?: string;
+  password?: string;
+}
+
+/** The per-field sign-in messages: empty email, malformed email, not an NU domain, empty password. */
+export function loginErrors(email: string, password: string): LoginErrors {
+  const errors: LoginErrors = {};
+  const address = email.trim().toLowerCase();
+  if (address === '') errors.email = 'Enter your NU email.';
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) errors.email = 'Enter a valid email address, like name@students.nu-fairview.edu.ph.';
+  else if (!/@(students\.)?nu-fairview\.edu\.ph$/.test(address)) errors.email = 'Use your NU email (@students.nu-fairview.edu.ph or @nu-fairview.edu.ph).';
+  if (password === '') errors.password = 'Enter your password.';
+  return errors;
+}
+
+/** The red banner after a refused sign-in, counting down to the pause. */
+export function wrongCredentials(failures: number): string {
+  const left = Math.max(0, LOGIN_MAX_ATTEMPTS - failures);
+  return `The email or password is incorrect. ${left} ${left === 1 ? 'attempt' : 'attempts'} left before sign-in is paused.`;
+}
+
+/** The label on the disabled button while sign-in is paused: `Try again in 0:42`. */
+export function lockLabel(seconds: number): string {
+  const s = Math.max(0, Math.ceil(seconds));
+  return `Try again in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 /** "Set a new password" after a temporary password (deck src 3420). Reuse of the temporary one is the API's check. */
 export function forcedPasswordError(next: string, confirm: string): string | null {
   if (!passwordRules(next).every((rule) => rule.ok)) return 'Your new password doesn’t meet the rules below.';

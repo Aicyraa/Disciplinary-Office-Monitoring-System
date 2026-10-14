@@ -3,14 +3,34 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
 import { AccountDetailsModal, ChangePasswordModal, PasswordRuleList } from '@/components/account/AccountModals';
 import { BellRow } from '@/components/layout/BellPopover';
+import { MoreSheet } from '@/components/layout/MoreSheet';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AuthProvider } from '@/context/AuthContext';
-import { navGroups } from '@/utils/nav';
+import { moreItems, navGroups } from '@/utils/nav';
 
 const at = (path: string, node: React.ReactNode) => renderToStaticMarkup(<MemoryRouter initialEntries={[path]}>{node}</MemoryRouter>);
 
 describe('Sidebar (deck src 264)', () => {
-  const props = { groups: navGroups('staff'), countFor: () => 0, role: 'staff' as const };
+  const props = { groups: navGroups('staff'), countFor: () => 0, role: 'staff' as const, onToggle: () => undefined };
+
+  test('the collapse toggle is pinned under the nav: labelled when expanded, icon-only with a tooltip when collapsed', () => {
+    const open = at('/cases', <Sidebar {...props} labels />);
+    expect(open).toContain('aria-expanded="true"');
+    expect(open).toContain('aria-label="Collapse sidebar"');
+    expect(open).toContain('>Collapse sidebar<');
+    expect(open).toContain('border-t border-white/14');
+    const rail = at('/cases', <Sidebar {...props} labels={false} />);
+    expect(rail).toContain('aria-expanded="false"');
+    expect(rail).toContain('aria-label="Expand sidebar"');
+    expect(rail).toContain('title="Expand sidebar"');
+    expect(rail).not.toContain('>Collapse sidebar<');
+  });
+
+  test('there is no Create group', () => {
+    const html = at('/cases', <Sidebar {...props} labels />);
+    expect(html).not.toContain('>Create<');
+    expect(html).not.toContain('Record violation');
+  });
 
   test('full width: 264 px, gold right edge, the portal label and sentence-case group labels', () => {
     const html = at('/cases', <Sidebar {...props} labels />);
@@ -41,6 +61,21 @@ describe('Sidebar (deck src 264)', () => {
     const html = at('/sanction-templates', <Sidebar {...props} labels />);
     expect(html).toMatch(/title="Sanction templates"[^>]*bg-primary-active|bg-primary-active[^>]*title="Sanction templates"/);
     expect(html).not.toMatch(/title="Violations"[^>]*bg-primary-active/);
+  });
+});
+
+describe('More sheet', () => {
+  test('lists only the pages the tab bar lacks, as one list with no group headings, current page highlighted', () => {
+    const html = at('/clearance', <MoreSheet items={moreItems('staff')} countFor={() => 0} onClose={() => undefined} />);
+    expect(html).toContain('aria-label="More"');
+    expect(html).toContain('>More<');
+    expect(html).toContain('>Inbox<');
+    expect(html).toContain('>Notices<');
+    expect(html).toContain('>Clearance<');
+    expect(html).not.toContain('>Cases<');
+    expect(html).not.toContain('>Overview<');
+    expect(html).toMatch(/aria-current="page"[^>]*bg-row-selected/);
+    expect(html).toContain('h-14');
   });
 });
 

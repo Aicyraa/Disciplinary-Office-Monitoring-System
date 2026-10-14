@@ -50,14 +50,6 @@ const STAFF_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'Create',
-    items: [
-      { to: '/record', label: 'Record violation', icon: 'add_circle' },
-      { to: '/appointments/new', label: 'Make appointment', icon: 'edit_calendar' },
-      { to: '/handbook/new', label: 'Add violation', icon: 'post_add' },
-    ],
-  },
-  {
     label: 'Manage',
     items: [
       { to: '/cases', label: 'Cases', icon: 'gavel', badge: 'cases' },
@@ -95,19 +87,23 @@ export function phoneTabs(role: AccountRole): NavItem[] {
     : [find('/'), find('/violations'), find('/sanctions'), find('/appointments')];
 }
 
+/** The pages the phone "More" sheet lists: every page that is not already a tab of the bottom bar. */
+export function moreItems(role: AccountRole): NavItem[] {
+  const tabs = new Set(phoneTabs(role).map((item) => item.to));
+  return navGroups(role)
+    .flatMap((group) => group.items)
+    .filter((item) => !tabs.has(item.to));
+}
+
 /** Page titles for the breadcrumb, per role. Detail routes keep their list's title (deck W17: "Staff › Cases"). */
 const TITLES: Array<[RegExp, string, string?]> = [
   [/^\/$/, 'Dashboard'],
   [/^\/inbox$/, 'Inbox'],
-  [/^\/record$/, 'Record violation'],
-  [/^\/appointments\/new$/, 'Make appointment'],
-  [/^\/appointments\/\d+\/edit$/, 'Edit appointment'],
   [/^\/cases(\/\d+)?$/, 'Cases'],
   [/^\/students(\/[^/]+)?$/, 'Students'],
   [/^\/appointments(\/\d+)?$/, 'Appointments'],
   [/^\/notices$/, 'Notices'],
   [/^\/clearance(\/slip|\/[^/]+)?$/, 'Clearance'],
-  [/^\/handbook\/new$/, 'Add violation'],
   [/^\/handbook(\/\d+)?$/, 'Violations', 'Student Handbook'],
   [/^\/sanction-templates(\/\d+)?$/, 'Sanction templates'],
   [/^\/account\/password$/, 'Change password'],

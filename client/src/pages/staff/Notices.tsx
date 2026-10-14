@@ -3,6 +3,7 @@ import type { NoticeView } from '@shared/types';
 import { ConfirmModal, useToast } from '@/components/feedback';
 import { PageError, Spinner } from '@/components/feedback/PageState';
 import { MasterDetail } from '@/components/layout/MasterDetail';
+import { usePageAction } from '@/components/layout/PageAction';
 import { Button } from '@/components/ui/Button';
 import { DetailTable } from '@/components/ui/DetailTable';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
@@ -76,6 +77,7 @@ export function NoticesPage() {
   const resource = useApi(() => api.notices(), []);
   const [selected, setSelected] = useState<number | null>(null);
   const [mode, setMode] = useState<'detail' | 'new' | 'edit'>('detail');
+  usePageAction('New notice', 'campaign', () => setMode('new'));
 
   if (resource.status === 'loading') {
     return (
@@ -118,15 +120,9 @@ export function NoticesPage() {
         detailKey={mode === 'detail' ? (current?.id ?? null) : mode}
         list={
           <ListCard className="flex h-full flex-col">
-            <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-line-soft px-6 py-[18px]">
-              <div>
-                <h2 className="text-[17px] font-bold text-ink">Important notices</h2>
-                <p className="text-[13px] text-muted">Shown in every student’s bell and inbox</p>
-              </div>
-              <Button onClick={() => setMode('new')}>
-                <Icon name="add" className="!text-xl" />
-                New notice
-              </Button>
+            <div className="border-b border-line-soft px-6 py-[18px]">
+              <h2 className="text-[17px] font-bold text-ink">Important notices</h2>
+              <p className="text-[13px] text-muted">Shown in every student’s bell and inbox</p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {notices.length === 0 ? (
