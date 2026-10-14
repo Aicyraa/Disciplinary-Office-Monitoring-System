@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import type { StaffStudentListResponse, StaffStudentRecord } from '@shared/types.js';
-import { requireStaff } from '../middleware/auth.js';
+import { requireStaff } from '../middlewares/auth.js';
 import { STUDENT_ID_PATTERN } from '../domain/auth/policy.js';
-import { sendError, sendOk } from '../lib/http.js';
+import { sendError, sendOk } from '../helpers/http.js';
 import type { StudentViewRepo } from '../repositories/me/repo.js';
 import { manilaToday, sortTerms, toAppointmentView, toCaseView, toProfileView, toSanctionView } from '../views/me.views.js';
 

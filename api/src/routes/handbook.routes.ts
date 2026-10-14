@@ -1,11 +1,11 @@
 import { Router, type Response } from 'express';
 import type { AuthUser, HandbookEntryView } from '@shared/types.js';
 import { displayCode } from '../domain/codes.js';
-import { requireAuth, requirePasswordChanged, requireStaff } from '../middleware/auth.js';
-import { sendError, sendOk } from '../lib/http.js';
+import { requireAuth, requirePasswordChanged, requireStaff } from '../middlewares/auth.js';
+import { sendError, sendOk } from '../helpers/http.js';
 import type { HandbookAdminFailure, HandbookAdminFailureCode, HandbookAdminService } from '../services/handbook-admin.service.js';
 import type { HandbookEntryRecord, HandbookRepo } from '../repositories/handbook/repo.js';
-import { parseId } from '../lib/params.js';
+import { parseId } from '../helpers/params.js';
 
 export function toHandbookEntryView(record: HandbookEntryRecord): HandbookEntryView {
   return {

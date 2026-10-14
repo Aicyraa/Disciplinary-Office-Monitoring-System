@@ -1,4 +1,4 @@
-import { HttpError } from '../../lib/http.js';
+import { HttpError } from '../../helpers/http.js';
 import type { ObjectStorage } from './types.js';
 
 /** What the person sees when the bucket cannot be reached; the real reason is only in the server log. */

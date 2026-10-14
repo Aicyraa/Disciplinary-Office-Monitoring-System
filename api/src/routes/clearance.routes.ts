@@ -1,13 +1,13 @@
 import { Router, type Response } from 'express';
 import type { AuthUser, ClearanceRosterResponse, ClearanceTermsResponse, StaffClearanceView } from '@shared/types.js';
-import { requireStaff } from '../middleware/auth.js';
+import { requireStaff } from '../middlewares/auth.js';
 import { STUDENT_ID_PATTERN } from '../domain/auth/policy.js';
-import { sendError, sendOk } from '../lib/http.js';
+import { sendError, sendOk } from '../helpers/http.js';
 import { CLEARANCE_PAGE_SIZE, ROSTER_PAGE_SIZE, type ClearanceQueries, type ClearanceRow } from '../repositories/clearance/queries.js';
 import { currentTerm, termList } from '../domain/clearance/term.js';
 import { NO_ACTIVE_VIOLATIONS_LABEL } from '../domain/clearance/rules.js';
 import type { ClearanceFailure, ClearanceFailureCode, ClearanceService } from '../services/clearance.service.js';
-import { parseId } from '../lib/params.js';
+import { parseId } from '../helpers/params.js';
 
 export interface ClearanceRouterOptions {
   service: ClearanceService;

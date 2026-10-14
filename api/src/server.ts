@@ -2,7 +2,7 @@ import connectPgSimple from 'connect-pg-simple';
 import session from 'express-session';
 import { Pool } from 'pg';
 import { createApp } from './app.js';
-import { clientOriginFrom, defaultClientOrigin } from './middleware/cors.js';
+import { clientOriginFrom, defaultClientOrigin } from './config/cors.js';
 import { withExplicitSsl } from './config/db-url.js';
 import { createPrismaAccountRepo } from './repositories/auth/prisma-repo.js';
 import { createAuthService } from './services/auth.service.js';

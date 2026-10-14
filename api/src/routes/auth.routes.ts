@@ -3,8 +3,8 @@ import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { Passport } from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import type { AccountRole, AuthUser } from '@shared/types.js';
-import { sendError, sendOk } from '../lib/http.js';
-import { requireAuth, requireStaff } from '../middleware/auth.js';
+import { sendError, sendOk } from '../helpers/http.js';
+import { requireAuth, requireStaff } from '../middlewares/auth.js';
 import { STUDENT_ID_PATTERN } from '../domain/auth/policy.js';
 import type { AuthService } from '../services/auth.service.js';
 

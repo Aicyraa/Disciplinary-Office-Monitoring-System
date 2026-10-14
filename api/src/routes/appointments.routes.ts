@@ -1,9 +1,9 @@
 import { Router, type Response } from 'express';
 import type { AppointmentStatus, AuthUser, StaffAppointmentView } from '@shared/types.js';
-import { requireStaff } from '../middleware/auth.js';
+import { requireStaff } from '../middlewares/auth.js';
 import { displayCode } from '../domain/codes.js';
 import { STUDENT_ID_PATTERN } from '../domain/auth/policy.js';
-import { sendError, sendOk } from '../lib/http.js';
+import { sendError, sendOk } from '../helpers/http.js';
 import { manilaToday } from '../views/me.views.js';
 import {
   APPOINTMENT_PAGE_SIZE,
@@ -13,7 +13,7 @@ import {
 } from '../repositories/appointments/queries.js';
 import { isRealDate } from '../domain/appointments/window.js';
 import type { AppointmentFailure, AppointmentFailureCode, AppointmentService } from '../services/appointments.service.js';
-import { parseId } from '../lib/params.js';
+import { parseId } from '../helpers/params.js';
 
 export interface AppointmentRouterOptions {
   service: AppointmentService;

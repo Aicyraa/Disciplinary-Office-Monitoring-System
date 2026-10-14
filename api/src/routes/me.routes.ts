@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { AuthUser, StudentClearanceResponse } from '@shared/types.js';
-import { requireStudent } from '../middleware/auth.js';
-import { sendError, sendOk } from '../lib/http.js';
+import { requireStudent } from '../middlewares/auth.js';
+import { sendError, sendOk } from '../helpers/http.js';
 import type { StudentViewRepo } from '../repositories/me/repo.js';
 import {
   manilaToday,
@@ -14,7 +14,7 @@ import {
   toSanctionView,
   toSlipView,
 } from '../views/me.views.js';
-import { parseId } from '../lib/params.js';
+import { parseId } from '../helpers/params.js';
 
 export interface MeRouterOptions {
   repo: StudentViewRepo;

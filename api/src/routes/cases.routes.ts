@@ -1,12 +1,12 @@
 import { Router, type Response } from 'express';
 import type { AuthUser, CaseStatus, Severity } from '@shared/types.js';
-import { requireStaff } from '../middleware/auth.js';
-import { sendError, sendOk } from '../lib/http.js';
+import { requireStaff } from '../middlewares/auth.js';
+import { sendError, sendOk } from '../helpers/http.js';
 import { STUDENT_ID_PATTERN } from '../domain/auth/policy.js';
 import { manilaToday } from '../views/me.views.js';
 import { CASE_PAGE_SIZE, type CaseQueries } from '../repositories/cases/queries.js';
 import type { CaseFailure, CaseFailureCode, CaseService } from '../services/cases.service.js';
-import { parseId } from '../lib/params.js';
+import { parseId } from '../helpers/params.js';
 
 export interface CaseRouterOptions {
   service: CaseService;

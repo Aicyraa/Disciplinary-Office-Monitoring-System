@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import type { NotificationListResponse } from '@shared/types.js';
-import { requireStaff, requireStudent } from '../middleware/auth.js';
-import { sendError, sendOk } from '../lib/http.js';
+import { requireStaff, requireStudent } from '../middlewares/auth.js';
+import { sendError, sendOk } from '../helpers/http.js';
 import { toNotificationView, type Audience, type InboxStore } from '../services/notifications/inbox.js';
-import { parseId } from '../lib/params.js';
+import { parseId } from '../helpers/params.js';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;

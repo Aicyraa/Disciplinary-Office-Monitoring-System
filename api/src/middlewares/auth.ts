@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express';
-import { sendError } from '../lib/http.js';
+import { sendError } from '../helpers/http.js';
 import type { AccountRole } from '@shared/types.js';
 
 declare global {

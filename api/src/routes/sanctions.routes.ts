@@ -1,12 +1,12 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import multer, { MulterError } from 'multer';
 import type { AuthUser } from '@shared/types.js';
-import { requireAuth, requirePasswordChanged, requireStaff, requireStudent } from '../middleware/auth.js';
-import { sendError, sendOk } from '../lib/http.js';
+import { requireAuth, requirePasswordChanged, requireStaff, requireStudent } from '../middlewares/auth.js';
+import { sendError, sendOk } from '../helpers/http.js';
 import { MAX_FILE_BYTES, MAX_FILES_PER_SANCTION } from '../domain/files/validate.js';
 import { manilaToday } from '../views/me.views.js';
 import type { SanctionFailure, SanctionFailureCode, SanctionService } from '../services/sanctions.service.js';
-import { parseId } from '../lib/params.js';
+import { parseId } from '../helpers/params.js';
 
 export interface SanctionRouterOptions {
   service: SanctionService;

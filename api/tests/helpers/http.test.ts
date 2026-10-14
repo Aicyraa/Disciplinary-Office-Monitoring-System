@@ -6,7 +6,7 @@ import type { ApiFailure } from '@shared/types.js';
 import { app as healthOnlyApp, createApp } from '../../src/app.js';
 import { createMemoryAccountRepo } from '../../src/repositories/auth/memory-repo.js';
 import { createAuthService } from '../../src/services/auth.service.js';
-import { HttpError, errorHandler, notFoundHandler, sendError, sendOk } from '../../src/lib/http.js';
+import { HttpError, errorHandler, notFoundHandler, sendError, sendOk } from '../../src/helpers/http.js';
 
 const failure = (code: ApiFailure['error']['code'], message: string): ApiFailure => ({ ok: false, error: { code, message } });
 

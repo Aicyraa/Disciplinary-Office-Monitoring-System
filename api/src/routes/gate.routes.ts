@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
-import { PUBLIC_REJECTION, sendError, sendOk } from '../lib/http.js';
+import { PUBLIC_REJECTION, sendError, sendOk } from '../helpers/http.js';
 import type { GateService } from '../services/gate.service.js';
 import { signFormToken, verifyHuman } from '../domain/gate/token.js';
 import type { GateOptionsReader } from '../types/gate.types.js';

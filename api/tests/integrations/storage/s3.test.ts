@@ -1,7 +1,7 @@
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { HttpError } from '../../../src/lib/http.js';
+import { HttpError } from '../../../src/helpers/http.js';
 import { createS3Storage } from '../../../src/integrations/storage/s3.js';
 import { createUnavailableStorage } from '../../../src/integrations/storage/unavailable.js';
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { clientOriginFrom, defaultClientOrigin } from '../../src/middleware/cors.js';
+import { clientOriginFrom, defaultClientOrigin } from '../../src/config/cors.js';
 
 describe('defaultClientOrigin', () => {
   test('is http://localhost on the client port, defaulting to 5173', () => {

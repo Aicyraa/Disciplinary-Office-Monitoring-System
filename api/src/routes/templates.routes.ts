@@ -1,14 +1,14 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import multer, { MulterError } from 'multer';
 import type { AuthUser, SanctionTemplateView } from '@shared/types.js';
-import { requireAuth, requirePasswordChanged, requireStaff } from '../middleware/auth.js';
+import { requireAuth, requirePasswordChanged, requireStaff } from '../middlewares/auth.js';
 import { displayCode } from '../domain/codes.js';
 import { MAX_FILE_BYTES } from '../domain/files/validate.js';
-import { sendError, sendOk } from '../lib/http.js';
+import { sendError, sendOk } from '../helpers/http.js';
 import type { TemplateReader } from '../repositories/templates/reader.js';
 import { FILES_PER_TEMPLATE, type TemplateFailure, type TemplateFailureCode, type TemplateService } from '../services/templates.service.js';
 import type { TemplateRecord } from '../types/templates.types.js';
-import { parseId } from '../lib/params.js';
+import { parseId } from '../helpers/params.js';
 
 export interface TemplateRouterOptions {
   service: TemplateService;
