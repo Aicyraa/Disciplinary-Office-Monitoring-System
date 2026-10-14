@@ -46,10 +46,10 @@ export function escalationText(detail: Pick<StudentCaseDetailView, 'linkedCaseCo
   return null;
 }
 
-/** The case's "Next step" box: only while the student has proof to send (src 2976, 2983). */
+/** The case's "Next step" box: only while the student has proof to send; the upload itself lives in My Sanctions. */
 export function caseNextStep(sanction: Pick<StudentSanctionView, 'status' | 'sanctionCode'> | undefined): string | null {
   if (!sanction || (sanction.status !== 'assigned' && sanction.status !== 'returned')) return null;
-  return `Complete sanction ${sanction.sanctionCode}, then upload your proof below as a PDF file.`;
+  return `Complete sanction ${sanction.sanctionCode}, then upload your proof in My Sanctions.`;
 }
 
 const clock = (iso: string): string =>
@@ -131,9 +131,9 @@ export function dueLine(sanction: Pick<StudentSanctionView, 'dueDate' | 'status'
 export function sanctionNextStep(sanction: Pick<StudentSanctionView, 'status'>): string | null {
   switch (sanction.status) {
     case 'assigned':
-      return 'Complete this sanction, then upload your proof (PDF) from the case in My Violations. The SDO reviews it and updates the status.';
+      return 'Complete this sanction, then upload your proof (PDF) here. The SDO reviews it and updates the status.';
     case 'returned':
-      return 'The SDO returned this sanction. Fix what they asked for and upload your proof again from the case in My Violations.';
+      return 'The SDO returned this sanction. Fix what they asked for and upload your proof (PDF) here again.';
     case 'pending_verification':
       return 'The SDO is reviewing the proof you uploaded. Nothing to do right now.';
     case 'completed':

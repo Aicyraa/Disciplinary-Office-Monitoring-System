@@ -46,7 +46,7 @@ export function SanctionsPage() {
   const caseRows = cases.status === 'ready' ? cases.data.cases : [];
   const current = selectedId === null ? rows[0] : all.find((item) => item.id === selectedId);
   const detail = current ? (
-    <SanctionDetail key={current.id} sanction={current} caseRow={caseRows.find((c) => c.id === current.caseId)} />
+    <SanctionDetail key={current.id} sanction={current} caseRow={caseRows.find((c) => c.id === current.caseId)} onChanged={sanctions.reload} />
   ) : (
     <div className="grid min-h-40 place-items-center rounded-xl border border-line bg-white px-5 py-10 text-center text-muted">
       {all.length === 0 ? 'You have no sanctions.' : 'No sanction selected.'}

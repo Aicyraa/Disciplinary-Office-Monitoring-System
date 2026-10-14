@@ -72,6 +72,11 @@
   --color-gold-pale: #f1dd9a;
   /* Selected option of a segmented control. */
   --shadow-tab: 0 1px 2px rgba(28, 36, 69, 0.12);
+  /* Public violation form: pale input fill, panel dividers, card shadow, the current step's ring. */
+  --color-pale: #f4f6fb;
+  --color-pale-line: #e3e7f3;
+  --shadow-gate-card: 0 1px 2px rgba(16, 22, 52, 0.04), 0 16px 48px rgba(16, 22, 52, 0.08);
+  --shadow-step-current: 0 0 0 5px rgba(53, 64, 142, 0.18);
 
   /* Responsive modes: bottom tab bar under 720, icon rail 720-1100, full sidebar above. */
   --breakpoint-rail: 720px;
@@ -184,5 +189,15 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* The public violation form renders at 90% on a desktop and at full size on a phone. */
+.gate-zoom {
+  zoom: 0.9;
+}
+@media (max-width: 719.98px) {
+  .gate-zoom {
+    zoom: 1;
   }
 }

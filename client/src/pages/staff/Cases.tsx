@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import type { Severity } from '@shared/types';
 import { MasterDetail } from '@/components/layout/MasterDetail';
+import { ListHeader } from '@/components/layout/ListHeader';
 import { usePageAction } from '@/components/layout/PageAction';
 import { PageError, Spinner } from '@/components/feedback/PageState';
 import { StatusPill } from '@/components/ui';
@@ -108,6 +109,7 @@ function CaseQueue({
 
   return (
     <ListCard className="@container flex h-full flex-col">
+      <ListHeader title="Cases" subtitle="Gate reports and staff-recorded violations" />
       <div className="flex flex-col gap-3 border-b border-line-soft px-6 py-[18px]">
         <label className="relative block">
           <span className="sr-only">Search cases</span>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StudentCaseView, StudentSanctionView } from '@shared/types';
+import { ProofUploadModal } from '@/components/sanctions/ProofUploadModal';
 import { StatusPill } from '@/components/ui';
-import { buttonVariants } from '@/components/ui/Button';
+import { Button, buttonVariants } from '@/components/ui/Button';
 import { DetailTable } from '@/components/ui/DetailTable';
 import { HistoryList } from '@/components/ui/HistoryList';
 import { Icon } from '@/components/ui/Icon';
@@ -11,13 +12,55 @@ import { StageTracker } from '@/components/ui/StageTracker';
 import { cn } from '@/utils/cn';
 import { manilaToday } from '@/utils/files';
 import { SANCTION_STEP_LABELS, formatDate, sanctionStepIndex } from '@/utils/format';
-import { dueLine, proofSummary, sanctionHistoryItems, sanctionNextStep } from '@/utils/studentView';
+import { dueLine, proofSummary, sanctionHistoryItems, sanctionNextStep, uploadPanel } from '@/utils/studentView';
 
 const DUE_TONE = { info: 'text-info-ink', bad: 'text-bad-ink', done: 'text-success' } as const;
 
+/** The compact proof row above the next-step note: status, file summary and the button that opens the upload dialog. */
+function ProofRow({ sanction, onOpen }: { sanction: StudentSanctionView; onOpen: () => void }) {
+  const panel = uploadPanel(sanction);
+  const files = sanction.files.length;
+  const label = panel.open ? (files === 0 ? 'Upload proof' : 'Continue upload') : 'View files';
+  return (
+    <div className="overflow-hidden rounded-xl border border-line">
+      <div className="flex flex-wrap items-center gap-3 bg-surface-2 px-4 py-3">
+        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-info-soft text-primary">
+          <Icon name="upload_file" className="!text-xl" />
+        </span>
+        <span className="min-w-0 flex-1 basis-40 leading-snug">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-[15px] font-bold text-ink">Proof of completion</span>
+            <StatusPill status={sanction.status} kind="sanction" />
+          </span>
+          <span className="block truncate text-xs text-muted">{proofSummary(sanction)}</span>
+        </span>
+        <Button variant={panel.open ? 'primary' : 'secondary'} size="md" onClick={onOpen}>
+          {label}
+        </Button>
+      </div>
+      {panel.returned ? (
+        <p role="alert" className="flex items-center gap-2 bg-bad-soft px-4 py-2.5 text-[13px] text-pretty text-bad-ink">
+          <Icon name="undo" className="!text-lg" />
+          {panel.returned}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** One sanction (deck W65 to W67, src 1279 to 1333): tracker card with the due line, details, notes, timeline. */
-export function SanctionDetail({ sanction, caseRow }: { sanction: StudentSanctionView; caseRow: StudentCaseView | undefined }) {
+export function SanctionDetail({
+  sanction,
+  caseRow,
+  onChanged,
+}: {
+  sanction: StudentSanctionView;
+  caseRow: StudentCaseView | undefined;
+  onChanged: () => void;
+}) {
   const [tab, setTab] = useState<'details' | 'timeline'>('details');
+  // The page keys this component by sanction id, so switching sanctions closes the dialog.
+  const [uploading, setUploading] = useState(false);
   const due = dueLine(sanction, manilaToday());
   const verified = sanction.status === 'completed';
   const next = sanctionNextStep(sanction);
@@ -88,6 +131,7 @@ export function SanctionDetail({ sanction, caseRow }: { sanction: StudentSanctio
 
       {tab === 'details' ? (
         <div className="mt-auto flex flex-col gap-3 border-t border-line-soft pt-4">
+          <ProofRow sanction={sanction} onOpen={() => setUploading(true)} />
           {showNote ? (
             <p className="rounded-[10px] bg-warn-soft px-3.5 py-2.5 text-[13px] text-body">
               <strong className="font-bold text-warn-ink">{sanction.status === 'returned' ? 'Returned by the SDO' : 'Note from the SDO'}:</strong> {sanction.staffNote}
@@ -102,6 +146,9 @@ export function SanctionDetail({ sanction, caseRow }: { sanction: StudentSanctio
             Open the case
           </Link>
         </div>
+      ) : null}
+      {uploading ? (
+        <ProofUploadModal sanction={sanction} handbookEntryId={caseRow?.handbookEntryId} onClose={() => setUploading(false)} onChanged={onChanged} />
       ) : null}
     </article>
   );

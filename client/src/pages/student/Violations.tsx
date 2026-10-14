@@ -55,7 +55,7 @@ export function ViolationsPage() {
 
   const resetPage = () => setPage(1);
   const first = rows[(page - 1) * VIOLATIONS_PER_PAGE]?.id ?? null;
-  const pane = (shownId: number) => <ViolationDetail key={shownId} caseId={shownId} onChanged={resource.reload} />;
+  const pane = (shownId: number) => <ViolationDetail key={shownId} caseId={shownId} />;
 
   return (
     <>

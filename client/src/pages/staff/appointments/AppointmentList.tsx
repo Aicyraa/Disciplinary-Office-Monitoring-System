@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { AppointmentStatus } from '@shared/types';
 import { PageError, Spinner } from '@/components/feedback/PageState';
+import { ListHeader } from '@/components/layout/ListHeader';
 import { StatusPill } from '@/components/ui';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { controlVariants } from '@/components/ui/FieldShell';
@@ -105,6 +106,7 @@ export function AppointmentList({
 
   return (
     <ListCard className="flex h-full flex-col">
+      <ListHeader title="Appointments" subtitle="Office visits assigned to students" />
       <div className="flex flex-col gap-3 border-b border-line-soft px-6 py-[18px]">
         <label className="relative block">
           <span className="sr-only">Search appointments</span>

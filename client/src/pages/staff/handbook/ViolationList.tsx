@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { HandbookEntryView, Severity } from '@shared/types';
+import { ListHeader } from '@/components/layout/ListHeader';
 import { StatusPill } from '@/components/ui';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { controlVariants } from '@/components/ui/FieldShell';
@@ -23,12 +24,11 @@ export function ViolationList({ entries, selectedId }: { entries: HandbookEntryV
 
   return (
     <ListCard className="flex h-full flex-col">
-      <div className="border-b border-line-soft px-5 py-4">
-        <h2 className="text-[17px] font-bold text-ink">Handbook violations</h2>
-        <p className="text-[13px] text-muted">
-          {entries.length} violation{entries.length === 1 ? '' : 's'} · {majors} major
-        </p>
-      </div>
+      <ListHeader
+        title="Handbook violations"
+        subtitle={`${entries.length} violation${entries.length === 1 ? '' : 's'} · ${majors} major`}
+        className="px-5 py-4"
+      />
       <div className="flex flex-wrap items-center gap-2.5 border-b border-line-soft px-5 py-3">
         <label className="relative block min-w-0 flex-[1_1_200px]">
           <span className="sr-only">Search violations</span>

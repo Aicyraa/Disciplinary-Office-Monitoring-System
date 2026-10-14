@@ -58,7 +58,7 @@ describe('student "What to do next" (deck src 3028, 2133)', () => {
     expect(studentNextStep({ status: 'cleared', items: items(['SDO signature']) })).toBe('You’re cleared for this term. Download your slip.');
     expect(studentNextStep({ status: 'pending', items: items([]) })).toBe('Wait for the SDO to resolve every open case on your record.');
     expect(studentNextStep({ status: 'pending', items: items(['No active violations']) })).toBe(
-      'Finish each sanction and upload your proof in My Violations. The SDO verifies it.',
+      'Finish each sanction and upload your proof in My Sanctions. The SDO verifies it.',
     );
     expect(studentNextStep({ status: 'pending', items: items(['No active violations', 'All sanctions served', 'Guidance exit interview']) })).toBe(
       'Get the final signature at the SDO office.',

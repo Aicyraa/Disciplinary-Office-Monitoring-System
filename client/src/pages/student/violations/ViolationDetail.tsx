@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StudentCaseDetailView } from '@shared/types';
 import { PageError, Spinner } from '@/components/feedback/PageState';
-import { ProofPanel } from '@/components/sanctions/ProofPanel';
 import { StatusPill } from '@/components/ui';
 import { buttonVariants } from '@/components/ui/Button';
 import { DetailTable, type DetailRow } from '@/components/ui/DetailTable';
@@ -52,8 +51,8 @@ function rows(record: StudentCaseDetailView): DetailRow[] {
   return list;
 }
 
-/** The selected case (deck W62 to W64, W68 to W76): tracker card, Details / Timeline, next step, proof upload. */
-export function ViolationDetail({ caseId, onChanged }: { caseId: number; onChanged: () => void }) {
+/** The selected case (deck W62 to W64, W68 to W76): tracker card, Details / Timeline, next step. Proof upload lives in My Sanctions. */
+export function ViolationDetail({ caseId }: { caseId: number }) {
   const resource = useApi(() => api.myCase(caseId), [caseId]);
   const [tab, setTab] = useState<'details' | 'timeline'>('details');
 
@@ -73,10 +72,6 @@ export function ViolationDetail({ caseId, onChanged }: { caseId: number; onChang
     );
   }
   const record = resource.data.case;
-  const reload = () => {
-    resource.reload();
-    onChanged();
-  };
   const sanctions = [...record.sanctions].sort((a, b) => b.id - a.id);
   const next = caseNextStep(sanctions[0]);
   const note = escalationText(record);
@@ -127,9 +122,6 @@ export function ViolationDetail({ caseId, onChanged }: { caseId: number; onChang
               <strong className="font-bold text-info-ink">Next step:</strong> {next}
             </p>
           ) : null}
-          {sanctions.map((sanction) => (
-            <ProofPanel key={sanction.id} sanction={sanction} handbookEntryId={record.handbookEntryId} onChanged={reload} />
-          ))}
           {sanctions[0] ? (
             <Link to={`/sanctions/${sanctions[0].id}`} className={cn(buttonVariants({ variant: 'secondary', size: 'lg', fullWidth: true }), 'min-h-[46px]')}>
               Open the sanction

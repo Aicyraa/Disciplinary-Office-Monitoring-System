@@ -189,25 +189,6 @@ function PhoneBar({
   );
 }
 
-/** The header pill (desktop) of the page's create action, followed by a thin divider. */
-function HeaderAction() {
-  const action = usePageActionValue();
-  if (!action) return null;
-  return (
-    <>
-      <button
-        type="button"
-        onClick={action.onClick}
-        className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold whitespace-nowrap text-white outline-none hover:bg-primary-hover active:bg-primary-press focus-visible:ring-[3px] focus-visible:ring-primary/35"
-      >
-        <Icon name={action.icon} className="!text-xl" />
-        {action.label}
-      </button>
-      <span aria-hidden="true" className="mx-1 h-6 w-px bg-line" />
-    </>
-  );
-}
-
 /** The phone's extended floating action button; it steps aside while a dialog or the More sheet is open. */
 function FloatingAction({ hidden }: { hidden: boolean }) {
   const action = usePageActionValue();
@@ -310,7 +291,6 @@ function ShellFrame({ user }: { user: AuthUser }) {
             <Breadcrumb role={role} />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <HeaderAction />
             <BellPopover role={role} />
             <AccountMenu user={user} onOpen={setDialog} />
           </div>

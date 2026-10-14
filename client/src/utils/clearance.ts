@@ -60,7 +60,7 @@ export function clearanceCopy(name: string, term: string) {
 /** The deck's help per standard requirement (src 2133), matched by the seeded label's key words. */
 const HELP: Array<[RegExp, string]> = [
   [/violation|open case/i, 'Wait for the SDO to resolve every open case on your record.'],
-  [/sanction/i, 'Finish each sanction and upload your proof in My Violations. The SDO verifies it.'],
+  [/sanction/i, 'Finish each sanction and upload your proof in My Sanctions. The SDO verifies it.'],
   [/exit interview/i, 'Attend your guidance exit interview.'],
   [/signature/i, 'Get the final signature at the SDO office.'],
 ];

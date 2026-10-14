@@ -105,8 +105,8 @@ describe('My violations (deck W62 to W64, src 2950 to 2986, D14)', () => {
   });
 
   test('next step only when the student must act', () => {
-    expect(caseNextStep(s({ status: 'assigned' }))).toBe('Complete sanction S-021, then upload your proof below as a PDF file.');
-    expect(caseNextStep(s({ status: 'returned' }))).toBe('Complete sanction S-021, then upload your proof below as a PDF file.');
+    expect(caseNextStep(s({ status: 'assigned' }))).toBe('Complete sanction S-021, then upload your proof in My Sanctions.');
+    expect(caseNextStep(s({ status: 'returned' }))).toBe('Complete sanction S-021, then upload your proof in My Sanctions.');
     expect(caseNextStep(s({ status: 'pending_verification' }))).toBeNull();
     expect(caseNextStep(undefined)).toBeNull();
   });
@@ -163,10 +163,10 @@ describe('My sanctions (deck W65 to W67, src 2988 to 3017)', () => {
 
   test('next step texts and the proof line', () => {
     expect(sanctionNextStep(s({}))).toBe(
-      'Complete this sanction, then upload your proof (PDF) from the case in My Violations. The SDO reviews it and updates the status.',
+      'Complete this sanction, then upload your proof (PDF) here. The SDO reviews it and updates the status.',
     );
     expect(sanctionNextStep(s({ status: 'returned' }))).toBe(
-      'The SDO returned this sanction. Fix what they asked for and upload your proof again from the case in My Violations.',
+      'The SDO returned this sanction. Fix what they asked for and upload your proof (PDF) here again.',
     );
     expect(sanctionNextStep(s({ status: 'pending_verification' }))).toBe('The SDO is reviewing the proof you uploaded. Nothing to do right now.');
     expect(sanctionNextStep(s({ status: 'completed' }))).toBeNull();
