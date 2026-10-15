@@ -1,0 +1,104 @@
+{
+  "_comment": "Data for role-guard.mjs. bashAllow entries are JS regexes matched against one shell segment (anchored by the script). editable: ['**'] means every path; [] means none. denyEdit always wins. branchGated: git verbs that need the current branch to start with commitBranchPrefix.",
+  "globalDenyFragments": ["--output", "--ext-diff", "--textconv", "--git-dir", "--work-tree", "--exec", "--upload-pack"],
+  "neon": {
+    "_comment": "Neon MCP guard. projectId is the Neon PROJECT id (crimson-frost-...). devBranchId is the development BRANCH id, which looks like br-xxx-xxx-12345678 (Neon console > Branches). Both are not secrets. If either is empty, every run_sql tool is blocked (fail closed). Env NEON_DEV_PROJECT_ID / NEON_DEV_BRANCH_ID override.",
+    "projectId": "crimson-frost-74744443",
+    "devBranchId": "br-snowy-night-b30mkui0",
+    "allowedRoles": ["lead", "dev", "reviewer"]
+  },
+  "roles": {
+    "lead": {
+      "editable": ["CONTEXT.md", ".gitignore"],
+      "denyEdit": [],
+      "bashAllow": [
+        "git status( .*)?",
+        "git diff( .*)?",
+        "git log( .*)?",
+        "git branch( (--list|-a|-r|-v|-vv|--show-current|--merged|--no-merged))*",
+        "git ls-files( .*)?",
+        "git check-ignore( .*)?",
+        "git worktree list( .*)?"
+      ],
+      "branchGated": [],
+      "commitBranchPrefix": null
+    },
+    "scout": {
+      "editable": [],
+      "denyEdit": [],
+      "bashAllow": [],
+      "branchGated": [],
+      "commitBranchPrefix": null
+    },
+    "dev": {
+      "editable": ["**"],
+      "denyEdit": [".claude/**", "CLAUDE.md", "AGENTS.md", ".mcp.json", ".worktreeinclude", "opencode.json", ".opencode/**", ".git", ".git/**", ".env", ".env.local", ".env.*.local", "docs/sdao-handoff/**", "package.json", "**/package.json", "package-lock.json", "**/package-lock.json", "api/generated/**", "skills-lock.json"],
+      "bashAllow": [
+        "git status( .*)?",
+        "git diff( .*)?",
+        "git log( .*)?",
+        "git rev-parse( .*)?",
+        "git branch --show-current",
+        "git add(?!.* (-f|--force)( |$))( .*)?",
+        "git commit( .*)?",
+        "npm ci",
+        "npm --prefix (api|client) ci",
+        "npm --prefix api run prisma:generate",
+        "npm --prefix api run prisma:validate",
+        "npm test( .*)?",
+        "npm run (lint|typecheck|build)( .*)?",
+        "npm --prefix (api|client) (test|run (lint|typecheck|build))( .*)?",
+        "python3 -I [^ ]+( .*)?"
+      ],
+      "branchGated": ["add", "commit"],
+      "commitBranchPrefix": "worktree-"
+    },
+    "reviewer": {
+      "editable": ["CONTEXT.md"],
+      "denyEdit": [],
+      "bashAllow": [
+        "git status( .*)?",
+        "git diff( .*)?",
+        "git log( .*)?",
+        "git show( .*)?",
+        "git merge-base( .*)?",
+        "git branch --show-current",
+        "npm --prefix api run prisma:validate",
+        "npm test( .*)?",
+        "npm run (lint|typecheck|build|dev)( .*)?",
+        "npm --prefix (api|client) (test|run (lint|typecheck|build|dev))( .*)?",
+        "python3 -I [^ ]+( .*)?"
+      ],
+      "branchGated": [],
+      "commitBranchPrefix": null
+    },
+    "integrator": {
+      "editable": ["**"],
+      "denyEdit": [".claude/**", "CLAUDE.md", "AGENTS.md", ".mcp.json", ".git", ".git/**", ".env", ".env.local", ".env.*.local", "docs/sdao-handoff/**", "**/package-lock.json", "api/generated/**"],
+      "bashAllow": [
+        "git status( .*)?",
+        "git diff( .*)?",
+        "git log( .*)?",
+        "git show( .*)?",
+        "git rev-parse( .*)?",
+        "git merge-base( .*)?",
+        "git branch( (--list|-a|-r|-v|-vv|--show-current|--merged|--no-merged))*",
+        "git worktree list( .*)?",
+        "git switch -c integrate/[A-Za-z0-9._/-]+( [A-Za-z0-9._/-]+)?",
+        "git merge --no-ff [A-Za-z0-9._/ -]+",
+        "git merge --no-ff( -m .*)? [A-Za-z0-9._/-]+",
+        "git merge --abort",
+        "git add(?!.* (-f|--force)( |$))( .*)?",
+        "git commit( .*)?",
+        "npm ci",
+        "npm --prefix (api|client) ci",
+        "npm --prefix api run prisma:(generate|validate)",
+        "npm test( .*)?",
+        "npm run (lint|typecheck|build)( .*)?",
+        "npm --prefix (api|client) (test|run (lint|typecheck|build))( .*)?"
+      ],
+      "branchGated": ["add", "commit", "merge"],
+      "commitBranchPrefix": "integrate/"
+    }
+  }
+}

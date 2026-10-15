@@ -3,9 +3,6 @@ import { defineConfig } from "@neon/config/v1";
 export default defineConfig({
   // Declare your Neon services here
   auth: false,
-  functions: {
-    hello: { name: "Hello World", source: "./hello.ts" },
-  },
   buckets: {
     // "private" is the default; use "public_read" for anonymous reads
     assets: { access: "private" },

@@ -1,0 +1,37 @@
+import { describe, expect, test } from 'vitest';
+import { withExplicitSsl } from '../../src/config/db-url.js';
+
+const base = 'postgresql://user:pw@ep-example.neon.tech/db';
+
+describe('withExplicitSsl', () => {
+  test.each(['prefer', 'require', 'verify-ca'])('sslmode=%s becomes verify-full', (mode) => {
+    const result = new URL(withExplicitSsl(`${base}?sslmode=${mode}&channel_binding=require`));
+    expect(result.searchParams.get('sslmode')).toBe('verify-full');
+    expect(result.searchParams.get('channel_binding')).toBe('require');
+    expect(result.username).toBe('user');
+    expect(result.hostname).toBe('ep-example.neon.tech');
+  });
+
+  test('verify-full, disable and a missing sslmode are untouched', () => {
+    for (const url of [`${base}?sslmode=verify-full`, `${base}?sslmode=disable`, base]) {
+      expect(withExplicitSsl(url)).toBe(url);
+    }
+  });
+
+  test('uselibpqcompat opts out of the rewrite', () => {
+    const url = `${base}?sslmode=require&uselibpqcompat=true`;
+    expect(withExplicitSsl(url)).toBe(url);
+  });
+
+  test('a password with special characters survives the rewrite', () => {
+    const url = 'postgresql://user:p%40ss%2Fw%3Ard%23%25@ep-example.neon.tech/db?sslmode=require';
+    const result = new URL(withExplicitSsl(url));
+    expect(result.password).toBe('p%40ss%2Fw%3Ard%23%25');
+    expect(result.username).toBe('user');
+    expect(result.searchParams.get('sslmode')).toBe('verify-full');
+  });
+
+  test('something that is not a URL is returned as it came', () => {
+    expect(withExplicitSsl('not a url')).toBe('not a url');
+  });
+});

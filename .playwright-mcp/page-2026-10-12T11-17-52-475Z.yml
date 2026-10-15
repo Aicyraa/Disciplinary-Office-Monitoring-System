@@ -1,0 +1,17 @@
+- generic [ref=e4]:
+  - paragraph [ref=e5]: NU Fairview · Student Discipline Office
+  - heading "Report a violation" [level=1] [ref=e6]
+  - list "Steps" [ref=e8]:
+    - listitem [ref=e9]: 1. Student
+    - listitem [ref=e10]: 2. Program
+    - listitem [ref=e11]: 3. Violations
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - generic [ref=e14]: Student ID
+      - textbox "Student ID" [ref=e15]:
+        - /placeholder: 2025-1234567
+    - generic [ref=e16]:
+      - generic [ref=e17]: Student name
+      - textbox "Student name" [ref=e18]
+    - alert [ref=e21]: Enter the student ID.
+    - button "Next" [active] [ref=e20]

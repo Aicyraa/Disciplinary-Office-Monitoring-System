@@ -1,0 +1,25 @@
+{
+  "name": "SDO Portal - NU Fairview Student Discipline Office",
+  "short_name": "SDO Portal",
+  "description": "Violations, sanctions, appointments and clearance for NU Fairview students and the Student Discipline Office.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F2F5F5",
+  "theme_color": "#35408E",
+  "icons": [
+    {
+      "src": "/seal.png",
+      "sizes": "500x500",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/seal.png",
+      "sizes": "500x500",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

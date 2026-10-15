@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "npm --prefix .. test -- client/src",
+    "test": "npm --prefix .. test -- client/tests",
     "lint": "npm --prefix .. run lint --",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
@@ -13,6 +13,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.55.0",
+    "mammoth": "^1.13.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-hook-form": "^7.89.0",

@@ -1,6 +1,5 @@
 # Logs
 .agent-work
-.opencode
 logs
 *.log
 npm-debug.log*
@@ -153,3 +152,6 @@ opencode.json
 
 # Prisma generated client (api)
 api/generated/
+
+# Claude Code worktrees (parallel dev team)
+.claude/worktrees/

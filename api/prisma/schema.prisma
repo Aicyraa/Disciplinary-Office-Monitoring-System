@@ -1,17 +1,378 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// Throwaway model used only to verify Prisma <-> Neon connectivity.
-model ConnectionTest {
-  id        Int      @id @default(autoincrement())
-  message   String
-  createdAt DateTime @default(now())
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model appointment_history {
+  appointment_history_id Int               @id @default(autoincrement())
+  appointment_id         Int
+  event_type             String
+  remarks                String?
+  employee_id            String            @db.VarChar(20)
+  date_logged            DateTime          @default(now()) @db.Timestamptz(6)
+  appointments           appointments      @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade, onUpdate: NoAction)
+  employee_accounts      employee_accounts @relation(fields: [employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+}
 
-  @@map("connection_test")
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+model appointments {
+  appointment_id      Int                   @id @default(autoincrement())
+  student_id          String                @db.VarChar(20)
+  employee_id         String                @db.VarChar(20)
+  start_date          DateTime              @db.Date
+  end_date            DateTime              @db.Date
+  purpose             String
+  notes               String?
+  status              String                @default("scheduled")
+  cancel_reason       String?
+  date_created        DateTime              @default(now()) @db.Timestamptz(6)
+  date_updated        DateTime              @default(now()) @db.Timestamptz(6)
+  appointment_history appointment_history[]
+  employee_accounts   employee_accounts     @relation(fields: [employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+  student_accounts    student_accounts      @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model case_escalations {
+  case_escalation_id                                                    Int                @id @default(autoincrement())
+  major_case_id                                                         Int
+  minor_case_id                                                         Int                @unique
+  disciplinary_cases_case_escalations_major_case_idTodisciplinary_cases disciplinary_cases @relation("case_escalations_major_case_idTodisciplinary_cases", fields: [major_case_id], references: [disciplinary_case_id], onDelete: NoAction, onUpdate: NoAction)
+  disciplinary_cases_case_escalations_minor_case_idTodisciplinary_cases disciplinary_cases @relation("case_escalations_minor_case_idTodisciplinary_cases", fields: [minor_case_id], references: [disciplinary_case_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model case_sanction_files {
+  case_sanction_file_id Int                @id @default(autoincrement())
+  case_sanction_id      Int
+  file_id               Int                @unique
+  viewed_by_employee_id String?            @db.VarChar(20)
+  date_viewed           DateTime?          @db.Timestamptz(6)
+  case_sanctions        case_sanctions     @relation(fields: [case_sanction_id], references: [case_sanction_id], onDelete: Cascade, onUpdate: NoAction)
+  files                 files              @relation(fields: [file_id], references: [file_id], onDelete: NoAction, onUpdate: NoAction)
+  employee_accounts     employee_accounts? @relation(fields: [viewed_by_employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model case_sanction_history {
+  case_sanction_history_id Int                @id @default(autoincrement())
+  case_sanction_id         Int
+  event_type               String
+  remarks                  String?
+  employee_id              String?            @db.VarChar(20)
+  student_id               String?            @db.VarChar(20)
+  date_logged              DateTime           @default(now()) @db.Timestamptz(6)
+  case_sanctions           case_sanctions     @relation(fields: [case_sanction_id], references: [case_sanction_id], onDelete: Cascade, onUpdate: NoAction)
+  employee_accounts        employee_accounts? @relation(fields: [employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+  student_accounts         student_accounts?  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model case_sanctions {
+  case_sanction_id                                                            Int                     @id @default(autoincrement())
+  disciplinary_case_id                                                        Int
+  sanction_id                                                                 Int
+  status                                                                      String                  @default("assigned")
+  date_assigned                                                               DateTime                @default(now()) @db.Timestamptz(6)
+  due_date                                                                    DateTime                @db.Date
+  date_submitted                                                              DateTime?               @db.Timestamptz(6)
+  date_completed                                                              DateTime?               @db.Timestamptz(6)
+  assigned_by_employee_id                                                     String                  @db.VarChar(20)
+  verified_by_employee_id                                                     String?                 @db.VarChar(20)
+  staff_note                                                                  String?
+  compliance_note                                                             String?
+  case_sanction_files                                                         case_sanction_files[]
+  case_sanction_history                                                       case_sanction_history[]
+  employee_accounts_case_sanctions_assigned_by_employee_idToemployee_accounts employee_accounts       @relation("case_sanctions_assigned_by_employee_idToemployee_accounts", fields: [assigned_by_employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+  disciplinary_cases                                                          disciplinary_cases      @relation(fields: [disciplinary_case_id], references: [disciplinary_case_id], onDelete: NoAction, onUpdate: NoAction)
+  sanctions                                                                   sanctions               @relation(fields: [sanction_id], references: [sanction_id], onDelete: NoAction, onUpdate: NoAction)
+  employee_accounts_case_sanctions_verified_by_employee_idToemployee_accounts employee_accounts?      @relation("case_sanctions_verified_by_employee_idToemployee_accounts", fields: [verified_by_employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([disciplinary_case_id, sanction_id])
+  @@index([status, due_date], map: "ix_cs_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model case_status_history {
+  history_id           Int                @id @default(autoincrement())
+  disciplinary_case_id Int
+  event_type           String
+  status_after         String?
+  remarks              String?
+  employee_id          String?            @db.VarChar(20)
+  date_updated         DateTime           @default(now()) @db.Timestamptz(6)
+  disciplinary_cases   disciplinary_cases @relation(fields: [disciplinary_case_id], references: [disciplinary_case_id], onDelete: Cascade, onUpdate: NoAction)
+  employee_accounts    employee_accounts? @relation(fields: [employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([disciplinary_case_id, date_updated], map: "ix_case_hist")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model clearance_history {
+  clearance_history_id Int               @id @default(autoincrement())
+  clearance_id         Int
+  requirement_id       Int?
+  event_type           String
+  remarks              String?
+  employee_id          String            @db.VarChar(20)
+  date_logged          DateTime          @default(now()) @db.Timestamptz(6)
+  clearances           clearances        @relation(fields: [clearance_id], references: [clearance_id], onDelete: Cascade, onUpdate: NoAction)
+  employee_accounts    employee_accounts @relation(fields: [employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+  requirements         requirements?     @relation(fields: [requirement_id], references: [requirement_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model clearance_requirements {
+  clearance_requirement_id Int                @id @default(autoincrement())
+  clearance_id             Int
+  requirement_id           Int
+  status                   String             @default("pending")
+  remarks                  String?
+  completed_by_employee_id String?            @db.VarChar(20)
+  date_completed           DateTime?          @db.Timestamptz(6)
+  clearances               clearances         @relation(fields: [clearance_id], references: [clearance_id], onDelete: Cascade, onUpdate: NoAction)
+  employee_accounts        employee_accounts? @relation(fields: [completed_by_employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+  requirements             requirements       @relation(fields: [requirement_id], references: [requirement_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([clearance_id, requirement_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model clearances {
+  clearance_id           Int                      @id @default(autoincrement())
+  student_id             String                   @db.VarChar(20)
+  employee_id            String?                  @db.VarChar(20)
+  academic_year          Int                      @db.SmallInt
+  semester               Int                      @db.SmallInt
+  status                 String                   @default("pending")
+  clearance_history      clearance_history[]
+  clearance_requirements clearance_requirements[]
+  employee_accounts      employee_accounts?       @relation(fields: [employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+  student_accounts       student_accounts         @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([student_id, academic_year, semester])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model disciplinary_cases {
+  disciplinary_case_id                                                             Int                   @id @default(autoincrement())
+  student_id                                                                       String?               @db.VarChar(20)
+  handbook_entry_id                                                                Int
+  original_handbook_entry_id                                                       Int?
+  source                                                                           String
+  reported_by_employee_id                                                          String?               @db.VarChar(20)
+  claimed_student_id                                                               String?               @db.VarChar(20)
+  claimed_name                                                                     String?
+  claimed_program                                                                  String?
+  claimed_year                                                                     String?
+  submission_ref                                                                   String?               @db.Uuid
+  case_date                                                                        DateTime              @default(now()) @db.Timestamptz(6)
+  status                                                                           String                @default("reported")
+  is_escalated                                                                     Boolean               @default(false)
+  resolved_without_sanction                                                        Boolean               @default(false)
+  date_resolved                                                                    DateTime?             @db.Timestamptz(6)
+  case_escalations_case_escalations_major_case_idTodisciplinary_cases              case_escalations[]    @relation("case_escalations_major_case_idTodisciplinary_cases")
+  case_escalations_case_escalations_minor_case_idTodisciplinary_cases              case_escalations?     @relation("case_escalations_minor_case_idTodisciplinary_cases")
+  case_sanctions                                                                   case_sanctions[]
+  case_status_history                                                              case_status_history[]
+  handbook_entries_disciplinary_cases_handbook_entry_idTohandbook_entries          handbook_entries      @relation("disciplinary_cases_handbook_entry_idTohandbook_entries", fields: [handbook_entry_id], references: [handbook_entry_id], onDelete: NoAction, onUpdate: NoAction)
+  handbook_entries_disciplinary_cases_original_handbook_entry_idTohandbook_entries handbook_entries?     @relation("disciplinary_cases_original_handbook_entry_idTohandbook_entries", fields: [original_handbook_entry_id], references: [handbook_entry_id], onDelete: NoAction, onUpdate: NoAction)
+  employee_accounts                                                                employee_accounts?    @relation(fields: [reported_by_employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+  student_accounts                                                                 student_accounts?     @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([status, case_date], map: "ix_cases_status")
+  @@index([student_id, status], map: "ix_cases_student")
+  @@index([submission_ref], map: "ix_cases_submission", where: raw("(submission_ref IS NOT NULL)"))
+}
+
+model employee_accounts {
+  employee_id                                                              String                   @id @db.VarChar(20)
+  employee_email                                                           String                   @unique
+  first_name                                                               String
+  last_name                                                                String
+  password_hashed                                                          String
+  must_change_password                                                     Boolean                  @default(false)
+  position                                                                 String
+  is_active                                                                Boolean                  @default(true)
+  date_created                                                             DateTime                 @default(now()) @db.Timestamptz(6)
+  avatar_key                                                               String?
+  appointment_history                                                      appointment_history[]
+  appointments                                                             appointments[]
+  case_sanction_files                                                      case_sanction_files[]
+  case_sanction_history                                                    case_sanction_history[]
+  case_sanctions_case_sanctions_assigned_by_employee_idToemployee_accounts case_sanctions[]         @relation("case_sanctions_assigned_by_employee_idToemployee_accounts")
+  case_sanctions_case_sanctions_verified_by_employee_idToemployee_accounts case_sanctions[]         @relation("case_sanctions_verified_by_employee_idToemployee_accounts")
+  case_status_history                                                      case_status_history[]
+  clearance_history                                                        clearance_history[]
+  clearance_requirements                                                   clearance_requirements[]
+  clearances                                                               clearances[]
+  disciplinary_cases                                                       disciplinary_cases[]
+  files                                                                    files[]
+  notices                                                                  notices[]
+  sanction_templates                                                       sanction_templates[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model files {
+  file_id                 Int                      @id @default(autoincrement())
+  storage_key             String                   @unique
+  original_name           String
+  mime_type               String
+  size_bytes              Int
+  uploaded_by_student_id  String?                  @db.VarChar(20)
+  uploaded_by_employee_id String?                  @db.VarChar(20)
+  date_uploaded           DateTime                 @default(now()) @db.Timestamptz(6)
+  case_sanction_files     case_sanction_files?
+  employee_accounts       employee_accounts?       @relation(fields: [uploaded_by_employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+  student_accounts        student_accounts?        @relation(fields: [uploaded_by_student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+  sanction_template_files sanction_template_files?
+}
+
+model handbook_entries {
+  handbook_entry_id                                                                  Int                        @id @default(autoincrement())
+  violation_id                                                                       Int                        @unique
+  handbook_section                                                                   String
+  disciplinary_cases_disciplinary_cases_handbook_entry_idTohandbook_entries          disciplinary_cases[]       @relation("disciplinary_cases_handbook_entry_idTohandbook_entries")
+  disciplinary_cases_disciplinary_cases_original_handbook_entry_idTohandbook_entries disciplinary_cases[]       @relation("disciplinary_cases_original_handbook_entry_idTohandbook_entries")
+  violations                                                                         violations                 @relation(fields: [violation_id], references: [violation_id], onDelete: NoAction, onUpdate: NoAction)
+  handbook_entry_sanctions                                                           handbook_entry_sanctions[]
+
+  @@index([handbook_section], map: "ix_handbook_section")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model handbook_entry_sanctions {
+  handbook_entry_sanction_id Int              @id @default(autoincrement())
+  handbook_entry_id          Int
+  sanction_id                Int
+  offense_number             Int              @db.SmallInt
+  handbook_entries           handbook_entries @relation(fields: [handbook_entry_id], references: [handbook_entry_id], onDelete: NoAction, onUpdate: NoAction)
+  sanctions                  sanctions        @relation(fields: [sanction_id], references: [sanction_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([handbook_entry_id, sanction_id, offense_number])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notifications {
+  notification_id  Int               @id @default(autoincrement())
+  recipient_type   String
+  student_id       String?           @db.VarChar(20)
+  kind             String
+  title            String
+  message          String
+  link_type        String?
+  link_id          Int?
+  idempotency_key  String            @unique
+  is_read          Boolean           @default(false)
+  date_created     DateTime          @default(now()) @db.Timestamptz(6)
+  email_status     String            @default("pending")
+  date_email_sent  DateTime?         @db.Timestamptz(6)
+  student_accounts student_accounts? @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([email_status], map: "ix_notif_email", where: raw("(email_status = 'pending'::text)"))
+  @@index([student_id, is_read, date_created(sort: Desc)], map: "ix_notif_inbox")
+}
+
+model notices {
+  notice_id              Int               @id @default(autoincrement())
+  title                  String
+  message                String
+  instructions           String?
+  expires_on             DateTime?         @db.Date
+  created_by_employee_id String            @db.VarChar(20)
+  date_created           DateTime          @default(now()) @db.Timestamptz(6)
+  date_updated           DateTime          @default(now()) @db.Timestamptz(6)
+  employee_accounts      employee_accounts @relation(fields: [created_by_employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model programs {
+  program_id       Int                @id @default(autoincrement())
+  program_name     String             @unique
+  student_accounts student_accounts[]
+}
+
+model requirements {
+  requirement_id         Int                      @id @default(autoincrement())
+  requirement_label      String                   @unique
+  is_default             Boolean                  @default(false)
+  clearance_history      clearance_history[]
+  clearance_requirements clearance_requirements[]
+}
+
+model sanction_template_files {
+  sanction_template_id Int
+  file_id              Int                @unique
+  files                files              @relation(fields: [file_id], references: [file_id], onDelete: NoAction, onUpdate: NoAction)
+  sanction_templates   sanction_templates @relation(fields: [sanction_template_id], references: [sanction_template_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([sanction_template_id, file_id])
+}
+
+model sanction_templates {
+  sanction_template_id    Int                       @id @default(autoincrement())
+  sanction_id             Int                       @unique
+  title                   String?
+  description             String?
+  requirements            String?
+  updated_by_employee_id  String?                   @db.VarChar(20)
+  date_updated            DateTime                  @default(now()) @db.Timestamptz(6)
+  sanction_template_files sanction_template_files[]
+  sanctions               sanctions                 @relation(fields: [sanction_id], references: [sanction_id], onDelete: NoAction, onUpdate: NoAction)
+  employee_accounts       employee_accounts?        @relation(fields: [updated_by_employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model sanctions {
+  sanction_id              Int                        @id @default(autoincrement())
+  sanction_type            String                     @unique
+  description              String
+  case_sanctions           case_sanctions[]
+  handbook_entry_sanctions handbook_entry_sanctions[]
+  sanction_templates       sanction_templates?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model student_accounts {
+  student_id            String                  @id @db.VarChar(20)
+  student_email         String                  @unique
+  first_name            String
+  last_name             String
+  password_hashed       String
+  must_change_password  Boolean                 @default(false)
+  year_level            Int                     @db.SmallInt
+  program_id            Int
+  is_active             Boolean                 @default(true)
+  date_created          DateTime                @default(now()) @db.Timestamptz(6)
+  avatar_key            String?
+  appointments          appointments[]
+  case_sanction_history case_sanction_history[]
+  clearances            clearances[]
+  disciplinary_cases    disciplinary_cases[]
+  files                 files[]
+  notifications         notifications[]
+  programs              programs                @relation(fields: [program_id], references: [program_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model violations {
+  violation_id     Int               @id @default(autoincrement())
+  violation_type   String            @unique
+  severity         String
+  description      String
+  is_system        Boolean           @default(false)
+  handbook_entries handbook_entries?
+}
+
+model session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "IDX_session_expire")
 }
