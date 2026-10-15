@@ -202,6 +202,7 @@ model employee_accounts {
   position                                                                 String
   is_active                                                                Boolean                  @default(true)
   date_created                                                             DateTime                 @default(now()) @db.Timestamptz(6)
+  avatar_key                                                               String?
   appointment_history                                                      appointment_history[]
   appointments                                                             appointments[]
   case_sanction_files                                                      case_sanction_files[]
@@ -214,8 +215,8 @@ model employee_accounts {
   clearances                                                               clearances[]
   disciplinary_cases                                                       disciplinary_cases[]
   files                                                                    files[]
-  sanction_templates                                                       sanction_templates[]
   notices                                                                  notices[]
+  sanction_templates                                                       sanction_templates[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -348,6 +349,7 @@ model student_accounts {
   program_id            Int
   is_active             Boolean                 @default(true)
   date_created          DateTime                @default(now()) @db.Timestamptz(6)
+  avatar_key            String?
   appointments          appointments[]
   case_sanction_history case_sanction_history[]
   clearances            clearances[]
@@ -365,4 +367,12 @@ model violations {
   description      String
   is_system        Boolean           @default(false)
   handbook_entries handbook_entries?
+}
+
+model session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "IDX_session_expire")
 }
