@@ -23,7 +23,8 @@ CREATE TABLE student_accounts (
   year_level            smallint NOT NULL CHECK (year_level BETWEEN 1 AND 6),
   program_id            integer NOT NULL REFERENCES programs(program_id),
   is_active             boolean NOT NULL DEFAULT true,
-  date_created          timestamptz NOT NULL DEFAULT now()
+  date_created          timestamptz NOT NULL DEFAULT now(),
+  avatar_key text
 );
 
 CREATE TABLE employee_accounts (
@@ -35,7 +36,8 @@ CREATE TABLE employee_accounts (
   must_change_password  boolean NOT NULL DEFAULT false,
   position              text NOT NULL,
   is_active             boolean NOT NULL DEFAULT true,
-  date_created          timestamptz NOT NULL DEFAULT now()
+  date_created          timestamptz NOT NULL DEFAULT now(),
+  avatar_key            text
 );
 
 -- =====================================================================

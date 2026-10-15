@@ -58,26 +58,11 @@ ON CONFLICT DO NOTHING;
 
 -- E001: the development officer from before. The password does not meet the app rule (it has no digit), so the
 -- account is forced to choose a new one at first sign-in.
+
 INSERT INTO employee_accounts
   (employee_id, employee_email, first_name, last_name, password_hashed, must_change_password, position, is_active)
 VALUES
   ('E001',
-   'loraine@nu-fairview.edu.ph',
-   'Loraine',
-   'Staff',
-   '$2b$12$l2IsjCVVZoAaoieCbhtnv.y3BI8O5DV59KvpQMyQg.5v63ex2IS7y',
-   true,
-   'SDO Officer',
-   true)
-ON CONFLICT DO NOTHING;
-
--- E002: feleoagd, the demo admin. It is a staff account that signs in with a STUDENT-domain address, because the
--- demo uses real student mailboxes. The API looks the address up in both account tables (api/src/auth/service.ts),
--- so it opens the staff portal. Do not also create a student account with this address.
-INSERT INTO employee_accounts
-  (employee_id, employee_email, first_name, last_name, password_hashed, must_change_password, position, is_active)
-VALUES
-  ('E002',
    'feleoagd@students.nu-fairview.edu.ph',
    'A. G.',                                              -- EDIT: the real first name
    'Feleo',
