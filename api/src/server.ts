@@ -52,7 +52,7 @@ interface Built {
   scheduler?: DeliveryScheduler;
 }
 
-function buildApp(): Built {
+export function buildApp(): Built {
   const env = readServerEnv();
   const { databaseUrl: DATABASE_URL, sessionSecret: SESSION_SECRET } = env;
   // One browser origin, the same in development and production: the client app. `APP_BASE_URL` overrides the
@@ -200,22 +200,26 @@ function buildApp(): Built {
   return { app, scheduler };
 }
 
-const { app, scheduler } = buildApp();
-const server = app.listen(port, () => {
-  console.log(`API listening on port ${port}`);
-  scheduler?.start();
-  scheduler?.kick();
-});
-
-server.on('error', (error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
-
-for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.once(signal, () => {
-    scheduler?.stop();
-    server.close();
-    server.closeAllConnections();
+// On Vercel the platform owns the listener and `index.ts` imports `buildApp`; there is no long-lived process,
+// so neither the listener nor the notification sweep timer starts there.
+if (!process.env.VERCEL) {
+  const { app, scheduler } = buildApp();
+  const server = app.listen(port, () => {
+    console.log(`API listening on port ${port}`);
+    scheduler?.start();
+    scheduler?.kick();
   });
+
+  server.on('error', (error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.once(signal, () => {
+      scheduler?.stop();
+      server.close();
+      server.closeAllConnections();
+    });
+  }
 }
