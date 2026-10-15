@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StudentCaseView, StudentSanctionView } from '@shared/types';
+import { sanctionsApi } from '@/api/sanctions';
+import { useToast } from '@/components/feedback';
 import { ProofUploadModal } from '@/components/sanctions/ProofUploadModal';
 import { StatusPill } from '@/components/ui';
 import { Button, buttonVariants } from '@/components/ui/Button';
@@ -61,6 +63,20 @@ export function SanctionDetail({
   const [tab, setTab] = useState<'details' | 'timeline'>('details');
   // The page keys this component by sanction id, so switching sanctions closes the dialog.
   const [uploading, setUploading] = useState(false);
+  const toast = useToast();
+
+  /** "View files": the upload dialog while proof can still be sent; otherwise the file itself (same tab, never a pop-up; UI-POLISH-SPEC 4.2b). */
+  function openProof() {
+    const first = sanction.files[0];
+    if (uploadPanel(sanction).open || !first) {
+      setUploading(true);
+      return;
+    }
+    sanctionsApi.fileUrl(first.id).then(
+      ({ url }) => window.location.assign(url),
+      () => toast.show('Could not open the file. Try again.', 'error'),
+    );
+  }
   const due = dueLine(sanction, manilaToday());
   const verified = sanction.status === 'completed';
   const next = sanctionNextStep(sanction);
@@ -131,7 +147,7 @@ export function SanctionDetail({
 
       {tab === 'details' ? (
         <div className="mt-auto flex flex-col gap-3 border-t border-line-soft pt-4">
-          <ProofRow sanction={sanction} onOpen={() => setUploading(true)} />
+          <ProofRow sanction={sanction} onOpen={openProof} />
           {showNote ? (
             <p className="rounded-[10px] bg-warn-soft px-3.5 py-2.5 text-[13px] text-body">
               <strong className="font-bold text-warn-ink">{sanction.status === 'returned' ? 'Returned by the SDO' : 'Note from the SDO'}:</strong> {sanction.staffNote}

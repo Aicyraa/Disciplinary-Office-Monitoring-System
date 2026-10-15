@@ -69,7 +69,7 @@ export function StartDateCalendar({ value, today, invalid, onChange }: { value: 
               aria-label={`${longLabel(cell.date)}${cell.kind === 'unavailable' ? ', unavailable' : ''}`}
               onClick={() => onChange(cell.date)}
               className={cn(
-                'h-11 min-w-0 rounded-lg border-[1.5px] p-0 text-sm font-bold outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-primary/35 rail:h-[38px]',
+                'aspect-square min-w-0 rounded-lg border-[1.5px] p-0 text-sm font-bold outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-primary/35',
                 CELL[cell.kind],
                 cell.today && 'shadow-[inset_0_0_0_2px_var(--color-gold)]',
               )}

@@ -75,6 +75,7 @@ const ACCOUNT_SELECT = {
   year_level: true,
   is_active: true,
   programs: { select: { program_name: true } },
+  avatar_key: true,
 } as const;
 
 const OPEN_CASE_STATUSES = [...OPEN_STATUSES];
@@ -250,7 +251,7 @@ export function createPrismaStudentViewRepo(db: Db): StudentViewRepo {
               },
             }),
           ]);
-          return { ...toProfile(account as unknown as AccountRow), openCases, activeSanctions };
+          return { ...toProfile(account as unknown as AccountRow), openCases, activeSanctions, avatarKey: account.avatar_key };
         }),
       );
       return { total, rows };

@@ -180,6 +180,7 @@ export function buildApp(): Built {
         reader: createPrismaTemplateReader(prisma),
       },
       studentViews: createPrismaStudentViewRepo(prisma),
+      avatarUrl: (key) => storage.presignGet(key),
       avatar: { service: createAvatarService({ repo: accountRepo, storage, loadUser: service.getUser }) },
       cases: {
         service: createCaseService({ store: caseStore }),
