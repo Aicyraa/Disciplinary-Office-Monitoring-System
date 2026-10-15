@@ -12,6 +12,15 @@ export function isStale(loadedAt: number | null, now: number, staleAfterMs: numb
   return loadedAt !== null && now - loadedAt >= staleAfterMs;
 }
 
+/**
+ * A badge poll that finds MORE unread notifications than before means something changed for this user, so the
+ * open page refreshes quietly. `previous` is null before the first poll (nothing to compare with), and a lower
+ * count (the user read something) is not a change worth a refetch.
+ */
+export function hasNewNotifications(previous: number | null, next: number): boolean {
+  return previous !== null && next > previous;
+}
+
 /** Polling runs only while the tab is visible, so an idle background tab never wakes the database. */
 export function shouldPoll(visibility: DocumentVisibilityState): boolean {
   return visibility === 'visible';

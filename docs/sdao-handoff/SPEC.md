@@ -29,6 +29,7 @@ The prototype is **front-end only**: state lives in memory, the date is fixed at
 | 16 | Proof of sanctions | **Online only.** A student uploads files; staff open every file and then verify. No in-person "record compliance" path (4.3). Settled 2026-10-12 |
 | 19 | Gate report email | **No separate Flow 1.** A gate report is stored by the API and delivered through the one notify flow (Flow 2, `type: "report"`): a "report received" email to the student when the typed ID matched, and one alert to every active employee account. `PA_GATE_URL` is not used. Settled 2026-10-12 |
 | 17 | Appointment reminders | **None.** The student is notified only when staff create or change an appointment; students have no appointment actions; no holiday list (4.5). Settled 2026-10-12 |
+| 20 | Profile pictures | Students and staff may set a **profile picture** from "Profile details". The image goes to the existing private **files bucket** under `avatars/`, **no new bucket**; the accounts keep only its object key in the nullable `avatar_key` column (no URL is stored). Rules in 4.8 and 6.1. Settled 2026-10-15 |
 | 18 | UI fidelity | The first UI passes (steps 2 to 9) use the design tokens and existing components; a **design-fidelity pass over every page is build step 10**. The screens are `design-reference/SDO_Portal_UI.pptx` (web and mobile, every state) and the logic and copy are `design-reference/sdo-portal.source.html`; the plan, the comparison and the logic changes it implies are in `UI-POLISH-SPEC.md`, and a logic change there is built only after the human accepts it. Settled 2026-10-12 | 
 
 ---
@@ -89,7 +90,7 @@ Core loop: report → staff validate → (3 minors roll into a Major) → staff 
 | Table | Change | Why |
 |---|---|---|
 | all | ids become `integer GENERATED ALWAYS AS IDENTITY` (workbook codes `P009`, `V001`… keep their numbers in `seed.sql`); `student_accounts`/`employee_accounts` keep text ids | your auto-increment rule |
-| accounts | + `must_change_password`, `is_active`, `date_created`; `password_hashed` must hold a real hash | forced reset flow. **Your workbook has plain-text passwords** (`DAGUMAN123`, `L123`), so don't import them |
+| accounts | + `must_change_password`, `is_active`, `date_created`, `avatar_key` (nullable); `password_hashed` must hold a real hash | forced reset flow. **Your workbook has plain-text passwords** (`DAGUMAN123`, `L123`), so don't import them |
 | `disciplinary_cases` | `handbook_id` → `handbook_entry_id`; the two status columns (`status` + `validation_status`) merge into **one** `status`: `reported → validated → for_sanction → resolved`, plus `rejected`; + `source`, `claimed_student_id`, `claimed_name`, `claimed_program`, `claimed_year`, `submission_ref`, `original_handbook_entry_id`, `is_escalated`, `reported_by_employee_id`, `resolved_without_sanction`, `date_resolved`; `student_id` is nullable only while a gate report is unmatched | the two columns held the same information; prototype needs reject and gate intake |
 | `case_status_history` | `validation_status` → `status_after`; + `event_type` (reported, validated, rejected, remark, sanction_assigned, escalated, flagged_escalated, resolved) | doubles as the remarks timeline |
 | `case_sanctions` | status becomes `assigned / pending_verification / returned / completed`; + `due_date`, `date_submitted`, `verified_by_employee_id`, `staff_note`, `compliance_note`; `employee_id` → `assigned_by_employee_id`; one sanction type once per case | proof workflow and flexible due date |
@@ -175,6 +176,8 @@ Notifications carry every admin update (sanction assigned or changed, appointmen
 - "Forgot password" stays in-person: the SDO office (Room 204) issues a temp password.
 - Login accepts only emails ending in `nu-fairview.edu.ph` / `students.nu-fairview.edu.ph`; generic error message on failure; add login rate limiting. **The role is the account table the address is found in**, not the domain: the address's own domain is looked up first, then the other table, so a staff account may use a student-domain address (the demo admin does). Accounts are added by hand, so the two tables never hold the same address.
 
+- **Profile picture** (decision 20). A signed-in student or staff member sets or removes their **own** picture from "Profile details"; staff cannot change a student's picture, and nobody else's. Accepted: JPG, PNG or WebP, up to **2 MB**, one image; the API checks the type, the size and the first bytes (JPG `FF D8 FF`, PNG `89 50 4E 47`, WebP `RIFF....WEBP`), never only the file name. The object key is `avatars/{student|employee}/{account id}/{uuid}.{ext}`; saving a new picture writes the new object, updates `avatar_key`, then deletes the old object, and removing it sets `avatar_key` to NULL and deletes the object. The profile response carries a short-lived presigned GET URL (6.1), never the key; with no picture the UI shows the initials. The picture is not a discipline record and is not exposed on public screens.
+
 ### 4.9 Handbook admin
 Staff create or edit a violation (name unique, category Minor/Major, section, description, sanction per offense step). A violation is keyed by id, so renaming never breaks cases. Show "used in N cases".
 
@@ -221,6 +224,7 @@ Suggested flow (keeps files private, needs no bucket CORS):
 2. **Download / preview:** `GET /files/:id/url` returns a **presigned GET URL valid ~60 seconds**, after an authorization check (the owning student, or any staff). Opening it is a normal browser navigation or `<a>`/`<iframe>` load, which does not need CORS. When staff open a proof file, set `date_viewed` and `viewed_by_employee_id`.
 3. **Delete / replace:** delete the object, delete the DB rows, and write a timeline entry. Run a nightly job to remove orphan objects.
 4. Templates use the key `templates/{sanction_id}/{uuid}.{ext}`; any signed-in student can download them.
+5. Profile pictures (4.8) use the key `avatars/{student|employee}/{account id}/{uuid}.{ext}` in the **files** bucket, uploaded through the API like proof files (`multer`, memory storage, 2 MB limit) and read through a presigned GET URL of about 60 seconds. The key is stored in `student_accounts.avatar_key` / `employee_accounts.avatar_key`.
 
 Why server-side upload instead of a presigned PUT from the browser: a browser PUT to the bucket needs bucket CORS, which I could not confirm Neon exposes. At 10 MB files and a small user count, proxying through Express is simple and fine (check your host's request-size cap).
 
@@ -268,7 +272,8 @@ GET  /case-sanctions?filter=active|pending_verification|overdue&page=   (staff q
 
 GET  /students?q=&page=   GET /students/:id                  (staff: the student records; 20 per page)
 POST /staff/students/:studentId/reset-password                (staff: one-time temp password)
-GET  /me/profile                                              (student: own account details)
+GET  /me/profile                                              (student: own account details; `avatarUrl` is a presigned URL or null)
+PUT  /me/avatar   DELETE /me/avatar                           (student or staff: own profile picture, multipart `file`; JPG/PNG/WebP, 2 MB, 4.8; responds with the refreshed profile)
 GET  /me/clearance/slip?academic_year=&semester=              (student: slip data; 409 `not_cleared` until the term is cleared)
 GET  /clearances?status=&q=&page=   GET /clearances/:id   POST /clearances (studentId, academicYear, semester)
 GET  /clearances/terms   GET /clearances/terms/:year/:semester/students?q=&page=   (staff: current term + terms with clearances; every active student of a term with their clearance or "Not set"; UI-POLISH-SPEC D3. Current term is assumed Aug-Nov 1st, Dec-Mar 2nd, Apr-Jul 3rd until item 8.3 is confirmed)
