@@ -1,3 +1,4 @@
+import { inBody } from './inBody';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { toApiError } from '@/api/client';
@@ -36,7 +37,7 @@ export function FilePreviewFrame({
   const panelRef = useRef<HTMLDivElement>(null);
   useDialogFocus({ open: true, panelRef, onClose });
 
-  return (
+  return inBody(
     <div
       className="fixed inset-0 z-[85] flex items-stretch justify-center bg-ink/60 rail:items-center rail:p-6"
       onMouseDown={(event) => {
@@ -90,7 +91,7 @@ export function FilePreviewFrame({
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
   );
 }
 

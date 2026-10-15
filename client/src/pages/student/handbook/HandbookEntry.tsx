@@ -84,7 +84,9 @@ export function HandbookEntry({ entry, templates }: { entry: HandbookEntryView; 
       </div>
       <div>
         <p className="text-[13px] font-semibold text-muted">What the handbook says</p>
-        <p className="mt-1 text-body">{entry.description}</p>
+        <p className="mt-1.5 rounded-r-[10px] border-l-4 border-primary/30 bg-surface-2 px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line text-pretty text-body">
+          {entry.description}
+        </p>
       </div>
       <div className="rounded-[10px] bg-info-soft px-[18px] py-4">
         <p className="mb-2 text-[13px] font-semibold text-info-ink">Sanction</p>

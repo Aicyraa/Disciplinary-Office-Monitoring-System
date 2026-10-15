@@ -1,3 +1,4 @@
+import { inBody } from './inBody';
 import { useRef, type ReactNode } from 'react';
 import { cn } from '@/utils/cn';
 import { useRegisterModal } from './modalOpen';
@@ -28,7 +29,7 @@ export function Dialog({
   useDialogFocus({ open, panelRef, onClose });
   useRegisterModal(open);
   if (!open) return null;
-  return (
+  return inBody(
     <div
       className="fixed inset-0 z-[82] flex animate-fade-in items-end justify-center bg-scrim rail:items-center rail:p-4"
       onMouseDown={(event) => {
@@ -50,6 +51,6 @@ export function Dialog({
       >
         {children}
       </div>
-    </div>
+    </div>,
   );
 }

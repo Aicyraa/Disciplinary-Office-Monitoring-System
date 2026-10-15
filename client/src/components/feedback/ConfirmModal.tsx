@@ -1,3 +1,4 @@
+import { inBody } from './inBody';
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -87,7 +88,7 @@ export function ConfirmModal({
     }
   }
 
-  return (
+  return inBody(
     <div
       className="fixed inset-0 z-[80] flex animate-fade-in items-end justify-center bg-scrim rail:items-center rail:p-4"
       onMouseDown={(event) => {
@@ -163,6 +164,6 @@ export function ConfirmModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
   );
 }
