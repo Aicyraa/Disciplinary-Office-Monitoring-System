@@ -4,7 +4,6 @@ import { authApi } from '@/api/auth';
 import { toApiError } from '@/api/client';
 import { useToast } from '@/components/feedback';
 import { Avatar } from '@/components/ui/Avatar';
-import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
 import { AVATAR_ACCEPT, avatarFileError } from '@/validators/avatar';
@@ -45,28 +44,38 @@ export function ProfilePicture({ user }: { user: AuthUser }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-3">
-        <Avatar firstName={user.firstName} lastName={user.lastName} url={user.avatarUrl} className="size-16 bg-gold text-xl" />
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" busy={busy === 'save'} disabled={busy !== null} onClick={() => input.current?.click()}>
-            <Icon name="photo_camera" className="!text-lg" />
-            {user.avatarUrl ? 'Change picture' : 'Add picture'}
-          </Button>
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          disabled={busy !== null}
+          onClick={() => input.current?.click()}
+          aria-label={user.avatarUrl ? 'Change profile picture' : 'Add profile picture'}
+          title={user.avatarUrl ? 'Change picture' : 'Add picture'}
+          className="group relative size-20 shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35 disabled:cursor-wait"
+        >
+          <Avatar firstName={user.firstName} lastName={user.lastName} url={user.avatarUrl} className="size-20 bg-gold text-2xl" />
+          <span
+            aria-hidden="true"
+            className={`absolute inset-0 grid place-items-center rounded-full bg-ink/55 text-white transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 ${busy === 'save' ? 'opacity-100' : 'opacity-0'}`}
+          >
+            <Icon name={busy === 'save' ? 'progress_activity' : 'edit'} className={busy === 'save' ? 'animate-spin' : ''} />
+          </span>
+        </button>
+        <div className="flex min-w-0 flex-col items-start gap-1">
+          <p className="text-xs text-muted">Click the picture to change it. JPG, PNG or WebP, up to 2 MB.</p>
           {user.avatarUrl ? (
-            <Button
-              variant="neutral"
-              size="sm"
-              busy={busy === 'remove'}
+            <button
+              type="button"
               disabled={busy !== null}
               onClick={() => void run('remove', () => authApi.removeAvatar(), 'Profile picture removed.')}
+              className="text-xs font-semibold text-danger-strong underline disabled:opacity-50"
             >
-              Remove
-            </Button>
+              {busy === 'remove' ? 'Removing…' : 'Remove picture'}
+            </button>
           ) : null}
         </div>
         <input ref={input} type="file" accept={AVATAR_ACCEPT} className="sr-only" tabIndex={-1} aria-label="Choose a profile picture" onChange={onPick} />
       </div>
-      <p className="text-xs text-muted">JPG, PNG or WebP, up to 2 MB.</p>
       {error ? (
         <p role="alert" className="flex items-center gap-2 rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-[13px] text-danger-ink">
           <Icon name="error" className="!text-lg" />

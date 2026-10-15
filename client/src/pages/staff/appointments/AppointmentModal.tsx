@@ -127,11 +127,11 @@ export function AppointmentModal({
           ? 'Review the details before saving.'
           : editing
             ? `Editing ${editing.code}. Change the date to reschedule.`
-            : 'Monday to Saturday, 7:00 AM to 5:00 PM.'
+            : 'Choose the student, the reason and a start date.'
       }
       busy={saving}
       onClose={onClose}
-      maxWidth="max-w-[640px]"
+      maxWidth={reviewing ? 'max-w-[640px]' : 'max-w-[960px]'}
       footer={
         reviewing ? (
           <>
@@ -144,6 +144,7 @@ export function AppointmentModal({
           </>
         ) : (
           <>
+            <p className="mr-auto hidden text-[13px] font-semibold text-muted min-[860px]:block">Monday to Saturday, 7:00 AM to 5:00 PM</p>
             <Button variant="secondary" size="lg" onClick={onClose}>
               Cancel
             </Button>
@@ -169,7 +170,9 @@ export function AppointmentModal({
           <p className="text-[13px] text-pretty text-muted">{student ? reviewNote(kind, student.name) : null}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-5">
+        <div className="grid gap-6 min-[860px]:grid-cols-2 min-[860px]:gap-x-8">
+          <div className="flex flex-col gap-5">
+          <p className="-mb-3 text-[11px] font-bold tracking-[0.08em] text-muted uppercase">1 · Student</p>
           {editing && student ? (
             <p className="flex items-center gap-1.5 text-[13px] font-semibold text-success">
               <Icon name="person_check" className="!text-lg" />
@@ -189,9 +192,10 @@ export function AppointmentModal({
               autoComplete="off"
             />
           )}
+          <p className="-mb-3 text-[11px] font-bold tracking-[0.08em] text-muted uppercase">2 · Details</p>
           <Textarea
             label="Reason for the appointment"
-            rows={3}
+            rows={5}
             maxLength={1000}
             placeholder="e.g. Interview about case SDO-2026-012"
             value={reason}
@@ -209,6 +213,9 @@ export function AppointmentModal({
             value={remarks}
             onChange={(event) => setRemarks(event.target.value)}
           />
+          </div>
+          <div className="flex flex-col gap-5">
+          <p className="-mb-3 text-[11px] font-bold tracking-[0.08em] text-muted uppercase">3 · Schedule</p>
           <div>
             <p className="mb-1.5 text-[13px] font-semibold text-ink">Start date</p>
             <StartDateCalendar
@@ -238,6 +245,7 @@ export function AppointmentModal({
               {errors.overlap}
             </p>
           ) : null}
+          </div>
         </div>
       )}
     </FormModal>

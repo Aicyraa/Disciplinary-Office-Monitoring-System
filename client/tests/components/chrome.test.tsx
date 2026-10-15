@@ -110,18 +110,18 @@ describe('account dialogs (deck W83 to W85)', () => {
       </AuthProvider>,
     );
 
-  test('Account details without a picture: initials and an "Add picture" button, no Remove', () => {
+  test('Account details without a picture: a clickable avatar, no Remove', () => {
     const html = detailsHtml(user);
-    expect(html).toContain('>Add picture<');
-    expect(html).not.toContain('>Remove<');
+    expect(html).toContain('aria-label="Add profile picture"');
+    expect(html).not.toContain('>Remove picture<');
     expect(html).toContain('JPG, PNG or WebP, up to 2 MB.');
   });
 
-  test('Account details with a picture: the image, "Change picture" and Remove', () => {
+  test('Account details with a picture: the image on a clickable avatar, and Remove', () => {
     const html = detailsHtml({ ...user, avatarUrl: 'https://files.example/me.png' });
     expect(html).toContain('<img src="https://files.example/me.png"');
-    expect(html).toContain('>Change picture<');
-    expect(html).toContain('>Remove<');
+    expect(html).toContain('aria-label="Change profile picture"');
+    expect(html).toContain('>Remove picture<');
   });
 
   test('Account details: initials, name, rows, the correction note and Change password', () => {

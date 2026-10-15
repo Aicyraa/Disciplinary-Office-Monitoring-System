@@ -110,7 +110,8 @@ export function StatRow({ children }: { children: ReactNode }) {
 
 /** The bordered list of rows inside a card (deck src 443). */
 export function RowBox({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col overflow-hidden rounded-[10px] border border-line-soft">{children}</div>;
+  // Three rows tall even when empty, so a card keeps its size whether or not it has items.
+  return <div className="flex min-h-[172px] flex-1 flex-col overflow-hidden rounded-[10px] border border-line-soft">{children}</div>;
 }
 
 /** One row: title (+ red flag), muted line, and an action on the right. */
@@ -160,7 +161,7 @@ export function Flag({ children }: { children: ReactNode }) {
 /** "No reports waiting." in green with a check (deck src 453). */
 export function AllClear({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center justify-center gap-1.5 px-3 py-[18px] text-[13px] font-semibold text-success">
+    <div className="my-auto flex items-center justify-center gap-1.5 px-3 py-[18px] text-[13px] font-semibold text-success">
       <Icon name="check_circle" className="!text-lg" />
       {children}
     </div>

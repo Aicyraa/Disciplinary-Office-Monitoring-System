@@ -274,14 +274,14 @@ export function StaffHome() {
       <h1 className="sr-only">Dashboard</h1>
       <div className="@container">
         <div className="flex flex-col gap-5">
-          <div className="grid items-start gap-5 @min-[800px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <div className="grid gap-5 @min-[800px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
             {reportsCard}
             <div className="flex min-w-0 flex-col gap-5">
               {decisionCard}
               {appointmentsCard}
             </div>
           </div>
-          <div className="grid items-start gap-5 @min-[800px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <div className="grid gap-5 @min-[800px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
             {sanctionsCard}
             {clearanceCard}
           </div>
