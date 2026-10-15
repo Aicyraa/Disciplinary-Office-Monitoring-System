@@ -1,0 +1,6 @@
+{
+  // Type check for the production build (Vercel installs only this package, so the root-level vitest that the
+  // tests import is not there). `npm run typecheck` still checks src and tests with tsconfig.json.
+  "extends": "./tsconfig.json",
+  "include": ["src", "vite.config.ts"]
+}

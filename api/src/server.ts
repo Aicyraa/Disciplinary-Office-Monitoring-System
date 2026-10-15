@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import connectPgSimple from 'connect-pg-simple';
 import session from 'express-session';
 import { Pool } from 'pg';
@@ -97,6 +98,9 @@ export function buildApp(): Built {
   const retryState = new Map<number, RetryEntry>();
   const scheduler = createDeliveryScheduler({
     intervalMs: SWEEP_INTERVAL_MS,
+    // On Vercel there is no sweep timer and the function may be frozen once the response is sent; waitUntil keeps
+    // it running until the pass that the request kicked off has finished. Outside Vercel it does nothing.
+    keepAlive: waitUntil,
     run: async () => {
       const report = await deliverPending({
         store: createPrismaOutboxStore(prisma),
