@@ -70,16 +70,6 @@ export function ProfilePicture({ user, children }: { user: AuthUser; children?: 
           {error}
         </p>
       ) : null}
-      {user.avatarUrl ? (
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => void run('remove', () => authApi.removeAvatar(), 'Profile picture removed.')}
-          className="self-start text-xs font-semibold text-danger-strong underline disabled:opacity-50"
-        >
-          {busy === 'remove' ? 'Removing…' : 'Remove picture'}
-        </button>
-      ) : null}
     </div>
   );
 }

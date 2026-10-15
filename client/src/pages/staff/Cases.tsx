@@ -11,7 +11,6 @@ import { ChipGroup } from '@/components/ui/ChipGroup';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { controlVariants } from '@/components/ui/FieldShell';
 import { GroupHead } from '@/components/ui/GroupHead';
-import { HighTag } from '@/components/ui/HighTag';
 import { Icon } from '@/components/ui/Icon';
 import { ListCard } from '@/components/ui/ListCard';
 import { Pager } from '@/components/ui/Pager';
@@ -188,7 +187,6 @@ function CaseQueue({
                     </span>
                     <span className="min-w-0 flex-1 leading-snug">
                       <span className="flex min-w-0 items-center gap-1.5">
-                        {view.high ? <HighTag className="shrink-0">HIGH</HighTag> : null}
                         <span className="truncate font-semibold text-ink">{view.name}</span>
                         <span className="min-w-0 truncate text-xs text-muted">{view.studentId}</span>
                       </span>
@@ -197,11 +195,13 @@ function CaseQueue({
                           <span className="@min-[560px]:hidden">{row.code} · </span>
                           {row.violation}
                         </span>
+                      </span>
+                      <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
                         <StatusPill status={row.severity} />
                         {view.tag ? <Tag className="shrink-0">{view.tag}</Tag> : null}
                         {view.unmatched ? <Tag className="shrink-0 bg-bad-soft text-bad-ink">No matching record</Tag> : null}
+                        <span className="truncate text-xs text-muted">{view.line3}</span>
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-muted">{view.line3}</span>
                     </span>
                     <span className="mt-0.5 shrink-0 self-start">
                       <StatusPill status={row.status} kind="case" />
