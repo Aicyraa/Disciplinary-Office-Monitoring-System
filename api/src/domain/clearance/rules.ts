@@ -1,5 +1,11 @@
 import type { ClearanceStatus, RequirementStatus } from '../../repositories/clearance/types.js';
 
+/**
+ * The inactive employee account that automatic jobs act as (the Power Automate term set-up). It cannot sign in;
+ * it exists so `clearances.employee_id` and `clearance_history.employee_id` show the change was automatic.
+ */
+export const SYSTEM_EMPLOYEE_ID = 'SYSTEM';
+
 /** The seeded default requirement that the warning chip is about (SPEC 4.4). */
 export const NO_ACTIVE_VIOLATIONS_LABEL = 'No active violations';
 

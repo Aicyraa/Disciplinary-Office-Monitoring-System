@@ -59,6 +59,19 @@ export interface ClearanceTx {
   findRequirementByLabel(label: string): Promise<RequirementRecord | null>;
   /** A new custom requirement (`is_default = false`). */
   insertRequirement(label: string): Promise<RequirementRecord>;
+  employeeExists(employeeId: string): Promise<boolean>;
+  /**
+   * The term set-up: every active student without a clearance for the term gets one, with the default items and
+   * one `set_up` history row. Students who already have one are left alone (the unique key decides, so two runs
+   * at once cannot double up).
+   */
+  setUpTermForActiveStudents(input: {
+    academicYear: number;
+    semester: number;
+    employeeId: string;
+    remarks: string;
+    date: Date;
+  }): Promise<{ activeStudents: number; created: number }>;
   insertClearance(input: { studentId: string; employeeId: string; academicYear: number; semester: number }): Promise<number>;
   addItems(clearanceId: number, requirementIds: number[]): Promise<void>;
   removeItem(clearanceId: number, requirementId: number): Promise<void>;

@@ -15,8 +15,11 @@
     "prisma:generate": "node --env-file-if-exists=../.env node_modules/prisma/build/index.js generate --config prisma.config.ts",
     "prisma:push": "node --env-file-if-exists=../.env node_modules/prisma/build/index.js db push --config prisma.config.ts",
     "prisma:smoke": "tsx --env-file-if-exists=../.env scripts/prisma-smoke.ts",
-    "prisma:pull": "node --env-file-if-exists=../.env node_modules/prisma/build/index.js db pull --config prisma.config.ts"
-  },
+    "prisma:pull": "node --env-file-if-exists=../.env node_modules/prisma/build/index.js db pull --config prisma.config.ts",
+    "prisma:migrate": "node --env-file=../.env ./node_modules/.bin/prisma migrate dev --name prod",
+    "prisma:deploy": "node --env-file=../.env ./node_modules/.bin/prisma migrate deploy"
+
+   },
   "keywords": [],
   "author": "",
   "license": "ISC",

@@ -16,13 +16,14 @@ export interface ClearanceControllerDeps {
   now: () => Date;
 }
 
-const HTTP_STATUS: Record<ClearanceFailureCode, number> = {
+export const CLEARANCE_HTTP_STATUS: Record<ClearanceFailureCode, number> = {
   invalid_input: 400,
   not_found: 404,
   student_not_found: 404,
   invalid_status: 409,
   clearance_exists: 409,
   requirement_exists: 409,
+  server_not_configured: 503,
 };
 
 /**
@@ -69,7 +70,7 @@ export function createClearanceController({ service, queries, now }: ClearanceCo
     const student = parseStudentId(studentId);
     if (!student.ok) return sendError(response, 400, 'invalid_input', student.message);
     const result = await service.setUp({ employeeId: sessionUserId(request), studentId: student.value, academicYear, semester });
-    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
+    if (!result.ok) return sendFailure(response, result, CLEARANCE_HTTP_STATUS);
     sendOk(response, { clearanceId: result.clearanceId }, 201);
   };
 
@@ -81,7 +82,7 @@ export function createClearanceController({ service, queries, now }: ClearanceCo
       clearanceId: id,
       label: request.body?.label,
     });
-    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
+    if (!result.ok) return sendFailure(response, result, CLEARANCE_HTTP_STATUS);
     sendOk(response, { requirementId: result.requirementId }, 201);
   };
 
@@ -94,7 +95,7 @@ export function createClearanceController({ service, queries, now }: ClearanceCo
       clearanceId: id,
       requirementId: rid,
     });
-    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
+    if (!result.ok) return sendFailure(response, result, CLEARANCE_HTTP_STATUS);
     sendOk(response, { cleared: result.cleared });
   };
 
@@ -108,7 +109,7 @@ export function createClearanceController({ service, queries, now }: ClearanceCo
       requirementId: rid,
       remarks: request.body?.remarks,
     });
-    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
+    if (!result.ok) return sendFailure(response, result, CLEARANCE_HTTP_STATUS);
     sendOk(response, { cleared: result.cleared });
   };
 
@@ -122,7 +123,7 @@ export function createClearanceController({ service, queries, now }: ClearanceCo
       requirementId: rid,
       reason: request.body?.reason,
     });
-    if (!result.ok) return sendFailure(response, result, HTTP_STATUS);
+    if (!result.ok) return sendFailure(response, result, CLEARANCE_HTTP_STATUS);
     sendOk(response, { ok: true });
   };
 

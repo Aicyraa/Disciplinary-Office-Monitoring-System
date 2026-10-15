@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '../../../generated/prisma/client.js';
 import type { NotificationKind, NotificationLinkType } from '@shared/types.js';
+import { SYSTEM_EMPLOYEE_ID } from '../../domain/clearance/rules.js';
 import type { OutboxStore, PendingNotification } from '../../services/notifications/delivery.js';
 import type { Audience, InboxRow, InboxStore, NotificationWriter } from '../../services/notifications/inbox.js';
 
@@ -144,9 +145,10 @@ export function createPrismaOutboxStore(db: Db): OutboxStore {
         });
         return student && student.is_active ? [{ email: student.student_email, firstName: student.first_name }] : [];
       }
-      // There is no dedicated SDO mailbox: staff alerts go to every active employee account.
+      // There is no dedicated SDO mailbox: staff alerts go to every active employee account. The SYSTEM account
+      // (automatic jobs) is a person to nobody, so it is left out even if it is ever marked active.
       const employees = await db.employee_accounts.findMany({
-        where: { is_active: true },
+        where: { is_active: true, employee_id: { not: SYSTEM_EMPLOYEE_ID } },
         select: { employee_email: true, first_name: true },
         orderBy: { employee_id: 'asc' },
       });
