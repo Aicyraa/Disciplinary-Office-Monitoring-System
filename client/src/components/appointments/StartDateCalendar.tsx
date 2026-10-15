@@ -39,7 +39,7 @@ export function StartDateCalendar({ value, today, invalid, onChange }: { value: 
     );
 
   return (
-    <div className={cn('mx-auto w-full max-w-[300px] rounded-xl border bg-white p-3', invalid ? 'border-danger-strong' : 'border-line-strong')}>
+    <div className={cn('rounded-xl border bg-white p-4', invalid ? 'border-danger-strong' : 'border-line-strong')}>
       <div className="mb-2.5 flex items-center justify-between gap-2">
         <button type="button" aria-label="Previous month" disabled={!view.canPrev} onClick={() => shift(-1)} className={nav(view.canPrev)}>
           <Icon name="chevron_left" className="!text-[22px]" />
@@ -51,7 +51,7 @@ export function StartDateCalendar({ value, today, invalid, onChange }: { value: 
           <Icon name="chevron_right" className="!text-[22px]" />
         </button>
       </div>
-      <div role="group" aria-label="Choose a start date" className="grid grid-cols-7 gap-1">
+      <div role="group" aria-label="Choose a start date" className="grid grid-cols-7 gap-1.5">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
           <div key={day} aria-hidden="true" className="pt-0.5 pb-1.5 text-center text-xs font-bold text-muted">
             {day}
@@ -79,7 +79,7 @@ export function StartDateCalendar({ value, today, invalid, onChange }: { value: 
           ),
         )}
       </div>
-      <div className="mt-2.5 flex flex-wrap gap-3.5 text-xs text-muted">
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
         {LEGEND.map(([label, swatch]) => (
           <span key={label} className="inline-flex items-center gap-1.5">
             <span aria-hidden="true" className={cn('size-3 rounded-[3px] border-[1.5px]', swatch)} />

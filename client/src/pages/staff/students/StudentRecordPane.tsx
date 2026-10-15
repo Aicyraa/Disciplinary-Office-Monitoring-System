@@ -108,9 +108,9 @@ function RecordLists({ data, tab }: { data: StaffStudentRecord; tab: RecordTab }
                 <span className="font-semibold text-ink">{item.violation}</span>
               </span>
               <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-muted">{row.line}</span>
                 <StatusPill status={item.severity} />
                 {row.tag ? <Tag>{row.tag}</Tag> : null}
-                <span className="text-xs text-muted">{row.line}</span>
               </span>
             </span>
             <StatusPill status={item.status} kind="case" />

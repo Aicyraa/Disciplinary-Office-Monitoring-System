@@ -234,11 +234,12 @@ export function AppointmentModal({
                 {errors.date}
               </p>
             ) : null}
-            {startDate && !startDateError(startDate, today) ? (
-              <p className="mt-1.5 text-xs text-muted">
-                The student can visit any day from {dayRange(startDate, appointmentEndDate(startDate) ?? startDate)}, 7:00 AM to 5:00 PM.
-              </p>
-            ) : null}
+            {/* Always two lines tall, so picking a date never changes the dialog's height. */}
+            <p className="mt-1.5 min-h-[2lh] text-xs text-muted">
+              {startDate && !startDateError(startDate, today)
+                ? `The student can visit any day from ${dayRange(startDate, appointmentEndDate(startDate) ?? startDate)}, 7:00 AM to 5:00 PM.`
+                : null}
+            </p>
           </div>
           {errors.overlap ? (
             <p role="alert" className="flex items-center gap-2.5 rounded-[10px] bg-danger-soft px-3.5 py-3 text-[13px] text-pretty text-danger-ink">
