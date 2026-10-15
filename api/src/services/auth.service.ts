@@ -20,21 +20,35 @@ export interface AuthService {
 
 export interface AuthServiceOptions {
   repo: AccountRepo;
+  /** Turns a stored picture key into a short-lived link (the files bucket). Without it no picture is shown. */
+  avatarUrl?: (key: string) => Promise<string>;
   /** bcrypt cost; tests lower it. */
   rounds?: number;
   generateTemp?: () => string;
 }
 
-const toUser = (role: AccountRole, record: AccountRecord): AuthUser => ({
-  role,
-  id: record.id,
-  email: record.email,
-  firstName: record.firstName,
-  lastName: record.lastName,
-  mustChangePassword: record.mustChangePassword,
-});
+export function createAuthService({ repo, avatarUrl, rounds = 12, generateTemp = generateTempPassword }: AuthServiceOptions): AuthService {
+  // A picture that cannot be linked (bucket down or not configured) must never break sign-in: it is just absent.
+  const toUser = async (role: AccountRole, record: AccountRecord): Promise<AuthUser> => {
+    let link: string | null = null;
+    if (record.avatarKey && avatarUrl) {
+      try {
+        link = await avatarUrl(record.avatarKey);
+      } catch {
+        link = null;
+      }
+    }
+    return {
+      role,
+      id: record.id,
+      email: record.email,
+      firstName: record.firstName,
+      lastName: record.lastName,
+      mustChangePassword: record.mustChangePassword,
+      avatarUrl: link,
+    };
+  };
 
-export function createAuthService({ repo, rounds = 12, generateTemp = generateTempPassword }: AuthServiceOptions): AuthService {
   // Compared against when the account is missing, so a miss costs about the same as a hit.
   let dummyHash: Promise<string> | undefined;
   const getDummyHash = () => (dummyHash ??= bcrypt.hash('not-a-real-password-1', rounds));
@@ -91,7 +105,7 @@ export function createAuthService({ repo, rounds = 12, generateTemp = generateTe
         };
       }
       await repo.updatePassword(role, id, await bcrypt.hash(newPassword, rounds), false);
-      return { ok: true, user: toUser(role, { ...record, mustChangePassword: false }) };
+      return { ok: true, user: await toUser(role, { ...record, mustChangePassword: false }) };
     },
 
     async resetStudentPassword(studentId) {

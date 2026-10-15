@@ -6,6 +6,7 @@ import { clientOriginFrom, defaultClientOrigin } from './config/cors.js';
 import { withExplicitSsl } from './config/db-url.js';
 import { createPrismaAccountRepo } from './repositories/auth/prisma-repo.js';
 import { createAuthService } from './services/auth.service.js';
+import { createAvatarService } from './services/avatar.service.js';
 import { createPrismaAppointmentQueries, createPrismaAppointmentStore } from './repositories/appointments/prisma-store.js';
 import { createAppointmentService } from './services/appointments.service.js';
 import { createPrismaClearanceQueries, createPrismaClearanceStore } from './repositories/clearance/prisma-store.js';
@@ -79,7 +80,7 @@ export function buildApp(): Built {
   const PgStore = connectPgSimple(session);
   const sessionStore = new PgStore({ pool: new Pool({ connectionString: withExplicitSsl(DATABASE_URL) }), createTableIfMissing: true });
   const prisma = createPrismaClient();
-  const service = createAuthService({ repo: createPrismaAccountRepo(prisma) });
+  const accountRepo = createPrismaAccountRepo(prisma);
 
   // Email delivery (POWER-AUTOMATE.md sections 2, 4, 5). Notification rows are written inside each transaction;
   // once it commits, a delivery pass is kicked off in the background, and the sweep retries what stayed pending.
@@ -137,6 +138,9 @@ export function buildApp(): Built {
       ? createS3Storage(templatesBucket)
       : createUnavailableStorage('set STORAGE_BUCKET_TEMPLATES and the AWS_* keys');
 
+  // Profile pictures live in the files bucket (SPEC 6.1); a link that cannot be made is just no picture.
+  const service = createAuthService({ repo: accountRepo, avatarUrl: (key) => storage.presignGet(key) });
+
   const app = createApp({
     auth: {
       service,
@@ -176,6 +180,7 @@ export function buildApp(): Built {
         reader: createPrismaTemplateReader(prisma),
       },
       studentViews: createPrismaStudentViewRepo(prisma),
+      avatar: { service: createAvatarService({ repo: accountRepo, storage, loadUser: service.getUser }) },
       cases: {
         service: createCaseService({ store: caseStore }),
         queries: createPrismaCaseQueries(prisma),

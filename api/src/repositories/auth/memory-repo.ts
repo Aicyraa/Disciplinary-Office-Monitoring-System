@@ -30,5 +30,11 @@ export function createMemoryAccountRepo(seed: Array<AccountRecord & { role: Acco
       accounts.set(keyOf(role, id), { ...record, passwordHashed, mustChangePassword });
       return true;
     },
+    async updateAvatarKey(role, id, avatarKey) {
+      const record = accounts.get(keyOf(role, id));
+      if (!record) return false;
+      accounts.set(keyOf(role, id), { ...record, avatarKey });
+      return true;
+    },
   };
 }

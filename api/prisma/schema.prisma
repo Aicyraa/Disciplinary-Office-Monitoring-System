@@ -202,6 +202,7 @@ model employee_accounts {
   position                                                                 String
   is_active                                                                Boolean                  @default(true)
   date_created                                                             DateTime                 @default(now()) @db.Timestamptz(6)
+  avatar_key                                                               String?
   appointment_history                                                      appointment_history[]
   appointments                                                             appointments[]
   case_sanction_files                                                      case_sanction_files[]
@@ -348,6 +349,7 @@ model student_accounts {
   program_id            Int
   is_active             Boolean                 @default(true)
   date_created          DateTime                @default(now()) @db.Timestamptz(6)
+  avatar_key            String?
   appointments          appointments[]
   case_sanction_history case_sanction_history[]
   clearances            clearances[]

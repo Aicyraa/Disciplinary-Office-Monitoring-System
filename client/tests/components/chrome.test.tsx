@@ -1,10 +1,12 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import type { AuthUser } from '@shared/types';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
 import { AccountDetailsModal, ChangePasswordModal, PasswordRuleList } from '@/components/account/AccountModals';
 import { BellRow } from '@/components/layout/BellPopover';
 import { MoreSheet } from '@/components/layout/MoreSheet';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { ToastProvider } from '@/components/feedback';
 import { AuthProvider } from '@/context/AuthContext';
 import { moreItems, navGroups } from '@/utils/nav';
 
@@ -97,10 +99,33 @@ describe('BellRow (deck src 343)', () => {
 });
 
 describe('account dialogs (deck W83 to W85)', () => {
-  const user = { role: 'staff' as const, id: 'E001', email: 'am@nu-fairview.edu.ph', firstName: 'Andrea', lastName: 'Marcelo', mustChangePassword: false };
+  const user: AuthUser = { role: 'staff', id: 'E001', email: 'am@nu-fairview.edu.ph', firstName: 'Andrea', lastName: 'Marcelo', mustChangePassword: false, avatarUrl: null };
+
+  const detailsHtml = (account: AuthUser) =>
+    renderToStaticMarkup(
+      <AuthProvider>
+        <ToastProvider>
+          <AccountDetailsModal open user={account} onClose={() => undefined} onChangePassword={() => undefined} />
+        </ToastProvider>
+      </AuthProvider>,
+    );
+
+  test('Account details without a picture: initials and an "Add picture" button, no Remove', () => {
+    const html = detailsHtml(user);
+    expect(html).toContain('>Add picture<');
+    expect(html).not.toContain('>Remove<');
+    expect(html).toContain('JPG, PNG or WebP, up to 2 MB.');
+  });
+
+  test('Account details with a picture: the image, "Change picture" and Remove', () => {
+    const html = detailsHtml({ ...user, avatarUrl: 'https://files.example/me.png' });
+    expect(html).toContain('<img src="https://files.example/me.png"');
+    expect(html).toContain('>Change picture<');
+    expect(html).toContain('>Remove<');
+  });
 
   test('Account details: initials, name, rows, the correction note and Change password', () => {
-    const html = renderToStaticMarkup(<AccountDetailsModal open user={user} onClose={() => undefined} onChangePassword={() => undefined} />);
+    const html = detailsHtml(user);
     expect(html).toContain('role="dialog"');
     expect(html).toContain('>AM<');
     expect(html).toContain('Andrea Marcelo');

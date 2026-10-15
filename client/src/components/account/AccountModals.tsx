@@ -11,7 +11,8 @@ import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
 import { accountRows } from '@/utils/account';
 import { passwordChangeError, passwordRules } from '@/validators/account';
-import { initials } from '@/utils/nav';
+import { Avatar } from '@/components/ui/Avatar';
+import { ProfilePicture } from '@/components/account/ProfilePicture';
 
 /** The live checklist under a new password (deck src 2058). */
 export function PasswordRuleList({ password }: { password: string }) {
@@ -58,9 +59,7 @@ export function AccountDetailsModal({
   return (
     <Dialog open={open} labelledBy={titleId} onClose={onClose}>
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-gold font-bold text-ink">
-          {initials(user.firstName, user.lastName)}
-        </span>
+        <Avatar firstName={user.firstName} lastName={user.lastName} url={user.avatarUrl} className="size-11 bg-gold" />
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="text-xl font-bold text-ink">
             {user.firstName} {user.lastName}
@@ -76,6 +75,7 @@ export function AccountDetailsModal({
           <Icon name="close" />
         </button>
       </div>
+      <ProfilePicture user={user} />
       <dl className="flex flex-col rounded-[10px] border border-line-soft">
         {accountRows(user, profile).map(([label, value]) => (
           <div key={label} className="flex gap-3 border-b border-line-soft px-3 py-2.5 text-[13px] last:border-b-0">

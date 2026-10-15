@@ -15,6 +15,7 @@ const user: AuthUser = {
   firstName: 'Ana',
   lastName: 'Cruz',
   mustChangePassword: false,
+  avatarUrl: null,
 };
 
 describe('resolveAccess', () => {
