@@ -24,7 +24,7 @@ CREATE TABLE student_accounts (
   program_id            integer NOT NULL REFERENCES programs(program_id),
   is_active             boolean NOT NULL DEFAULT true,
   date_created          timestamptz NOT NULL DEFAULT now(),
-  avatar_key text
+  avatar_key            text                                     -- profile picture: object key in the files bucket (SPEC 4.8, 6.1); NULL = none
 );
 
 CREATE TABLE employee_accounts (
@@ -37,7 +37,7 @@ CREATE TABLE employee_accounts (
   position              text NOT NULL,
   is_active             boolean NOT NULL DEFAULT true,
   date_created          timestamptz NOT NULL DEFAULT now(),
-  avatar_key            text
+  avatar_key            text                                     -- profile picture: object key in the files bucket (SPEC 4.8, 6.1); NULL = none
 );
 
 -- =====================================================================

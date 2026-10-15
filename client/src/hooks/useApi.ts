@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, toApiError } from '@/api/client';
+import { useChangeSignal } from '@/context/UnreadContext';
 import { isStale } from '@/utils/revalidate';
 
 export type ApiResource<T> =
@@ -16,6 +17,8 @@ export type ApiResource<T> =
  * Near-live data: when the tab becomes visible or the window regains focus and the data is older than
  * `STALE_AFTER_MS`, it is refetched quietly. The screen keeps the old data meanwhile, and a failed quiet
  * refresh keeps it too (only a manual `reload` or a `deps` change can show the error state).
+ * A new unread notification (found by the badge poll) refreshes the same way, because it means staff or the
+ * system just changed something for this user.
  * Pass `{ revalidateOnFocus: false }` for a screen that holds an unsaved form over its data.
  */
 export function useApi<T>(
@@ -73,6 +76,16 @@ export function useApi<T>(
   }, [tick]);
 
   const reload = useCallback(() => setTick((value) => value + 1), []);
+
+  const changeSignal = useChangeSignal();
+  const seenSignal = useRef(changeSignal);
+  useEffect(() => {
+    if (changeSignal === seenSignal.current) return;
+    seenSignal.current = changeSignal;
+    if (!revalidateOnFocus) return;
+    quietRefresh.current = true;
+    setTick((value) => value + 1);
+  }, [changeSignal, revalidateOnFocus]);
 
   useEffect(() => {
     if (!revalidateOnFocus) return;

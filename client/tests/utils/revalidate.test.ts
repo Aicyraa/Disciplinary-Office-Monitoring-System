@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { isStale, shouldPoll, STALE_AFTER_MS } from '@/utils/revalidate';
+import { hasNewNotifications, isStale, shouldPoll, STALE_AFTER_MS } from '@/utils/revalidate';
 
 describe('isStale', () => {
   test('never loaded: not stale (the first load is already in flight)', () => {
@@ -14,6 +14,18 @@ describe('isStale', () => {
   test('the threshold can be overridden', () => {
     expect(isStale(0, 5_000, 5_000)).toBe(true);
     expect(isStale(0, 4_999, 5_000)).toBe(false);
+  });
+});
+
+describe('hasNewNotifications', () => {
+  test('the first poll has nothing to compare with', () => {
+    expect(hasNewNotifications(null, 5)).toBe(false);
+  });
+
+  test('only a higher count is a change', () => {
+    expect(hasNewNotifications(2, 3)).toBe(true);
+    expect(hasNewNotifications(2, 2)).toBe(false);
+    expect(hasNewNotifications(3, 1)).toBe(false);
   });
 });
 

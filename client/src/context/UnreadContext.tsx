@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AccountRole } from '@shared/types';
 import { notificationsApi } from '@/api/notifications';
-import { BADGE_POLL_MS, shouldPoll } from '@/utils/revalidate';
+import { BADGE_POLL_MS, hasNewNotifications, shouldPoll } from '@/utils/revalidate';
 
 const TOAST_MS = 7_000;
 
@@ -10,6 +10,8 @@ interface UnreadContextValue {
   /** Replace the count (an action already returned the new value). */
   setUnreadCount(count: number): void;
   refresh(): void;
+  /** Goes up by one each time a poll finds new notifications; data hooks use it to refresh quietly. */
+  changeSignal: number;
   /** "You have N unread" toast, shown once after sign-in. Null when there is nothing to show. */
   toast: string | null;
   dismissToast(): void;
@@ -30,11 +32,15 @@ export function badgeText(count: number): string | null {
 export function UnreadProvider({ role, children }: { role: AccountRole; children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  const [changeSignal, setChangeSignal] = useState(0);
   const announced = useRef(false);
+  const lastCount = useRef<number | null>(null);
 
   const refresh = useCallback(() => {
     notificationsApi.notifications(role, { limit: 1 }).then(
       ({ unreadCount: count }) => {
+        if (hasNewNotifications(lastCount.current, count)) setChangeSignal((value) => value + 1);
+        lastCount.current = count;
         setUnreadCount(count);
         // The "you have N unread" toast is shown once per sign-in, on the first load.
         if (!announced.current) {
@@ -70,10 +76,15 @@ export function UnreadProvider({ role, children }: { role: AccountRole; children
   }, [toast]);
 
   const value = useMemo<UnreadContextValue>(
-    () => ({ unreadCount, setUnreadCount, refresh, toast, dismissToast: () => setToast(null) }),
-    [unreadCount, refresh, toast],
+    () => ({ unreadCount, setUnreadCount, refresh, changeSignal, toast, dismissToast: () => setToast(null) }),
+    [unreadCount, refresh, changeSignal, toast],
   );
   return <UnreadContext.Provider value={value}>{children}</UnreadContext.Provider>;
+}
+
+/** The change signal for data hooks; 0 and never changing outside a provider (public pages, tests). */
+export function useChangeSignal(): number {
+  return useContext(UnreadContext)?.changeSignal ?? 0;
 }
 
 export function useUnread(): UnreadContextValue {

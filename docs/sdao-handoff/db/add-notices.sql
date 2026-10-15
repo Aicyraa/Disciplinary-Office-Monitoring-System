@@ -13,7 +13,8 @@ ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check CHECK (kind IN
 CREATE TABLE IF NOT EXISTS notices (
   notice_id               integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   title                   text NOT NULL,
-  message                 text NOT NULL,
+  message                 text NOT NULL,+
+  *99
   instructions            text,
   expires_on              date,
   created_by_employee_id  varchar(20) NOT NULL REFERENCES employee_accounts(employee_id),
