@@ -1,7 +1,8 @@
 import { createPortal } from 'react-dom';
 import type { ClearanceSlipView } from '@shared/types';
 import { FormModal } from '@/components/feedback';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { meApi } from '@/api/me';
@@ -76,10 +77,7 @@ export function ClearanceSlipModal({ academicYear, semester, onClose }: { academ
         }
       >
         {slip.status === 'loading' ? (
-          <p role="status" className="flex items-center justify-center gap-2 py-10 text-[13px] text-muted">
-            <Spinner />
-            Preparing your slip…
-          </p>
+          <SkeletonPanel label="Preparing your slip…" lines={5} className="border-0 p-0" />
         ) : null}
         {slip.status === 'error' ? <PageError page="your clearance slip" detail={slip.error.message} onRetry={slip.reload} /> : null}
         {slip.status === 'ready' ? <SlipDocument slip={slip.data.slip} /> : null}

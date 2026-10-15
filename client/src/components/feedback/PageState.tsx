@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, buttonVariants } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/utils/cn';
 
 /** The four page states of the deck (W86 to W89, src 386 to 422), with the source's exact words. */
@@ -15,22 +16,21 @@ function Spinner({ className }: { className?: string }) {
   );
 }
 
-/** Spinner line plus grey blocks shaped like a page: three tiles, then two panels. */
+/** Grey blocks shaped like a page: three tiles, then two panels. The label is for screen readers only. */
 export function PageLoading({ page }: { page: string }) {
   return (
     <section aria-busy="true" aria-label={`${page} loading`} className="flex flex-col gap-4">
-      <div role="status" className="flex items-center gap-2.5 text-sm text-muted">
-        <Spinner />
+      <span role="status" className="sr-only">
         Loading {page}…
-      </div>
+      </span>
       <div aria-hidden="true" className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-5">
-        <div className="h-24 rounded-xl bg-skeleton" />
-        <div className="h-24 rounded-xl bg-skeleton" />
-        <div className="h-24 rounded-xl bg-skeleton" />
+        <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-24 rounded-xl" />
       </div>
       <div aria-hidden="true" className="flex flex-wrap gap-4">
-        <div className="h-80 flex-[1_1_380px] rounded-xl bg-skeleton" />
-        <div className="h-80 flex-[1_1_300px] rounded-xl bg-skeleton" />
+        <Skeleton className="h-80 flex-[1_1_380px] rounded-xl" />
+        <Skeleton className="h-80 flex-[1_1_300px] rounded-xl" />
       </div>
     </section>
   );

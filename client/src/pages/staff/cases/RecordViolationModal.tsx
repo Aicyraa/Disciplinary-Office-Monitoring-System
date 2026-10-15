@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormModal, useToast } from '@/components/feedback';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
@@ -100,10 +101,7 @@ export function RecordViolationModal({ onClose }: { onClose: () => void }) {
             Violation <span className="font-normal text-muted">(from the handbook)</span>
           </p>
           {handbook.status === 'loading' ? (
-            <p role="status" className="flex items-center gap-2 rounded-lg border border-line-strong px-3 py-6 text-[13px] text-muted">
-              <Spinner />
-              Loading the handbook…
-            </p>
+            <SkeletonPanel label="Loading the handbook…" lines={2} className="border-0 p-0" />
           ) : null}
           {handbook.status === 'error' ? <PageError page="the handbook" detail={handbook.error.message} onRetry={handbook.reload} /> : null}
           {handbook.status === 'ready' && counts ? (

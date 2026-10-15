@@ -4,6 +4,7 @@ import type { NotificationView } from '@shared/types';
 import { useToast } from '@/components/feedback';
 import { MessageDialog } from '@/components/feedback/MessageDialog';
 import { PageError, Spinner } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { Chip } from '@/components/ui/Chip';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
@@ -148,10 +149,7 @@ export function InboxPage() {
 
         <div className="min-h-0 flex-1">
           {resource.status === 'loading' ? (
-            <p role="status" className="flex items-center justify-center gap-2 px-6 py-12 text-[13px] text-muted">
-              <Spinner />
-              Loading messages…
-            </p>
+            <SkeletonList label="Loading messages…" />
           ) : null}
           {resource.status === 'error' ? <PageError page="the inbox" detail={resource.error.message} onRetry={resource.reload} /> : null}
           {resource.status === 'ready' && shown.rows.length === 0 ? (

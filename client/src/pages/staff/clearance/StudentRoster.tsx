@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { TermRef } from '@shared/types';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { ListCard } from '@/components/ui/ListCard';
 import { Pager } from '@/components/ui/Pager';
 import { clearanceApi } from '@/api/clearance';
@@ -42,10 +43,7 @@ export function StudentRoster({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {roster.status === 'loading' ? (
-          <p role="status" className="flex items-center justify-center gap-2 px-6 py-10 text-[13px] text-muted">
-            <Spinner />
-            Loading students…
-          </p>
+          <SkeletonList label="Loading students…" />
         ) : null}
         {roster.status === 'error' ? <PageError page="the students" detail={roster.error.message} onRetry={roster.reload} /> : null}
         {roster.status === 'ready' && roster.data.students.length === 0 ? (

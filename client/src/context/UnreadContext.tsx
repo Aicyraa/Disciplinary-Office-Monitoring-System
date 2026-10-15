@@ -1,9 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AccountRole } from '@shared/types';
 import { notificationsApi } from '@/api/notifications';
+import { BADGE_POLL_MS, shouldPoll } from '@/utils/revalidate';
 
-/** How often the badge refreshes while the app is open. */
-const POLL_MS = 60_000;
 const TOAST_MS = 7_000;
 
 interface UnreadContextValue {
@@ -50,8 +49,18 @@ export function UnreadProvider({ role, children }: { role: AccountRole; children
 
   useEffect(() => {
     refresh();
-    const timer = setInterval(refresh, POLL_MS);
-    return () => clearInterval(timer);
+    // Poll only while the tab is visible; coming back to the tab refreshes at once.
+    const refreshIfVisible = () => {
+      if (shouldPoll(document.visibilityState)) refresh();
+    };
+    const timer = setInterval(refreshIfVisible, BADGE_POLL_MS);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    window.addEventListener('focus', refreshIfVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+      window.removeEventListener('focus', refreshIfVisible);
+    };
   }, [refresh]);
 
   useEffect(() => {

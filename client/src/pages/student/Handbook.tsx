@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import type { SanctionTemplateView } from '@shared/types';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ClassTiles } from '@/components/student/ClassTiles';
 import { handbookApi } from '@/api/handbook';
@@ -37,10 +38,7 @@ export function StudentHandbookPage() {
 
   if (handbook.status === 'loading') {
     return (
-      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-        <Spinner />
-        Loading the handbook…
-      </p>
+      <SkeletonList label="Loading the handbook…" className="px-0" />
     );
   }
   if (handbook.status === 'error') return <PageError page="the Student Handbook" detail={handbook.error.message} onRetry={handbook.reload} />;

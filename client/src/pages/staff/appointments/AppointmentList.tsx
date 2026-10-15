@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { AppointmentStatus } from '@shared/types';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { ListHeader } from '@/components/layout/ListHeader';
 import { StatusPill } from '@/components/ui';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
@@ -177,10 +178,7 @@ export function AppointmentList({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {resource.status === 'loading' ? (
-          <p role="status" className="flex items-center justify-center gap-2 px-6 py-10 text-[13px] text-muted">
-            <Spinner />
-            Loading appointments…
-          </p>
+          <SkeletonList label="Loading appointments…" />
         ) : null}
         {resource.status === 'error' ? <PageError page="the appointments" detail={resource.error.message} onRetry={resource.reload} /> : null}
         {resource.status === 'ready' && resource.data.appointments.length === 0 ? (

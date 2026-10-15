@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
@@ -25,10 +26,7 @@ export function StaffClearancePage() {
 
   if (terms.status === 'loading') {
     return (
-      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-        <Spinner />
-        Loading terms…
-      </p>
+      <SkeletonList label="Loading terms…" className="px-0" />
     );
   }
   if (terms.status === 'error') return <PageError page="Clearance" detail={terms.error.message} onRetry={terms.reload} />;

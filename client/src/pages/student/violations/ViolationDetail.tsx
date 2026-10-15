@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StudentCaseDetailView } from '@shared/types';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { StatusPill } from '@/components/ui';
 import { buttonVariants } from '@/components/ui/Button';
 import { DetailTable, type DetailRow } from '@/components/ui/DetailTable';
@@ -58,10 +59,7 @@ export function ViolationDetail({ caseId }: { caseId: number }) {
 
   if (resource.status === 'loading') {
     return (
-      <div role="status" className="flex min-h-40 items-center justify-center gap-2 rounded-xl border border-line bg-white text-[13px] text-muted">
-        <Spinner />
-        Loading violation…
-      </div>
+      <SkeletonPanel label="Loading violation…" />
     );
   }
   if (resource.status === 'error') {

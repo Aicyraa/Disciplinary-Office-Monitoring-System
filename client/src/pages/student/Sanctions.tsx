@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import type { Severity } from '@shared/types';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ClassTiles } from '@/components/student/ClassTiles';
 import { ChipGroup } from '@/components/ui/ChipGroup';
@@ -32,10 +33,7 @@ export function SanctionsPage() {
 
   if (sanctions.status === 'loading') {
     return (
-      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-        <Spinner />
-        Loading your sanctions…
-      </p>
+      <SkeletonList label="Loading your sanctions…" className="px-0" />
     );
   }
   if (sanctions.status === 'error') return <PageError page="My sanctions" detail={sanctions.error.message} onRetry={sanctions.reload} />;

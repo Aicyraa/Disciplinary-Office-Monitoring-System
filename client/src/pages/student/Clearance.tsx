@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ClearanceTermView } from '@shared/types';
 import { ProgressBar } from '@/components/dashboard/DashboardCards';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { Icon } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { ChipGroup } from '@/components/ui/ChipGroup';
@@ -39,10 +40,7 @@ export function ClearancePage() {
 
   if (resource.status === 'loading' && terms.length === 0) {
     return (
-      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-        <Spinner />
-        Loading your clearance…
-      </p>
+      <SkeletonList label="Loading your clearance…" className="px-0" />
     );
   }
   if (resource.status === 'error') return <PageError page="Clearance" detail={resource.error.message} onRetry={resource.reload} />;

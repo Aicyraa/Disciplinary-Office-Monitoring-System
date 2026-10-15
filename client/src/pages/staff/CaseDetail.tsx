@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { StaffCaseDetail } from '@shared/types';
 import { ConfirmModal, useToast } from '@/components/feedback';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { StatusPill } from '@/components/ui';
 import { DetailTable, type DetailRow } from '@/components/ui/DetailTable';
 import { HistoryList } from '@/components/ui/HistoryList';
@@ -91,10 +92,7 @@ export function CaseWorkspace({ caseId, onChanged }: { caseId: number; onChanged
 
   if (resource.status === 'loading') {
     return (
-      <div role="status" className="flex min-h-40 items-center justify-center gap-2 rounded-xl border border-line bg-white text-[13px] text-muted">
-        <Spinner />
-        Loading case…
-      </div>
+      <SkeletonPanel label="Loading case…" />
     );
   }
   if (resource.status === 'error') {

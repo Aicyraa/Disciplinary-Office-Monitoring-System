@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { StaffStudentRecord } from '@shared/types';
 import { ConfirmModal } from '@/components/feedback';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -133,10 +134,7 @@ export function StudentRecordPane({ studentId }: { studentId: string }) {
 
   if (record.status === 'loading') {
     return (
-      <div role="status" className="flex min-h-40 items-center justify-center gap-2 rounded-xl border border-line bg-white text-[13px] text-muted">
-        <Spinner />
-        Loading the record…
-      </div>
+      <SkeletonPanel label="Loading the record…" />
     );
   }
   if (record.status === 'error') {

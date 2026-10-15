@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { ClearanceRosterRow, TermRef } from '@shared/types';
 import { useToast } from '@/components/feedback';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { HistoryList } from '@/components/ui/HistoryList';
@@ -31,10 +32,7 @@ export function ClearancePane({ studentId, term, onChanged }: { studentId: strin
 
   if (row.status === 'loading' || (clearanceId !== null && detail.status === 'loading')) {
     return (
-      <div role="status" className="flex min-h-40 items-center justify-center gap-2 rounded-xl border border-line bg-white text-[13px] text-muted">
-        <Spinner />
-        Loading clearance…
-      </div>
+      <SkeletonPanel label="Loading clearance…" />
     );
   }
   if (row.status === 'error' || detail.status === 'error') {

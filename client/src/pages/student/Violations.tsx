@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import type { Severity, StudentCaseView } from '@shared/types';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ClassTiles } from '@/components/student/ClassTiles';
 import { ChipGroup } from '@/components/ui/ChipGroup';
@@ -45,10 +46,7 @@ export function ViolationsPage() {
 
   if (resource.status === 'loading') {
     return (
-      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-        <Spinner />
-        Loading your violations…
-      </p>
+      <SkeletonList label="Loading your violations…" className="px-0" />
     );
   }
   if (resource.status === 'error') return <PageError page="My violations" detail={resource.error.message} onRetry={resource.reload} />;

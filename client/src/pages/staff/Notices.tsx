@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { NoticeView } from '@shared/types';
 import { ConfirmModal, useToast } from '@/components/feedback';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ListHeader } from '@/components/layout/ListHeader';
 import { usePageAction } from '@/components/layout/PageAction';
@@ -83,10 +84,7 @@ export function NoticesPage() {
 
   if (resource.status === 'loading') {
     return (
-      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-        <Spinner />
-        Loading notices…
-      </p>
+      <SkeletonList label="Loading notices…" className="px-0" />
     );
   }
   if (resource.status === 'error') return <PageError page="Notices" detail={resource.error.message} onRetry={resource.reload} />;

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toApiError } from '@/api/client';
 import { gateApi } from '@/api/gate';
 import { Alert } from '@/components/ui/Alert';
-import { Spinner } from '@/components/feedback/PageState';
+import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { waitBeforeSubmit, type GateCategory, type GateFormValues, type GateViolation } from '@/utils/gateForm';
 import type { DetailsErrors } from '@/validators/gateForm';
 import { DetailsStep } from './gate/DetailsStep';
@@ -158,10 +158,7 @@ export default function GateReportPage() {
   if (!options) {
     return (
       <GateColumn>
-        <p role="status" className="flex items-center justify-center gap-2 py-10 text-[13px] text-muted">
-          <Spinner />
-          Opening the form…
-        </p>
+        <SkeletonPanel label="Opening the form…" lines={5} className="border-0 p-0" />
       </GateColumn>
     );
   }

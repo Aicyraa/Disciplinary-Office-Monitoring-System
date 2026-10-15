@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { StaffCaseDetail } from '@shared/types';
 import { ConfirmModal } from '@/components/feedback';
-import { Spinner } from '@/components/feedback/PageState';
+import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
@@ -60,10 +60,7 @@ export function DecideFooter({ detail, done, allowResolve = true }: { detail: St
           </div>
         </header>
         {options.status === 'loading' ? (
-          <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-            <Spinner />
-            Loading the handbook options…
-          </p>
+          <SkeletonPanel label="Loading the handbook options…" lines={2} className="border-0 p-0" />
         ) : null}
         {options.status === 'error' ? <p className="text-[13px] text-danger">{options.error.message}</p> : null}
         {options.status === 'ready' ? (

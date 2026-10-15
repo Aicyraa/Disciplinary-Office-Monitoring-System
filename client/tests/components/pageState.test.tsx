@@ -6,11 +6,12 @@ import { NudgeCard, PageEmpty, PageError, PageLoading, PageNoAccess } from '@/co
 const inRouter = (node: React.ReactNode) => renderToStaticMarkup(<MemoryRouter>{node}</MemoryRouter>);
 
 describe('page states (deck W86 to W89, src 386 to 422)', () => {
-  test('loading: spinner, "Loading {Page}…" and grey placeholder blocks', () => {
+  test('loading: screen-reader "Loading {Page}…" and pulsing grey placeholder blocks', () => {
     const html = renderToStaticMarkup(<PageLoading page="Dashboard" />);
     expect(html).toContain('aria-busy="true"');
     expect(html).toContain('Loading Dashboard…');
-    expect(html).toContain('animate-spin');
+    expect(html).not.toContain('animate-spin');
+    expect(html).toContain('animate-pulse');
     expect(html.match(/bg-skeleton/g)).toHaveLength(5);
   });
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { StaffAppointmentView } from '@shared/types';
 import { ConfirmModal, useToast } from '@/components/feedback';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { DetailTable } from '@/components/ui/DetailTable';
@@ -34,10 +35,7 @@ export function AppointmentPane({
 
   if (resource.status === 'loading') {
     return (
-      <div role="status" className="flex min-h-40 items-center justify-center gap-2 rounded-xl border border-line bg-white text-[13px] text-muted">
-        <Spinner />
-        Loading appointment…
-      </div>
+      <SkeletonPanel label="Loading appointment…" />
     );
   }
   if (resource.status === 'error') {

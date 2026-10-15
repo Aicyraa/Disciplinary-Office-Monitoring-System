@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { handbookApi } from '@/api/handbook';
@@ -19,10 +20,7 @@ export function SanctionTemplatesPage() {
 
   if (templates.status === 'loading' || handbook.status === 'loading') {
     return (
-      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-        <Spinner />
-        Loading sanction templates…
-      </p>
+      <SkeletonList label="Loading sanction templates…" className="px-0" />
     );
   }
   if (templates.status === 'error') return <PageError page="Sanction templates" detail={templates.error.message} onRetry={templates.reload} />;

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { StudentAppointmentView } from '@shared/types';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { StatusPill } from '@/components/ui';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
@@ -69,10 +70,7 @@ export function AppointmentsPage() {
 
   if (resource.status === 'loading') {
     return (
-      <p role="status" className="flex items-center gap-2 text-[13px] text-muted">
-        <Spinner />
-        Loading your appointments…
-      </p>
+      <SkeletonList label="Loading your appointments…" className="px-0" />
     );
   }
   if (resource.status === 'error') return <PageError page="Appointments" detail={resource.error.message} onRetry={resource.reload} />;

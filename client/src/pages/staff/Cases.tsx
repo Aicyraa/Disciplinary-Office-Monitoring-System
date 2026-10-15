@@ -4,7 +4,8 @@ import type { Severity } from '@shared/types';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ListHeader } from '@/components/layout/ListHeader';
 import { usePageAction } from '@/components/layout/PageAction';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { StatusPill } from '@/components/ui';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
@@ -155,10 +156,7 @@ function CaseQueue({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {resource.status === 'loading' ? (
-          <p role="status" className="flex items-center justify-center gap-2 px-6 py-10 text-[13px] text-muted">
-            <Spinner />
-            Loading cases…
-          </p>
+          <SkeletonList label="Loading cases…" />
         ) : null}
         {resource.status === 'error' ? <PageError page="the cases" detail={resource.error.message} onRetry={resource.reload} /> : null}
         {resource.status === 'ready' && resource.data.cases.length === 0 ? (

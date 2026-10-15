@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StaffStudentRow } from '@shared/types';
-import { PageError, Spinner } from '@/components/feedback/PageState';
+import { PageError } from '@/components/feedback/PageState';
+import { SkeletonList } from '@/components/feedback/Skeleton';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { controlVariants } from '@/components/ui/FieldShell';
 import { Icon } from '@/components/ui/Icon';
@@ -73,10 +74,7 @@ export function StudentList({ selectedId, onFirstRow }: { selectedId: string | n
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {list.status === 'loading' ? (
-          <p role="status" className="flex items-center justify-center gap-2 px-5 py-8 text-[13px] text-muted">
-            <Spinner />
-            Loading students…
-          </p>
+          <SkeletonList label="Loading students…" />
         ) : null}
         {list.status === 'error' ? <PageError page="the students" detail={list.error.message} onRetry={list.reload} /> : null}
         {list.status === 'ready' && rows.length === 0 ? <p className="px-5 py-8 text-center text-[13px] text-muted">No student matches.</p> : null}
