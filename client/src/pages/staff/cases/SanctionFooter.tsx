@@ -6,7 +6,7 @@ import { Icon } from '@/components/ui/Icon';
 import { toApiError } from '@/api/client';
 import { casesApi } from '@/api/cases';
 import { availableActions } from '@/utils/caseWorkspace';
-import { DecideFooter } from './DecideFooter';
+import { AssignSanctionModal } from './AssignSanctionModal';
 
 const msg = (error: unknown): string => toApiError(error).message;
 
@@ -41,17 +41,12 @@ export function SanctionFooter({ detail, done }: { detail: StaffCaseDetail; done
         >
           Resolve case
         </Button>
+        <Button variant="secondary" size="lg" className="flex-[1_1_180px]" onClick={() => setAssigning(true)}>
+          <Icon name="add" className="!text-lg" />
+          Assign another sanction
+        </Button>
       </div>
-      <button
-        type="button"
-        onClick={() => setAssigning((value) => !value)}
-        aria-expanded={assigning}
-        className="inline-flex min-h-11 items-center gap-1.5 self-center rounded-full px-3.5 text-[13px] font-semibold text-primary outline-none hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25 rail:min-h-9"
-      >
-        <Icon name={assigning ? 'expand_less' : 'add'} className="!text-lg" />
-        Assign another sanction
-      </button>
-      {assigning ? <DecideFooter detail={detail} done={done} allowResolve={false} /> : null}
+      {assigning ? <AssignSanctionModal detail={detail} onClose={() => setAssigning(false)} done={(toast) => { setAssigning(false); done(toast); }} /> : null}
       <ConfirmModal
         open={resolving}
         tone="ok"

@@ -197,13 +197,13 @@ function CaseQueue({
                         </span>
                       </span>
                       <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                        <span className="min-w-0 truncate text-xs text-muted">{view.line3}</span>
                         <StatusPill status={row.severity} />
                         {view.tag ? <Tag className="shrink-0">{view.tag}</Tag> : null}
                         {view.unmatched ? <Tag className="shrink-0 bg-bad-soft text-bad-ink">No matching record</Tag> : null}
-                        <span className="truncate text-xs text-muted">{view.line3}</span>
                       </span>
                     </span>
-                    <span className="mt-0.5 shrink-0 self-start">
+                    <span className="shrink-0">
                       <StatusPill status={row.status} kind="case" />
                     </span>
                   </Link>

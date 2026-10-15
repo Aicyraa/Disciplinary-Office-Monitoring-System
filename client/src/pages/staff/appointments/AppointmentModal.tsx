@@ -131,7 +131,7 @@ export function AppointmentModal({
       }
       busy={saving}
       onClose={onClose}
-      maxWidth={reviewing ? 'max-w-[640px]' : 'max-w-[960px]'}
+      maxWidth={reviewing ? 'max-w-[640px]' : 'max-w-[880px]'}
       footer={
         reviewing ? (
           <>
@@ -170,7 +170,7 @@ export function AppointmentModal({
           <p className="text-[13px] text-pretty text-muted">{student ? reviewNote(kind, student.name) : null}</p>
         </div>
       ) : (
-        <div className="grid gap-6 min-[860px]:grid-cols-2 min-[860px]:gap-x-8">
+        <div className="grid gap-6 min-[860px]:grid-cols-[minmax(0,1fr)_340px] min-[860px]:gap-x-8">
           <div className="flex flex-col gap-5">
           <p className="-mb-3 text-[11px] font-bold tracking-[0.08em] text-muted uppercase">1 · Student</p>
           {editing && student ? (
@@ -234,11 +234,12 @@ export function AppointmentModal({
                 {errors.date}
               </p>
             ) : null}
-            {startDate && !startDateError(startDate, today) ? (
-              <p className="mt-1.5 text-xs text-muted">
-                The student can visit any day from {dayRange(startDate, appointmentEndDate(startDate) ?? startDate)}, 7:00 AM to 5:00 PM.
-              </p>
-            ) : null}
+            {/* Always two lines tall, so picking a date never changes the dialog's height. */}
+            <p className="mt-1.5 min-h-[2lh] text-xs text-muted">
+              {startDate && !startDateError(startDate, today)
+                ? `The student can visit any day from ${dayRange(startDate, appointmentEndDate(startDate) ?? startDate)}, 7:00 AM to 5:00 PM.`
+                : null}
+            </p>
           </div>
           {errors.overlap ? (
             <p role="alert" className="flex items-center gap-2.5 rounded-[10px] bg-danger-soft px-3.5 py-3 text-[13px] text-pretty text-danger-ink">
