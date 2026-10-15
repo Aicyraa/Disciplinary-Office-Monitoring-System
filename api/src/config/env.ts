@@ -38,6 +38,14 @@ export function flowUrlsFromEnv(env: Env = process.env): { notify?: string; gate
   };
 }
 
+/**
+ * PA_JOB_KEY: the key Power Automate sends in `X-SDO-Job-Key` to run scheduled jobs (the term clearance set-up).
+ * Server only; never give it a VITE_ prefix.
+ */
+export function jobKeyFromEnv(env: Env = process.env): string | undefined {
+  return env.PA_JOB_KEY || undefined;
+}
+
 export interface S3Env {
   region: string | undefined;
   endpoint: string | undefined;

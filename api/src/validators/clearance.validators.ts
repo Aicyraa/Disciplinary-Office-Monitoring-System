@@ -22,6 +22,19 @@ export function parseRosterRequest(
   return valid({ term: { academicYear: Number(year), semester: Number(semester) }, q: q.value, page: page.value });
 }
 
+/**
+ * The term set-up body: both `academicYear` and `semester`, or neither (null: use the current term). The values
+ * themselves are checked by the service (`checkTerm`), like the manual set-up.
+ */
+export function parseTermSetupBody(body: unknown): Validated<{ academicYear: unknown; semester: unknown } | null> {
+  const { academicYear, semester } = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
+  if (academicYear === undefined && semester === undefined) return valid(null);
+  if (academicYear === undefined || semester === undefined) {
+    return invalid('Send both academicYear and semester, or neither for the current term.');
+  }
+  return valid({ academicYear, semester });
+}
+
 export function parseClearanceListQuery(
   query: Record<string, unknown>,
 ): Validated<{ status: 'pending' | 'cleared' | undefined; q: string | undefined; page: number }> {

@@ -395,6 +395,9 @@ export type TermRef = { academicYear: number; semester: number };
 /** `GET /clearances/terms` (UI-POLISH-SPEC D3): the current term and every term that has clearances. */
 export type ClearanceTermsResponse = { current: TermRef; terms: TermRef[] };
 
+/** `POST /internal/clearances/term-setup` (Power Automate, first day of a term). `skipped` already had one. */
+export type ClearanceTermSetupResponse = { term: TermRef; activeStudents: number; created: number; skipped: number };
+
 /** One student of a term on the staff Clearance list; `clearance` is null while it is not set up ("Not set"). */
 export type ClearanceRosterRow = {
   studentId: string;

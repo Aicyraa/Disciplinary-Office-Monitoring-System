@@ -87,6 +87,33 @@ function createTx(db: Prisma.TransactionClient): ClearanceTx {
       const row = await db.requirements.create({ data: { requirement_label: label, is_default: false } });
       return toRequirement(row);
     },
+    async employeeExists(employeeId) {
+      return (await db.employee_accounts.findUnique({ where: { employee_id: employeeId }, select: { employee_id: true } })) !== null;
+    },
+    async setUpTermForActiveStudents({ academicYear, semester, employeeId, remarks, date }) {
+      // One statement: a data-modifying CTE always runs once, even when the final SELECT does not read it.
+      const [row] = await db.$queryRaw<Array<{ active_students: number; created: number }>>`
+        WITH active AS (
+          SELECT student_id FROM student_accounts WHERE is_active
+        ), new_clearances AS (
+          INSERT INTO clearances (student_id, employee_id, academic_year, semester, status)
+          SELECT student_id, ${employeeId}::varchar, ${academicYear}::smallint, ${semester}::smallint, 'pending'
+          FROM active
+          ON CONFLICT (student_id, academic_year, semester) DO NOTHING
+          RETURNING clearance_id
+        ), items AS (
+          INSERT INTO clearance_requirements (clearance_id, requirement_id)
+          SELECT n.clearance_id, r.requirement_id
+          FROM new_clearances n CROSS JOIN requirements r
+          WHERE r.is_default
+        ), history AS (
+          INSERT INTO clearance_history (clearance_id, requirement_id, event_type, remarks, employee_id, date_logged)
+          SELECT clearance_id, NULL, 'set_up', ${remarks}::text, ${employeeId}::varchar, ${date}::timestamptz
+          FROM new_clearances
+        )
+        SELECT (SELECT count(*) FROM active)::int AS active_students, (SELECT count(*) FROM new_clearances)::int AS created`;
+      return { activeStudents: Number(row.active_students), created: Number(row.created) };
+    },
     async insertClearance({ studentId, employeeId, academicYear, semester }) {
       const created = await db.clearances.create({
         data: { student_id: studentId, employee_id: employeeId, academic_year: academicYear, semester, status: 'pending' },

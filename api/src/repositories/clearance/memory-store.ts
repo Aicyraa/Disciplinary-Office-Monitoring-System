@@ -9,7 +9,10 @@ import type {
 } from './types.js';
 
 export interface MemoryClearanceState {
+  /** The active students. */
   students: string[];
+  /** Employee ids that exist (the term set-up checks for the SYSTEM account). */
+  employees: string[];
   requirements: RequirementRecord[];
   clearances: ClearanceRecord[];
   history: ClearanceHistoryInput[];
@@ -40,6 +43,7 @@ export function createMemoryClearanceStore(seed: Partial<MemoryClearanceState> =
   const store: MemoryClearanceStore = {
     state: {
       students: seed.students ?? [],
+      employees: seed.employees ?? [],
       requirements: seed.requirements ?? SEEDED_REQUIREMENTS.map((r) => ({ ...r })),
       clearances: seed.clearances ?? [],
       history: seed.history ?? [],
@@ -178,6 +182,36 @@ function createTx(state: MemoryClearanceState): ClearanceTx {
       state.nextRequirementId += 1;
       state.requirements.push(record);
       return { ...record };
+    },
+    async employeeExists(employeeId) {
+      return state.employees.includes(employeeId);
+    },
+    async setUpTermForActiveStudents({ academicYear, semester, employeeId, remarks, date }) {
+      const defaults = state.requirements.filter((r) => r.isDefault);
+      let created = 0;
+      for (const studentId of state.students) {
+        if (state.clearances.some((c) => c.studentId === studentId && c.academicYear === academicYear && c.semester === semester)) continue;
+        const clearanceId = state.nextClearanceId;
+        state.nextClearanceId += 1;
+        state.clearances.push({
+          clearanceId,
+          studentId,
+          academicYear,
+          semester,
+          status: 'pending',
+          items: defaults.map((r) => ({
+            requirementId: r.requirementId,
+            label: r.label,
+            status: 'pending',
+            remarks: null,
+            completedByEmployeeId: null,
+            dateCompleted: null,
+          })),
+        });
+        state.history.push({ clearanceId, requirementId: null, eventType: 'set_up', remarks, employeeId, date });
+        created += 1;
+      }
+      return { activeStudents: state.students.length, created };
     },
     async insertClearance({ studentId, academicYear, semester }) {
       if (state.clearances.some((c) => c.studentId === studentId && c.academicYear === academicYear && c.semester === semester)) {

@@ -7,7 +7,8 @@ export type ClearanceFailureCode =
   | 'invalid_input'
   | 'invalid_status'
   | 'clearance_exists'
-  | 'requirement_exists';
+  | 'requirement_exists'
+  | 'server_not_configured';
 
 export interface ClearanceFailure {
   ok: false;
@@ -54,6 +55,15 @@ export interface ClearanceService {
     academicYear: unknown;
     semester: unknown;
   }): Promise<ClearanceResult<{ clearanceId: number }>>;
+  /**
+   * The automatic term set-up (Power Automate, first day of a term): the standard checklist for every active
+   * student who has no clearance for the term yet. Safe to run again: existing clearances are skipped.
+   */
+  setUpTerm(input: {
+    employeeId: string;
+    academicYear: unknown;
+    semester: unknown;
+  }): Promise<ClearanceResult<{ activeStudents: number; created: number; skipped: number }>>;
   markDone(input: {
     employeeId: string;
     clearanceId: number;
@@ -140,6 +150,30 @@ export function createClearanceService({
           }),
         exists,
       );
+    },
+
+    async setUpTerm({ employeeId, academicYear, semester }) {
+      if (!checkTerm(academicYear, semester)) {
+        return fail('invalid_input', 'The school year must be four digits (for example 2026) and the semester 1 to 3.');
+      }
+      const year = academicYear as number;
+      const term = semester as number;
+      return store.transaction(async (tx) => {
+        if (!(await tx.employeeExists(employeeId))) {
+          return fail('server_not_configured', `The ${employeeId} employee account is missing. Add it from db/seed.sql before running the term set-up.`);
+        }
+        if ((await tx.listDefaultRequirements()).length === 0) {
+          return fail('invalid_status', 'There are no standard requirements to set up. Ask the administrator to check the seed data.');
+        }
+        const { activeStudents, created } = await tx.setUpTermForActiveStudents({
+          academicYear: year,
+          semester: term,
+          employeeId,
+          remarks: `Standard requirements set up automatically for ${termLabel(year, term)}.`,
+          date: now(),
+        });
+        return { ok: true as const, activeStudents, created, skipped: activeStudents - created };
+      });
     },
 
     async markDone({ employeeId, clearanceId, requirementId, remarks }) {

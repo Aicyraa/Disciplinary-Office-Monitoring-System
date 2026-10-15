@@ -5,6 +5,7 @@ import type { AppointmentService } from '../services/appointments.service.js';
 import type { CaseQueries } from '../repositories/cases/queries.js';
 import type { ClearanceQueries } from '../repositories/clearance/queries.js';
 import { createClearanceRouter } from './clearance.routes.js';
+import { createClearanceJobRouter } from './clearance-job.routes.js';
 import type { ClearanceService } from '../services/clearance.service.js';
 import { createCaseRouter } from './cases.routes.js';
 import type { CaseService } from '../services/cases.service.js';
@@ -53,6 +54,8 @@ export interface DataDeps {
     appointments?: { service: AppointmentService; queries: AppointmentQueries };
     /** Staff clearance workflow: the rules (service) and the read side (queries). */
     clearance?: { service: ClearanceService; queries: ClearanceQueries };
+    /** The automatic term set-up, called by Power Automate with `X-SDO-Job-Key` instead of a session. */
+    clearanceJob?: { service: ClearanceService; jobKey: () => string | undefined };
     /** Staff notices: broadcast, edit, remove (UI-POLISH-SPEC decision 1). */
     notices?: { service: NoticeService; store: NoticeStore; onPublished?: () => void };
     /** The in-app inbox: a student's own, and the single shared staff inbox. */
@@ -76,6 +79,7 @@ export function registerDataRoutes(app: Express, data: DataDeps, sessionSecret: 
   if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
   if (data.appointments) app.use(createAppointmentRouter({ ...data.appointments, now: data.now }));
   if (data.clearance) app.use(createClearanceRouter({ ...data.clearance, now: data.now }));
+  if (data.clearanceJob) app.use(createClearanceJobRouter({ ...data.clearanceJob, now: data.now }));
   if (data.notices) app.use(createNoticeRouter({ ...data.notices, now: data.now }));
   if (data.notifications) app.use(createNotificationsRouter({ store: data.notifications.inbox }));
 }

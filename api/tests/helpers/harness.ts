@@ -44,6 +44,7 @@ export interface HarnessOptions {
   sanctions?: { service: SanctionService };
   appointments?: { service: AppointmentService; queries: AppointmentQueries };
   clearance?: { service: ClearanceService; queries: ClearanceQueries };
+  clearanceJob?: { service: ClearanceService; jobKey: () => string | undefined };
   handbookAdmin?: { service: HandbookAdminService };
   gate?: { service: GateService; options: GateOptionsReader; limits?: GateLimits };
   templates?: { service: TemplateService; reader: TemplateReader };
@@ -96,6 +97,7 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
       sanctions: options.sanctions,
       appointments: options.appointments,
       clearance: options.clearance,
+      clearanceJob: options.clearanceJob,
       handbookAdmin: options.handbookAdmin,
       gate: options.gate,
       templates: options.templates,

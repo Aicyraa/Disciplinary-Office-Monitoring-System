@@ -15,7 +15,7 @@ import { createPrismaCaseQueries, createPrismaCaseStore } from './repositories/c
 import { createCaseService } from './services/cases.service.js';
 import { createPrismaHandbookRepo } from './repositories/handbook/prisma-repo.js';
 import { createSendToPowerAutomate } from './integrations/power-automate.js';
-import { flowUrlsFromEnv, readServerEnv, s3Configured } from './config/env.js';
+import { flowUrlsFromEnv, jobKeyFromEnv, readServerEnv, s3Configured } from './config/env.js';
 import { createPrismaStudentViewRepo } from './repositories/me/prisma-repo.js';
 import { withAfterCommit } from './services/notifications/after-commit.js';
 import { deliverPending, type RetryEntry } from './services/notifications/delivery.js';
@@ -113,6 +113,7 @@ export function buildApp(): Built {
   const caseStore = withAfterCommit(createPrismaCaseStore(prisma), scheduler.kick);
   const appointmentStore = withAfterCommit(createPrismaAppointmentStore(prisma), scheduler.kick);
   const clearanceStore = withAfterCommit(createPrismaClearanceStore(prisma), scheduler.kick);
+  const clearanceService = createClearanceService({ store: clearanceStore });
   const notificationWriter = createPrismaNotificationWriter(prisma);
   const noticeStore = createPrismaNoticeStore(prisma);
 
@@ -188,9 +189,10 @@ export function buildApp(): Built {
       },
       sanctions: { service: createSanctionService({ store: caseStore, storage }) },
       clearance: {
-        service: createClearanceService({ store: clearanceStore }),
+        service: clearanceService,
         queries: createPrismaClearanceQueries(prisma),
       },
+      clearanceJob: { service: clearanceService, jobKey: jobKeyFromEnv },
       appointments: {
         service: createAppointmentService({ store: appointmentStore }),
         queries: createPrismaAppointmentQueries(prisma),
