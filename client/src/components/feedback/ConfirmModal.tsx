@@ -89,7 +89,7 @@ export function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center bg-scrim rail:items-center rail:p-4"
+      className="fixed inset-0 z-[80] flex animate-fade-in items-end justify-center bg-scrim rail:items-center rail:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose();
       }}
@@ -100,7 +100,7 @@ export function ConfirmModal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? bodyId : undefined}
-        className="max-h-[92vh] w-full max-w-[460px] overflow-y-auto rounded-t-[18px] bg-white p-6 pb-[calc(20px+env(safe-area-inset-bottom))] shadow-[0_20px_50px_rgba(16,22,52,0.3)] rail:max-h-[calc(100vh-32px)] rail:rounded-[14px] rail:pb-6"
+        className="max-h-[92vh] w-full max-w-[460px] animate-sheet-in rail:animate-pop-in overflow-y-auto rounded-t-[18px] bg-white p-6 pb-[calc(20px+env(safe-area-inset-bottom))] shadow-[0_20px_50px_rgba(16,22,52,0.3)] rail:max-h-[calc(100vh-32px)] rail:rounded-[14px] rail:pb-6"
       >
         <form onSubmit={submit} noValidate className="flex flex-col gap-3.5">
           <div className="flex items-center gap-3">
@@ -137,7 +137,7 @@ export function ConfirmModal({
           ) : null}
 
           {error ? (
-            <p role="alert" className="flex items-center gap-2 rounded-lg border border-danger-line bg-danger-soft px-3.5 py-2.5 text-[13px] text-danger-ink">
+            <p role="alert" className="flex animate-shake items-center gap-2 rounded-lg border border-danger-line bg-danger-soft px-3.5 py-2.5 text-[13px] text-danger-ink">
               <Icon name="error" className="!text-xl" />
               {error}
             </p>

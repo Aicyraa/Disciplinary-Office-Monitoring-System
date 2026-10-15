@@ -7,7 +7,7 @@ export function StatusPill({ status, label, kind }: { status: string; label?: st
   const tone = pillTone(status);
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap"
+      className="inline-flex animate-fade-in items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap transition-colors duration-300"
       style={{ backgroundColor: tone.bg, color: tone.fg }}
     >
       {label ?? statusLabel(status, kind)}

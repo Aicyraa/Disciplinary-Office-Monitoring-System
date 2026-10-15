@@ -81,6 +81,99 @@
   /* Responsive modes: bottom tab bar under 720, icon rail 720-1100, full sidebar above. */
   --breakpoint-rail: 720px;
   --breakpoint-full: 1100px;
+
+  /* Motion: short, calm, ease-out. Reduced-motion users get none (see the media query below). */
+  --animate-fade-in: fade-in 160ms ease-out both;
+  --animate-pop-in: pop-in 200ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+  --animate-sheet-in: sheet-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-toast-in: toast-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1.05) both;
+  --animate-rise-in: rise-in 320ms ease-out both;
+  --animate-shake: shake 360ms ease-in-out both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes sheet-in {
+    from {
+      opacity: 0.6;
+      transform: translateY(40px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(16px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes shake {
+    20%,
+    60% {
+      transform: translateX(-4px);
+    }
+    40%,
+    80% {
+      transform: translateX(4px);
+    }
+  }
+}
+
+/* Lists and card grids: children rise in one after another (cap at 8 so long tables do not lag). */
+.stagger > * {
+  animation: rise-in 320ms ease-out both;
+}
+.stagger > :nth-child(2) { animation-delay: 40ms; }
+.stagger > :nth-child(3) { animation-delay: 80ms; }
+.stagger > :nth-child(4) { animation-delay: 120ms; }
+.stagger > :nth-child(5) { animation-delay: 160ms; }
+.stagger > :nth-child(6) { animation-delay: 200ms; }
+.stagger > :nth-child(7) { animation-delay: 240ms; }
+.stagger > :nth-child(n + 8) { animation-delay: 280ms; }
+
+/* Hover lift for clickable cards and stat tiles. */
+.lift {
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 22, 52, 0.1);
+}
+
+/* Page content fades up when the route changes (keyed on the pathname by the shell). */
+.page-enter {
+  animation: rise-in 280ms ease-out both;
 }
 
 html,
