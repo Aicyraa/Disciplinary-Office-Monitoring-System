@@ -70,12 +70,6 @@ export function ProofBlock({ detail, sanction, done, failed, onViewed }: {
           </span>
           <StatusPill status={sanction.status} kind="sanction" />
         </div>
-        {view.note ? (
-          <p className="flex items-start gap-2 border-b border-line-soft bg-warn-soft px-3.5 py-2.5 text-[13px] text-pretty text-amber-ink">
-            <Icon name="sticky_note_2" className="!text-lg" />
-            {view.note}
-          </p>
-        ) : null}
         {view.noFilesText ? (
           <p className="flex items-center justify-center gap-1.5 px-3.5 py-[18px] text-center text-[13px] text-muted">
             <Icon name="hourglass_top" className="!text-lg" />

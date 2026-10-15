@@ -60,15 +60,7 @@ function detailRows(detail: StaffCaseDetail): DetailRow[] {
     { label: 'Date reported', value: formatDate(detail.caseDate) },
     {
       label: 'Violation',
-      value: (
-        <>
-          {detail.violation}
-          <span className="mt-1 flex flex-wrap items-center gap-1.5">
-            <StatusPill status={detail.severity} />
-            <span className="text-[13px] text-muted">Sec. {detail.section}</span>
-          </span>
-        </>
-      ),
+      value: detail.violation,
     },
     { label: 'Stage', value: stageText(detail.status) },
   ];
