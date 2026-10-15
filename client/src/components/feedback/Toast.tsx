@@ -23,7 +23,7 @@ export function ToastView({ tone, message, onDismiss }: { tone: ToastTone; messa
     <div
       role={tone === 'error' ? 'alert' : 'status'}
       aria-live={tone === 'error' ? 'assertive' : 'polite'}
-      className="pointer-events-auto flex w-full items-center gap-2.5 rounded-[10px] bg-ink py-3 pr-2 pl-4 text-sm text-white shadow-[0_10px_30px_rgba(16,22,52,0.3)] rail:w-auto rail:max-w-[440px]"
+      className="pointer-events-auto flex w-full animate-toast-in items-center gap-2.5 rounded-[10px] bg-ink py-3 pr-2 pl-4 text-sm text-white shadow-[0_10px_30px_rgba(16,22,52,0.3)] rail:w-auto rail:max-w-[440px]"
     >
       <Icon name={icon} className={`!text-xl ${tone === 'error' ? 'text-toast-error' : 'text-gold'}`} />
       <span className="flex-1">{message}</span>

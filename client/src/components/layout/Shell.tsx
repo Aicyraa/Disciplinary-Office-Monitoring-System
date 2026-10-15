@@ -78,7 +78,7 @@ function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclud
         <Icon name="expand_more" className="!text-xl" />
       </button>
       {open ? (
-        <div role="menu" aria-label="Account" className="absolute top-12 right-0 z-[60] w-[248px] overflow-hidden rounded-xl border border-line bg-white text-body shadow-[0_16px_40px_rgba(16,22,52,0.18)]">
+        <div role="menu" aria-label="Account" className="absolute top-12 right-0 z-[60] w-[248px] origin-top-right animate-pop-in overflow-hidden rounded-xl border border-line bg-white text-body shadow-[0_16px_40px_rgba(16,22,52,0.18)]">
           <div className="border-b border-line-soft px-6 py-4">
             <p className="font-bold text-ink">
               {user.firstName} {user.lastName}
@@ -157,7 +157,7 @@ function PhoneBar({
         <span className="relative grid h-[30px] w-14 place-items-center rounded-full">
           <Icon name={icon} filled={active} className="!text-2xl" />
           {text !== null ? (
-            <span className="absolute -top-[3px] right-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-danger-strong px-[5px] text-[11px] font-bold text-white">
+            <span key={text} className="absolute -top-[3px] right-1.5 grid h-[18px] animate-pop-in min-w-[18px] place-items-center rounded-full border-2 border-white bg-danger-strong px-[5px] text-[11px] font-bold text-white">
               {text}
             </span>
           ) : null}
@@ -198,7 +198,7 @@ function FloatingAction({ hidden }: { hidden: boolean }) {
     <button
       type="button"
       onClick={action.onClick}
-      className="ui-zoom-phone fixed right-[calc(16px/var(--phone-zoom))] bottom-[calc(84px/var(--phone-zoom))] z-[45] inline-flex h-[52px] items-center gap-2 rounded-2xl bg-primary px-5 text-[15px] font-semibold whitespace-nowrap text-white shadow-[0_6px_18px_rgba(16,22,52,0.3)] outline-none active:bg-primary-press focus-visible:ring-[3px] focus-visible:ring-gold print:hidden rail:hidden"
+      className="ui-zoom-phone fixed right-[calc(16px/var(--phone-zoom))] bottom-[calc(84px/var(--phone-zoom))] z-[45] inline-flex h-[52px] animate-pop-in transition-transform active:scale-95 items-center gap-2 rounded-2xl bg-primary px-5 text-[15px] font-semibold whitespace-nowrap text-white shadow-[0_6px_18px_rgba(16,22,52,0.3)] outline-none active:bg-primary-press focus-visible:ring-[3px] focus-visible:ring-gold print:hidden rail:hidden"
     >
       <Icon name={action.icon} className="!text-2xl" />
       {action.label}
@@ -300,7 +300,10 @@ function ShellFrame({ user }: { user: AuthUser }) {
 
         <main className="ui-zoom w-full flex-1 p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
           <PhoneTitle user={user} onOpen={setDialog} />
-          <Outlet />
+          {/* Keyed on the first path segment only: list -> detail inside one page keeps its state and does not replay. */}
+          <div key={location.pathname.split('/')[1] ?? ''} className="page-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
 

@@ -30,7 +30,7 @@ export function Dialog({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-[82] flex items-end justify-center bg-scrim rail:items-center rail:p-4"
+      className="fixed inset-0 z-[82] flex animate-fade-in items-end justify-center bg-scrim rail:items-center rail:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose?.();
       }}
@@ -41,7 +41,7 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={labelledBy}
         className={cn(
-          'ui-zoom-phone flex max-h-[calc(92vh/var(--phone-zoom))] w-full flex-col rounded-t-[18px] bg-white shadow-[0_20px_50px_rgba(16,22,52,0.3)] rail:max-h-[calc(100vh-32px)] rail:rounded-[14px]',
+          'ui-zoom-phone flex animate-sheet-in rail:animate-pop-in max-h-[calc(92vh/var(--phone-zoom))] w-full flex-col rounded-t-[18px] bg-white shadow-[0_20px_50px_rgba(16,22,52,0.3)] rail:max-h-[calc(100vh-32px)] rail:rounded-[14px]',
           bare
             ? 'overflow-hidden'
             : 'gap-3.5 overflow-y-auto p-[22px] pb-[calc(20px+env(safe-area-inset-bottom))] rail:pb-6',
