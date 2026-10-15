@@ -34,26 +34,26 @@ export function StartDateCalendar({ value, today, invalid, onChange }: { value: 
   };
   const nav = (enabled: boolean) =>
     cn(
-      'grid size-9 place-items-center rounded-full text-white outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35',
+      'grid size-8 place-items-center rounded-full text-white outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35',
       enabled ? 'cursor-pointer bg-primary hover:bg-primary-hover' : 'cursor-not-allowed bg-line-strong',
     );
 
   return (
-    <div className={cn('rounded-xl border bg-white p-4', invalid ? 'border-danger-strong' : 'border-line-strong')}>
-      <div className="mb-2.5 flex items-center justify-between gap-2">
+    <div className={cn('rounded-xl border bg-white p-3', invalid ? 'border-danger-strong' : 'border-line-strong')}>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
         <button type="button" aria-label="Previous month" disabled={!view.canPrev} onClick={() => shift(-1)} className={nav(view.canPrev)}>
-          <Icon name="chevron_left" className="!text-[22px]" />
+          <Icon name="chevron_left" className="!text-xl" />
         </button>
         <p aria-live="polite" className="text-base font-bold text-ink">
           {view.title}
         </p>
         <button type="button" aria-label="Next month" disabled={!view.canNext} onClick={() => shift(1)} className={nav(view.canNext)}>
-          <Icon name="chevron_right" className="!text-[22px]" />
+          <Icon name="chevron_right" className="!text-xl" />
         </button>
       </div>
-      <div role="group" aria-label="Choose a start date" className="grid grid-cols-7 gap-1.5">
+      <div role="group" aria-label="Choose a start date" className="grid grid-cols-7 gap-1">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-          <div key={day} aria-hidden="true" className="pt-0.5 pb-1.5 text-center text-xs font-bold text-muted">
+          <div key={day} aria-hidden="true" className="pb-1 text-center text-[11px] font-bold text-muted">
             {day}
           </div>
         ))}
@@ -69,7 +69,7 @@ export function StartDateCalendar({ value, today, invalid, onChange }: { value: 
               aria-label={`${longLabel(cell.date)}${cell.kind === 'unavailable' ? ', unavailable' : ''}`}
               onClick={() => onChange(cell.date)}
               className={cn(
-                'aspect-square min-w-0 rounded-lg border-[1.5px] p-0 text-[13px] font-bold outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-primary/35',
+                'aspect-square min-w-0 rounded-md border-[1.5px] p-0 text-[13px] font-bold outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-primary/35',
                 CELL[cell.kind],
                 cell.today && 'shadow-[inset_0_0_0_2px_var(--color-gold)]',
               )}
@@ -79,7 +79,7 @@ export function StartDateCalendar({ value, today, invalid, onChange }: { value: 
           ),
         )}
       </div>
-      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
+      <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
         {LEGEND.map(([label, swatch]) => (
           <span key={label} className="inline-flex items-center gap-1.5">
             <span aria-hidden="true" className={cn('size-3 rounded-[3px] border-[1.5px]', swatch)} />

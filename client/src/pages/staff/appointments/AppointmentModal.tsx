@@ -131,7 +131,7 @@ export function AppointmentModal({
       }
       busy={saving}
       onClose={onClose}
-      maxWidth={reviewing ? 'max-w-[640px]' : 'max-w-[960px]'}
+      maxWidth={reviewing ? 'max-w-[640px]' : 'max-w-[880px]'}
       footer={
         reviewing ? (
           <>
@@ -170,7 +170,7 @@ export function AppointmentModal({
           <p className="text-[13px] text-pretty text-muted">{student ? reviewNote(kind, student.name) : null}</p>
         </div>
       ) : (
-        <div className="grid gap-6 min-[860px]:grid-cols-2 min-[860px]:gap-x-8">
+        <div className="grid gap-6 min-[860px]:grid-cols-[minmax(0,1fr)_340px] min-[860px]:gap-x-8">
           <div className="flex flex-col gap-5">
           <p className="-mb-3 text-[11px] font-bold tracking-[0.08em] text-muted uppercase">1 · Student</p>
           {editing && student ? (
