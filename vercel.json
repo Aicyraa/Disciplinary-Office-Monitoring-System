@@ -4,12 +4,15 @@
     "api": {
       "root": "api",
       "framework": "express",
-      "entrypoint": "src/index.ts"
+      "entrypoint": "src/index.ts",
+      "buildCommand": "npm run build"
     },
     "client": {
       "root": "client",
       "framework": "vite",
-      "buildCommand": "VITE_API_URL=/api npm run build"
+      "buildCommand": "VITE_API_URL=/api npm run build",
+      "outputDirectory": "dist",
+      "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
     }
   },
   "rewrites": [
