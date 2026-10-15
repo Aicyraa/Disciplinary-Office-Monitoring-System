@@ -602,6 +602,43 @@ describe('createDeliveryScheduler', () => {
     expect(run).toHaveBeenCalledTimes(3);
   });
 
+  test('keepAlive gets the running pass, which settles only after the extra pass a second kick asked for', async () => {
+    let release: () => void = () => undefined;
+    const run = vi.fn(async () => {
+      await new Promise<void>((resolve) => (release = resolve));
+    });
+    const kept: Array<Promise<void>> = [];
+    const scheduler = createDeliveryScheduler({ run, intervalMs: 1000, keepAlive: (work) => kept.push(work) });
+    scheduler.kick();
+    scheduler.kick();
+    expect(kept).toHaveLength(2);
+    expect(kept[1]).toBe(kept[0]);
+
+    let settled = false;
+    void kept[0].then(() => (settled = true));
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(settled).toBe(false);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(true);
+  });
+
+  test('the promise given to keepAlive never rejects, even when the pass fails', async () => {
+    const kept: Array<Promise<void>> = [];
+    const scheduler = createDeliveryScheduler({
+      run: async () => {
+        throw new Error('db down');
+      },
+      intervalMs: 1000,
+      onError: () => undefined,
+      keepAlive: (work) => kept.push(work),
+    });
+    scheduler.kick();
+    await expect(kept[0]).resolves.toBeUndefined();
+  });
+
   test('a failing pass is reported, never thrown, and later passes still run', async () => {
     const onError = vi.fn();
     const run = vi.fn(async () => {
