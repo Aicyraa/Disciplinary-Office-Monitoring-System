@@ -114,7 +114,6 @@ describe('account dialogs (deck W83 to W85)', () => {
     const html = detailsHtml(user);
     expect(html).toContain('aria-label="Add profile picture"');
     expect(html).not.toContain('>Remove picture<');
-    expect(html).toContain('JPG, PNG or WebP, up to 2 MB.');
   });
 
   test('Account details with a picture: the image on a clickable avatar, and Remove', () => {

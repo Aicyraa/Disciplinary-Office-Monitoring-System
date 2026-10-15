@@ -44,8 +44,8 @@ export function ProofBlock({ detail, sanction, done, failed, onViewed }: {
   const verifyButton = (
     <Button
       variant="success"
-      size="lg"
-      className="flex-[1_1_140px] disabled:bg-success-disabled disabled:text-white"
+      size="md"
+      className="flex-1 disabled:bg-success-disabled disabled:text-white"
       disabled={!view.canVerify}
       disabledReason="Open each file before verifying"
       busy={busy}
@@ -55,7 +55,7 @@ export function ProofBlock({ detail, sanction, done, failed, onViewed }: {
     </Button>
   );
   const returnButton = (
-    <Button variant="danger" size="lg" className="flex-[1_1_140px]" onClick={() => setReturning(true)}>
+    <Button variant="danger" size="md" className="flex-1" onClick={() => setReturning(true)}>
       Return to student
     </Button>
   );
@@ -68,9 +68,14 @@ export function ProofBlock({ detail, sanction, done, failed, onViewed }: {
           <span className="min-w-0 flex-1 text-sm font-bold text-ink">
             {sanction.sanctionCode} · {sanction.type}
           </span>
-          {view.proofSub ? <span className="text-xs text-muted">{view.proofSub}</span> : null}
           <StatusPill status={sanction.status} kind="sanction" />
         </div>
+        {view.note ? (
+          <p className="flex items-start gap-2 border-b border-line-soft bg-warn-soft px-3.5 py-2.5 text-[13px] text-pretty text-amber-ink">
+            <Icon name="sticky_note_2" className="!text-lg" />
+            {view.note}
+          </p>
+        ) : null}
         {view.noFilesText ? (
           <p className="flex items-center justify-center gap-1.5 px-3.5 py-[18px] text-center text-[13px] text-muted">
             <Icon name="hourglass_top" className="!text-lg" />
@@ -81,13 +86,18 @@ export function ProofBlock({ detail, sanction, done, failed, onViewed }: {
             <FileRow
               key={file.id}
               name={file.name}
-              meta={fileMeta(file)}
-              viewed={file.viewed}
+              meta={fileMeta(file, 'Uploaded', false)}
               onView={() => setPreviewing(file)}
               className="-mb-px rounded-none border-0 border-b border-line-soft"
             />
           ))
         )}
+        {view.pending ? (
+          <div className="flex gap-2.5 border-t border-line-soft bg-surface-2 px-3.5 py-3">
+            {verifyButton}
+            {returnButton}
+          </div>
+        ) : null}
       </div>
       {view.needView ? (
         <p className="flex items-center gap-1.5 text-[13px] text-amber-ink">
@@ -95,17 +105,10 @@ export function ProofBlock({ detail, sanction, done, failed, onViewed }: {
           Open each file before you verify this sanction.
         </p>
       ) : null}
-      {view.note ? <p className="rounded-[10px] bg-warn-soft px-3.5 py-2.5 text-[13px] text-pretty text-amber-ink">{view.note}</p> : null}
-      {view.pending ? (
-        <div className="flex flex-wrap gap-2">
-          {verifyButton}
-          {returnButton}
-        </div>
-      ) : null}
 
       {previewing ? (
         <FilePreview
-          file={{ name: previewing.name, meta: fileMeta(previewing) }}
+          file={{ name: previewing.name, meta: fileMeta(previewing, 'Uploaded', false) }}
           loadUrl={async () => (await sanctionsApi.fileUrl(previewing.id)).url}
           onLoaded={onViewed}
           onClose={() => setPreviewing(null)}

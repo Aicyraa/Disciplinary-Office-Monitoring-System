@@ -181,6 +181,7 @@ export function AppointmentModal({
           ) : (
             <StudentLookup
               label="Student ID"
+              compact
               placeholder="e.g. 2025-1234567"
               value={studentId}
               onChange={(value) => {

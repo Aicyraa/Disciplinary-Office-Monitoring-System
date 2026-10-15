@@ -12,18 +12,39 @@ export const STUDENT_PAGE_SIZE = 20;
  * Staff student records (SPEC 5): the list and one student's record. Staff only; a student never reaches these
  * (their own account details are `GET /me/profile`).
  */
-export function createStudentsController({ repo, now }: { repo: StudentViewRepo; now: () => Date }) {
+export function createStudentsController({
+  repo,
+  now,
+  avatarUrl,
+}: {
+  repo: StudentViewRepo;
+  now: () => Date;
+  avatarUrl?: (key: string) => Promise<string>;
+}) {
+  // A link that cannot be made is just no picture.
+  const linkFor = async (key: string | null | undefined): Promise<string | null> => {
+    if (!key || !avatarUrl) return null;
+    try {
+      return await avatarUrl(key);
+    } catch {
+      return null;
+    }
+  };
+
   const list: RequestHandler = async (request, response) => {
     const input = parseStudentSearchQuery(request.query);
     if (!input.ok) return sendError(response, 400, 'invalid_input', input.message);
     const { q, page } = input.value;
     const { total, rows } = await repo.searchStudents({ q, page, pageSize: STUDENT_PAGE_SIZE });
     const body: StaffStudentListResponse = {
-      students: rows.map((row) => ({
-        ...toProfileView(row),
-        openCases: row.openCases,
-        activeSanctions: row.activeSanctions,
-      })),
+      students: await Promise.all(
+        rows.map(async (row) => ({
+          ...toProfileView(row),
+          openCases: row.openCases,
+          activeSanctions: row.activeSanctions,
+          avatarUrl: await linkFor(row.avatarKey),
+        })),
+      ),
       total,
       page,
       pageSize: STUDENT_PAGE_SIZE,

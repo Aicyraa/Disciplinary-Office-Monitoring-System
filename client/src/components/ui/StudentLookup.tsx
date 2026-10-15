@@ -15,14 +15,17 @@ export type StudentLookupProps = Omit<ComponentProps<'input'>, 'value' | 'onChan
   onChange: (value: string) => void;
   lookup: LookupState;
   error?: string;
+  /** Draw the result line only once there is something to say, instead of always reserving its height. */
+  compact?: boolean;
 };
 
 /** Student ID input with the deck's live result line under it (green match, red "No student found"). */
-export function StudentLookup({ label, value, onChange, lookup, error, ...rest }: StudentLookupProps) {
+export function StudentLookup({ label, value, onChange, lookup, error, compact = false, ...rest }: StudentLookupProps) {
+  const hidden = compact && lookup.status === 'idle';
   return (
     <div className="flex flex-col gap-1.5">
       <Field label={label} value={value} error={error} onChange={(event) => onChange(event.target.value)} {...rest} />
-      <p aria-live="polite" className="min-h-5 text-[13px] font-semibold">
+      <p aria-live="polite" className={hidden ? 'sr-only' : 'min-h-5 text-[13px] font-semibold'}>
         {lookup.status === 'found' ? (
           <span className="flex items-center gap-1.5 text-success">
             <Icon name="person_check" className="!text-[18px]" />

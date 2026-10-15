@@ -113,6 +113,8 @@ export interface StudentProfileRecord {
 export interface StudentSummaryRecord extends StudentProfileRecord {
   openCases: number;
   activeSanctions: number;
+  /** Storage key of the profile picture; the controller turns it into a link. */
+  avatarKey?: string | null;
 }
 
 /**

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { StaffStudentRow } from '@shared/types';
 import { PageError } from '@/components/feedback/PageState';
 import { SkeletonList } from '@/components/feedback/Skeleton';
+import { Avatar } from '@/components/ui/Avatar';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { controlVariants } from '@/components/ui/FieldShell';
 import { Icon } from '@/components/ui/Icon';
@@ -12,7 +13,6 @@ import { casesApi } from '@/api/cases';
 import { studentsApi } from '@/api/students';
 import { useApi } from '@/hooks/useApi';
 import { cn } from '@/utils/cn';
-import { initials } from '@/utils/nav';
 import { matchesStudent } from '@/utils/studentRecord';
 
 type Filter = 'all' | 'verify';
@@ -88,9 +88,7 @@ export function StudentList({ selectedId, onFirstRow }: { selectedId: string | n
               aria-current={selected ? 'true' : undefined}
               className={cn(ROW, selected ? 'bg-row-selected shadow-[inset_3px_0_0_var(--color-primary)]' : 'bg-white hover:bg-row-hover')}
             >
-              <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-info-soft text-[13px] font-bold text-primary">
-                {initials(row.firstName, row.lastName)}
-              </span>
+              <Avatar firstName={row.firstName} lastName={row.lastName} url={row.avatarUrl} className="size-9 bg-info-soft text-[13px] text-primary" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold text-ink">
                   {row.firstName} {row.lastName}

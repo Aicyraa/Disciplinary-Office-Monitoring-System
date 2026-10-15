@@ -450,6 +450,8 @@ export type StaffStudentRow = StudentProfileView & {
   openCases: number;
   /** Sanctions that are assigned, pending verification or returned. */
   activeSanctions: number;
+  /** A short-lived link to the student's profile picture, or null. */
+  avatarUrl: string | null;
 };
 
 export type StaffStudentListResponse = {

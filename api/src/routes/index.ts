@@ -41,6 +41,8 @@ export interface DataDeps {
     /** Sanction templates: text and files (SPEC 6.1). */
     templates?: { service: TemplateService; reader: TemplateReader };
     studentViews: StudentViewRepo;
+    /** Turns a profile-picture key into a short-lived link, for the staff Students list. Omitted: no pictures. */
+    avatarUrl?: (key: string) => Promise<string>;
     /** Profile pictures for both roles (SPEC 4.8). Needs file storage; omitted in tests that do not use it. */
     avatar?: { service: AvatarService };
     /** Staff case workflow: the rules (service) and the read side (queries). */
@@ -69,7 +71,7 @@ export function registerDataRoutes(app: Express, data: DataDeps, sessionSecret: 
   // Before the student-only /me router: staff change their own picture too.
   if (data.avatar) app.use(createAvatarRouter(data.avatar));
   app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
-  app.use(createStudentsRouter({ repo: data.studentViews, now: data.now }));
+  app.use(createStudentsRouter({ repo: data.studentViews, now: data.now, avatarUrl: data.avatarUrl }));
   if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));
   if (data.sanctions) app.use(createSanctionRouter({ service: data.sanctions.service, now: data.now }));
   if (data.appointments) app.use(createAppointmentRouter({ ...data.appointments, now: data.now }));

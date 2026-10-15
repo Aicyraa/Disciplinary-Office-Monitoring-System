@@ -12,9 +12,9 @@ export const notPdfMessage = (name: string): string => `${name} is not a PDF fil
 export const isPdfName = (name: string): boolean => ACCEPTED_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
 
 /** The line under a file name (deck src 2438): "PDF · 242 KB · Uploaded Oct 7, 2:28 PM", Asia/Manila time. */
-export function fileMeta(file: { name: string; sizeBytes: number; dateUploaded?: string | null }, verb = 'Uploaded'): string {
+export function fileMeta(file: { name: string; sizeBytes: number; dateUploaded?: string | null }, verb = 'Uploaded', withSize = true): string {
   const type = file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : (file.name.split('.').pop() ?? 'File').toUpperCase();
-  const parts = [type, formatSize(file.sizeBytes)];
+  const parts = withSize ? [type, formatSize(file.sizeBytes)] : [type];
   if (file.dateUploaded) {
     const when = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Manila',

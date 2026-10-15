@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import type { AuthUser } from '@shared/types';
 import { authApi } from '@/api/auth';
 import { toApiError } from '@/api/client';
@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { AVATAR_ACCEPT, avatarFileError } from '@/validators/avatar';
 
 /** Change or remove your own profile picture, inside "Account details" (SPEC 4.8). */
-export function ProfilePicture({ user }: { user: AuthUser }) {
+export function ProfilePicture({ user, children }: { user: AuthUser; children?: ReactNode }) {
   const { setUser } = useAuth();
   const toast = useToast();
   const input = useRef<HTMLInputElement>(null);
@@ -44,16 +44,16 @@ export function ProfilePicture({ user }: { user: AuthUser }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <button
           type="button"
           disabled={busy !== null}
           onClick={() => input.current?.click()}
           aria-label={user.avatarUrl ? 'Change profile picture' : 'Add profile picture'}
           title={user.avatarUrl ? 'Change picture' : 'Add picture'}
-          className="group relative size-20 shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35 disabled:cursor-wait"
+          className="group relative size-14 shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35 disabled:cursor-wait"
         >
-          <Avatar firstName={user.firstName} lastName={user.lastName} url={user.avatarUrl} className="size-20 bg-gold text-2xl" />
+          <Avatar firstName={user.firstName} lastName={user.lastName} url={user.avatarUrl} className="size-14 bg-gold text-lg" />
           <span
             aria-hidden="true"
             className={`absolute inset-0 grid place-items-center rounded-full bg-ink/55 text-white transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 ${busy === 'save' ? 'opacity-100' : 'opacity-0'}`}
@@ -61,19 +61,7 @@ export function ProfilePicture({ user }: { user: AuthUser }) {
             <Icon name={busy === 'save' ? 'progress_activity' : 'edit'} className={busy === 'save' ? 'animate-spin' : ''} />
           </span>
         </button>
-        <div className="flex min-w-0 flex-col items-start gap-1">
-          <p className="text-xs text-muted">Click the picture to change it. JPG, PNG or WebP, up to 2 MB.</p>
-          {user.avatarUrl ? (
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={() => void run('remove', () => authApi.removeAvatar(), 'Profile picture removed.')}
-              className="text-xs font-semibold text-danger-strong underline disabled:opacity-50"
-            >
-              {busy === 'remove' ? 'Removing…' : 'Remove picture'}
-            </button>
-          ) : null}
-        </div>
+        {children}
         <input ref={input} type="file" accept={AVATAR_ACCEPT} className="sr-only" tabIndex={-1} aria-label="Choose a profile picture" onChange={onPick} />
       </div>
       {error ? (
@@ -81,6 +69,16 @@ export function ProfilePicture({ user }: { user: AuthUser }) {
           <Icon name="error" className="!text-lg" />
           {error}
         </p>
+      ) : null}
+      {user.avatarUrl ? (
+        <button
+          type="button"
+          disabled={busy !== null}
+          onClick={() => void run('remove', () => authApi.removeAvatar(), 'Profile picture removed.')}
+          className="self-start text-xs font-semibold text-danger-strong underline disabled:opacity-50"
+        >
+          {busy === 'remove' ? 'Removing…' : 'Remove picture'}
+        </button>
       ) : null}
     </div>
   );
