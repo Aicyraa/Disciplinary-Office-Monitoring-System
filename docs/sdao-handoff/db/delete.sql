@@ -3,10 +3,11 @@
 -- DEV BRANCH ONLY. Never run this on the production branch. It deletes people, cases, files and history.
 -- Run it yourself (agents never run it): Neon console SQL editor on the development branch, or
 --   psql "$DATABASE_URL_UNPOOLED" -f docs/sdao-handoff/db/delete.sql
--- Then run seed-dev-accounts.sql, otherwise nobody can sign in.
+-- Then run seed.sql (safe to re-run; its Part 2 re-creates the demo accounts), otherwise nobody can sign in.
 --
 -- DELETED (everything the app writes while it is used):
 --   student_accounts, employee_accounts            (so the demo accounts can be seeded again)
+--   notices (important notices staff published)
 --   disciplinary_cases, case_escalations, case_status_history
 --   case_sanctions, case_sanction_files, case_sanction_history
 --   appointments, appointment_history
@@ -18,8 +19,9 @@
 --   requirements where is_default = true, sanction_templates (the text; its `updated_by` is cleared)
 --   Violations or handbook edits made while testing are kept too: they cannot be told apart from real ones.
 --
--- NOT TOUCHED BY SQL: the objects in the storage buckets (proof files, template files). Their rows are gone, so
--- they are orphans: empty the buckets in the Neon console if you want the space back.
+-- NOT TOUCHED BY SQL: the objects in the storage buckets (proof files, template files, profile pictures
+-- referenced by avatar_key). Their rows are gone, so they are orphans: empty the buckets in the Neon console
+-- if you want the space back.
 --
 -- Numbering starts again from 1 for every emptied table (cases, sanctions, appointments, clearances,
 -- notifications, files), so a fresh demo shows C001 / SDO-yyyy-001 again.
@@ -28,6 +30,7 @@ BEGIN;
 
 -- Children first, so every foreign key is satisfied.
 DELETE FROM notifications;
+DELETE FROM notices;
 DELETE FROM clearance_history;
 DELETE FROM clearance_requirements;
 DELETE FROM clearances;
@@ -63,6 +66,7 @@ $$;
 
 -- Start the counters of the emptied tables again.
 ALTER TABLE notifications           ALTER COLUMN notification_id          RESTART WITH 1;
+ALTER TABLE notices                 ALTER COLUMN notice_id                RESTART WITH 1;
 ALTER TABLE clearance_history       ALTER COLUMN clearance_history_id     RESTART WITH 1;
 ALTER TABLE clearance_requirements  ALTER COLUMN clearance_requirement_id RESTART WITH 1;
 ALTER TABLE clearances              ALTER COLUMN clearance_id             RESTART WITH 1;
@@ -83,6 +87,7 @@ SELECT 'student_accounts' AS table_name, count(*) AS rows FROM student_accounts
 UNION ALL SELECT 'employee_accounts', count(*) FROM employee_accounts
 UNION ALL SELECT 'disciplinary_cases', count(*) FROM disciplinary_cases
 UNION ALL SELECT 'notifications', count(*) FROM notifications
+UNION ALL SELECT 'notices', count(*) FROM notices
 UNION ALL SELECT 'files', count(*) FROM files
 UNION ALL SELECT 'violations (kept)', count(*) FROM violations
 UNION ALL SELECT 'handbook_entries (kept)', count(*) FROM handbook_entries

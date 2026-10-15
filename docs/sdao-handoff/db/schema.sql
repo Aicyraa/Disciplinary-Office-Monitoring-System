@@ -1,7 +1,11 @@
 -- SDAO / SDO Portal — FINAL schema (PostgreSQL on Neon)
 -- Conventions: snake_case, identity (auto-increment) PKs everywhere EXCEPT student_accounts / employee_accounts,
 -- all timestamps are timestamptz (store UTC, display Asia/Manila), enums are CHECK constraints (easy to change).
--- Run order: this file, then seed.sql.
+-- Run order (fresh database): this file, then seed.sql (reference data + development accounts, see its header).
+-- Wipe test data: delete.sql, then seed.sql again (seed.sql is safe to re-run).
+-- Tables: 24 application tables + `session` (login sessions, connect-pg-simple). This file already includes the
+-- notices feature and profile pictures (avatar_key); the old add-notices.sql is folded in (see the
+-- "UPGRADING AN OLDER DATABASE" block at the end for databases created before those changes).
 
 CREATE EXTENSION IF NOT EXISTS btree_gist;   -- needed for the appointment-overlap constraint
 
@@ -317,3 +321,33 @@ CREATE TABLE notices (
 
 CREATE INDEX ix_notif_inbox ON notifications(student_id, is_read, date_created DESC);
 CREATE INDEX ix_notif_email ON notifications(email_status) WHERE email_status = 'pending';
+
+-- =====================================================================
+-- 8. LOGIN SESSIONS (infrastructure, not part of the ERD)
+-- =====================================================================
+-- Same shape connect-pg-simple creates itself; declared here so the table exists before the API's first start
+-- and matches the `session` model in api/prisma/schema.prisma. delete.sql empties it.
+CREATE TABLE IF NOT EXISTS session (
+  sid     varchar      NOT NULL PRIMARY KEY,
+  sess    json         NOT NULL,
+  expire  timestamp(6) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON session(expire);
+
+-- =====================================================================
+-- UPGRADING AN OLDER DATABASE (run by hand, only if the database predates these changes; all idempotent)
+-- =====================================================================
+-- Notices feature (was add-notices.sql, 2026-10-13):
+--   BEGIN;
+--   ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_kind_check;
+--   ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check CHECK (kind IN
+--     ('report','case','esc','sanction','appt','clr','account','newviol','notice'));
+--   CREATE TABLE IF NOT EXISTS notices (
+--     notice_id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+--     title text NOT NULL, message text NOT NULL, instructions text, expires_on date,
+--     created_by_employee_id varchar(20) NOT NULL REFERENCES employee_accounts(employee_id),
+--     date_created timestamptz NOT NULL DEFAULT now(), date_updated timestamptz NOT NULL DEFAULT now());
+--   COMMIT;
+-- Profile pictures:
+--   ALTER TABLE student_accounts  ADD COLUMN IF NOT EXISTS avatar_key text;
+--   ALTER TABLE employee_accounts ADD COLUMN IF NOT EXISTS avatar_key text;

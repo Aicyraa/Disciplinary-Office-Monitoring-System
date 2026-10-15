@@ -1,6 +1,13 @@
--- SDO Portal seed data, generated from DO_SYSTEM_DB.xlsx (Normalized_v2).
--- Reference/lookup data only. Accounts and test cases are NOT seeded (workbook has plain-text passwords + dummy cases).
--- Ids keep the workbook numbers (P009 -> 9, V001 -> 1).
+-- SDO Portal seed data. Run AFTER schema.sql (and after delete.sql when starting from a clean slate).
+-- Generated from DO_SYSTEM_DB.xlsx (Normalized_v2); ids keep the workbook numbers (P009 -> 9, V001 -> 1).
+--
+-- Part 1: reference data (programs, sanctions, requirements, violations, handbook).
+-- Part 2: DEVELOPMENT / DEMO accounts (was seed-dev-accounts.sql; the notices table has no seed rows,
+--         its DDL lives in schema.sql).
+--
+-- Every INSERT is ON CONFLICT DO NOTHING, so the file is safe to re-run (existing rows are left untouched).
+-- PRODUCTION: run `SET sdo.skip_dev_accounts = 'on';` in the same session BEFORE this file, so Part 2 is skipped.
+
 
 INSERT INTO programs (program_id, program_name) OVERRIDING SYSTEM VALUE VALUES
   (1, $q$BSA$q$),
@@ -16,7 +23,8 @@ INSERT INTO programs (program_id, program_name) OVERRIDING SYSTEM VALUE VALUES
   (11, $q$ABComm$q$),
   (12, $q$ABM$q$),
   (13, $q$HUMMS$q$),
-  (14, $q$STEM$q$);
+  (14, $q$STEM$q$)
+ON CONFLICT DO NOTHING;
 
 INSERT INTO sanctions (sanction_id, sanction_type, description) OVERRIDING SYSTEM VALUE VALUES
   (1, $q$Violation Slip$q$, $q$Issued by the SDO$q$),
@@ -47,13 +55,15 @@ education institution in the Philippines.” (Section 106 of the CHED
 Manual of Regulations for Private Higher Educational Education)$q$),
   (8, $q$FAILED IN COURSE$q$, $q$0.0 in the course$q$),
   (9, $q$CHARGED$q$, $q$Charged for the damages$q$),
-  (10, $q$CONFISCATE$q$, $q$Item confiscation$q$);
+  (10, $q$CONFISCATE$q$, $q$Item confiscation$q$)
+ON CONFLICT DO NOTHING;
 
 INSERT INTO requirements (requirement_id, requirement_label, is_default) OVERRIDING SYSTEM VALUE VALUES
   (1, $q$No active violations$q$, true),
   (2, $q$All sanctions served$q$, true),
   (3, $q$Guidance exit interview$q$, true),
-  (4, $q$SDO signature$q$, true);
+  (4, $q$SDO signature$q$, true)
+ON CONFLICT DO NOTHING;
 
 INSERT INTO violations (violation_id, violation_type, severity, description, is_system) OVERRIDING SYSTEM VALUE VALUES
   (1, $q$Improper Uniform$q$, $q$Minor$q$, $q$Non-wearing of the prescribed uniform inside the campus.$q$, false),
@@ -138,7 +148,8 @@ parties are students, both are liable.$q$, false),
   (65, $q$Unauthorized computer access$q$, $q$Major$q$, $q$Accessing a university computer or computer network without authority or beyond authorized access.$q$, false),
   (66, $q$Computer security breach$q$, $q$Major$q$, $q$Committing acts that constitute computer security breach, such as altering information (e.g., changing the password of someone else’s account, changing the data in files beyond one’s authorized access, etc.), damaging or destroying information (e.g., deleting someone else’s file, etc.), introducing false information (e.g., using someone else’s account and sending offensive mail, cyber bullying, etc.), preventing the authorized use of one’s data or information, preventing normal operation of computers networks of the University (e.g., changing the configuration or CMOS set-up of a PC, introducing computer virus, etc.).$q$, false),
   (67, $q$Bomb jokes$q$, $q$Major$q$, $q$Bombs Jokes$q$, false),
-  (68, $q$3 minor offense$q$, $q$Major$q$, $q$3 minor offense will be treated as a major offense$q$, true);
+  (68, $q$3 minor offense$q$, $q$Major$q$, $q$3 minor offense will be treated as a major offense$q$, true)
+ON CONFLICT DO NOTHING;
 
 INSERT INTO handbook_entries (handbook_entry_id, violation_id, handbook_section) OVERRIDING SYSTEM VALUE VALUES
   (1, 1, $q$VI.D.1$q$),
@@ -208,7 +219,8 @@ INSERT INTO handbook_entries (handbook_entry_id, violation_id, handbook_section)
   (65, 65, $q$VI.E.49$q$),
   (66, 66, $q$VI.E.50$q$),
   (67, 67, $q$VI.E.51$q$),
-  (68, 68, $q$VI.E.20$q$);
+  (68, 68, $q$VI.E.20$q$)
+ON CONFLICT DO NOTHING;
 
 INSERT INTO handbook_entry_sanctions (handbook_entry_sanction_id, handbook_entry_id, sanction_id, offense_number) OVERRIDING SYSTEM VALUE VALUES
   (1, 1, 1, 1),
@@ -342,7 +354,8 @@ INSERT INTO handbook_entry_sanctions (handbook_entry_sanction_id, handbook_entry
   (129, 15, 1, 2),
   (130, 16, 1, 2),
   (131, 68, 4, 1),
-  (132, 68, 5, 2);
+  (132, 68, 5, 2)
+ON CONFLICT DO NOTHING;
 
 -- H068 = V068 '3 minor offense' (system-assigned Major, Sec. VI.E.20). Its sanctions are COPIED from H036 (S004 @1, S005 @2): adjust if staff should pick other Categories.
 
@@ -352,3 +365,55 @@ SELECT setval(pg_get_serial_sequence('requirements','requirement_id'), (SELECT m
 SELECT setval(pg_get_serial_sequence('violations','violation_id'), (SELECT max(violation_id) FROM violations));
 SELECT setval(pg_get_serial_sequence('handbook_entries','handbook_entry_id'), (SELECT max(handbook_entry_id) FROM handbook_entries));
 SELECT setval(pg_get_serial_sequence('handbook_entry_sanctions','handbook_entry_sanction_id'), (SELECT max(handbook_entry_sanction_id) FROM handbook_entry_sanctions));
+
+-- =====================================================================
+-- PART 2: DEVELOPMENT / DEMO ACCOUNTS (was seed-dev-accounts.sql)
+-- =====================================================================
+-- DEV BRANCH ONLY. Skip on production with `SET sdo.skip_dev_accounts = 'on';` before running this file.
+-- Accounts are added manually (SPEC decision 13): there is no "create account" screen in version 1.
+-- Passwords are bcrypt hashes (cost 12, bcryptjs-compatible), never plain text. To make another hash, run inside api/:
+--   node -e "import('bcryptjs').then(async m => console.log(await (m.default ?? m).hash('<password>', 12)))"
+-- The catolicoasr student and the E001 staff account share one TEMPORARY password and are created with
+-- must_change_password = true, so the first sign-in forces a new one (the password is never written here).
+-- EDIT the lines marked EDIT before running: the second student's id and first name are placeholders.
+-- Student ids must look like YYYY-NNNNNNN (7 digits).
+
+DO $dev$
+BEGIN
+  IF coalesce(current_setting('sdo.skip_dev_accounts', true), '') = 'on' THEN
+    RAISE NOTICE 'sdo.skip_dev_accounts = on: development accounts skipped';
+    RETURN;
+  END IF;
+
+  -- Student 1: dagumandjf.
+  INSERT INTO student_accounts
+    (student_id, student_email, first_name, last_name, password_hashed, must_change_password, year_level, program_id, is_active)
+  SELECT '2025-1030808', 'dagumandjf@students.nu-fairview.edu.ph', 'Darlwyn Jee', 'Daguman',
+         '$2b$12$YEA5iLLADfY53mQj/GVctek.sydzkoUFMQT90oWQx0.pb6Nr3ZA.O', false, 2, p.program_id, true
+  FROM programs p WHERE p.program_name = 'BSIT'
+  ON CONFLICT DO NOTHING;
+
+  -- Student 2: catolicoasr.
+  INSERT INTO student_accounts
+    (student_id, student_email, first_name, last_name, password_hashed, must_change_password, year_level, program_id, is_active)
+  SELECT '2025-1030809',                                     -- EDIT: the real student id
+         'catolicoasr@students.nu-fairview.edu.ph',
+         'A. S.',                                            -- EDIT: the real first name
+         'Catolico',
+         '$2b$12$/fim3kDaZw1rp6pTuvuKIO9cz4rzjmdeRgwLzO6pHO0bp1a8lkBaC', true,
+         2,                                                  -- EDIT: year level (1 to 6)
+         p.program_id, true
+  FROM programs p WHERE p.program_name = 'BSIT'              -- EDIT: program name from the programs table
+  ON CONFLICT DO NOTHING;
+
+  -- Staff E001 (SDO officer): forced to choose a new password at first sign-in.
+  INSERT INTO employee_accounts
+    (employee_id, employee_email, first_name, last_name, password_hashed, must_change_password, position, is_active)
+  VALUES
+    ('E001', 'feleoagd@students.nu-fairview.edu.ph',
+     'A. G.',                                                -- EDIT: the real first name
+     'Feleo',
+     '$2b$12$/fim3kDaZw1rp6pTuvuKIO9cz4rzjmdeRgwLzO6pHO0bp1a8lkBaC', true, 'SDO Officer', true)
+  ON CONFLICT DO NOTHING;
+END
+$dev$;
