@@ -37,7 +37,7 @@ describe('POST /auth/login', () => {
     const login = await agent.post('/auth/login').send({ email: STUDENT_EMAIL, password: PASSWORD });
     expect(login.status).toBe(200);
     expect(login.body.data.user).toEqual({
-      role: 'student', id: STUDENT_ID, email: STUDENT_EMAIL, firstName: 'Ana', lastName: 'Cruz', mustChangePassword: false,
+      role: 'student', id: STUDENT_ID, email: STUDENT_EMAIL, firstName: 'Ana', lastName: 'Cruz', mustChangePassword: false, avatarUrl: null,
     });
     const me = await agent.get('/auth/me');
     expect(me.status).toBe(200);

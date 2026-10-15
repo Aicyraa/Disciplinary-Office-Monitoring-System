@@ -5,6 +5,7 @@ import seal from '@/assets/seal.png';
 import { AccountDetailsModal, ChangePasswordModal } from '@/components/account/AccountModals';
 import { ModalOpenProvider, useAnyModalOpen } from '@/components/feedback/modalOpen';
 import { NudgeCard } from '@/components/feedback/PageState';
+import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
 import { UnreadProvider, badgeText, useUnread } from '@/context/UnreadContext';
@@ -12,7 +13,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUiZoom } from '@/hooks/useUiZoom';
 import { useNavBadges } from '@/hooks/useNavBadges';
 import { cn } from '@/utils/cn';
-import { breadcrumb, initials, moreItems, navGroups, phoneTabs, type NavItem } from '@/utils/nav';
+import { breadcrumb, moreItems, navGroups, phoneTabs, type NavItem } from '@/utils/nav';
 import { BellPopover } from './BellPopover';
 import { MoreSheet } from './MoreSheet';
 import { PageActionProvider, usePageActionValue } from './PageAction';
@@ -71,9 +72,7 @@ function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclud
         onClick={() => setOpen((value) => !value)}
         className="flex min-h-[42px] items-center gap-2 rounded-full px-1.5 text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none"
       >
-        <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-gold text-xs font-bold text-ink">
-          {initials(user.firstName, user.lastName)}
-        </span>
+        <Avatar firstName={user.firstName} lastName={user.lastName} url={user.avatarUrl} className="size-8 bg-gold text-xs" />
         <span className="hidden text-sm font-semibold whitespace-nowrap rail:inline">{user.firstName}</span>
         <Icon name="expand_more" className="!text-xl" />
       </button>

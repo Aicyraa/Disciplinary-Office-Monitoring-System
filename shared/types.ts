@@ -137,6 +137,8 @@ export type AuthUser = {
   firstName: string;
   lastName: string;
   mustChangePassword: boolean;
+  /** A short-lived link to the profile picture (SPEC 4.8), or null when none is set. Never the storage key. */
+  avatarUrl: string | null;
 };
 
 // ---- Handbook (SPEC 4.9, FEATURE-RULES 3.2) -------------------------------------------------

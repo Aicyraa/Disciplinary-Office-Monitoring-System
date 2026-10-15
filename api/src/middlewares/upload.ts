@@ -1,5 +1,6 @@
 import type { Request, RequestHandler } from 'express';
 import multer, { MulterError } from 'multer';
+import { MAX_AVATAR_BYTES } from '../domain/avatar/validate.js';
 import { MAX_FILE_BYTES } from '../domain/files/validate.js';
 import { sendError } from '../helpers/http.js';
 
@@ -34,6 +35,32 @@ export function createUploadReceiver({ maxFiles, tooManyMessage }: { maxFiles: n
       sendError(response, 400, 'invalid_input', 'The upload could not be read. Send the files again.');
     });
   };
+}
+
+/**
+ * Multipart `file` field, one picture, up to 2 MB, into memory (SPEC 4.8). The service re-checks the type and
+ * the first bytes; a parser refusal is the client's problem, never a 500.
+ */
+export function createAvatarReceiver(): RequestHandler {
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_AVATAR_BYTES, files: 1, fields: 2, parts: 4 },
+  });
+  return (request, response, next) => {
+    upload.single('file')(request, response, (error: unknown) => {
+      if (!error) return next();
+      if (error instanceof MulterError && error.code === 'LIMIT_FILE_SIZE') {
+        return sendError(response, 413, 'too_large', 'The picture is larger than 2 MB.');
+      }
+      sendError(response, 400, 'invalid_input', 'The upload could not be read. Choose the picture again.');
+    });
+  };
+}
+
+/** The picture `createAvatarReceiver` put on the request, or null when none was sent. */
+export function uploadedAvatar(request: Request): { mimeType: string; bytes: Uint8Array } | null {
+  const file = request.file;
+  return file ? { mimeType: file.mimetype, bytes: new Uint8Array(file.buffer) } : null;
 }
 
 /** The files `createUploadReceiver` put on the request, in the shape the services take. */

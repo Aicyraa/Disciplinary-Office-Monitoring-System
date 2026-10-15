@@ -18,6 +18,8 @@ import type { TemplateReader } from '../repositories/templates/reader.js';
 import { createTemplateRouter } from './templates.routes.js';
 import type { TemplateService } from '../services/templates.service.js';
 import type { HandbookRepo } from '../repositories/handbook/repo.js';
+import { createAvatarRouter } from './avatar.routes.js';
+import type { AvatarService } from '../services/avatar.service.js';
 import { createMeRouter } from './me.routes.js';
 import { createNoticeRouter } from './notices.routes.js';
 import type { NoticeService } from '../services/notices.service.js';
@@ -39,6 +41,8 @@ export interface DataDeps {
     /** Sanction templates: text and files (SPEC 6.1). */
     templates?: { service: TemplateService; reader: TemplateReader };
     studentViews: StudentViewRepo;
+    /** Profile pictures for both roles (SPEC 4.8). Needs file storage; omitted in tests that do not use it. */
+    avatar?: { service: AvatarService };
     /** Staff case workflow: the rules (service) and the read side (queries). */
     cases?: { service: CaseService; queries: CaseQueries };
     /** Sanction assignment, proof files and verification. */
@@ -62,6 +66,8 @@ export function registerDataRoutes(app: Express, data: DataDeps, sessionSecret: 
   }
   app.use(createHandbookRouter({ repo: data.handbook, admin: data.handbookAdmin?.service }));
   if (data.templates) app.use(createTemplateRouter(data.templates));
+  // Before the student-only /me router: staff change their own picture too.
+  if (data.avatar) app.use(createAvatarRouter(data.avatar));
   app.use(createMeRouter({ repo: data.studentViews, now: data.now }));
   app.use(createStudentsRouter({ repo: data.studentViews, now: data.now }));
   if (data.cases) app.use(createCaseRouter({ ...data.cases, now: data.now }));

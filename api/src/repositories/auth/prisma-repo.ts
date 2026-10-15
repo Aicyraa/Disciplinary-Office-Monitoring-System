@@ -9,6 +9,7 @@ type StudentRow = {
   password_hashed: string;
   must_change_password: boolean;
   is_active: boolean;
+  avatar_key: string | null;
 };
 
 type EmployeeRow = {
@@ -19,6 +20,7 @@ type EmployeeRow = {
   password_hashed: string;
   must_change_password: boolean;
   is_active: boolean;
+  avatar_key: string | null;
 };
 
 const fromStudent = (row: StudentRow): AccountRecord => ({
@@ -29,6 +31,7 @@ const fromStudent = (row: StudentRow): AccountRecord => ({
   passwordHashed: row.password_hashed,
   mustChangePassword: row.must_change_password,
   isActive: row.is_active,
+  avatarKey: row.avatar_key,
 });
 
 const fromEmployee = (row: EmployeeRow): AccountRecord => ({
@@ -39,6 +42,7 @@ const fromEmployee = (row: EmployeeRow): AccountRecord => ({
   passwordHashed: row.password_hashed,
   mustChangePassword: row.must_change_password,
   isActive: row.is_active,
+  avatarKey: row.avatar_key,
 });
 
 /** Prisma-backed account repository. Takes the client as a parameter so callers can pass a transaction. */
@@ -66,6 +70,15 @@ export function createPrismaAccountRepo(db: Pick<PrismaClient, 'student_accounts
     },
     async updatePassword(role, id, passwordHashed, mustChangePassword) {
       const data = { password_hashed: passwordHashed, must_change_password: mustChangePassword };
+      if (role === 'student') {
+        const result = await db.student_accounts.updateMany({ where: { student_id: id }, data });
+        return result.count > 0;
+      }
+      const result = await db.employee_accounts.updateMany({ where: { employee_id: id }, data });
+      return result.count > 0;
+    },
+    async updateAvatarKey(role, id, avatarKey) {
+      const data = { avatar_key: avatarKey };
       if (role === 'student') {
         const result = await db.student_accounts.updateMany({ where: { student_id: id }, data });
         return result.count > 0;

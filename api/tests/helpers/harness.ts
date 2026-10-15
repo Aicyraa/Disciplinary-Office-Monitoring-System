@@ -5,6 +5,8 @@ import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { createMemoryAccountRepo } from '../../src/repositories/auth/memory-repo.js';
 import { createAuthService } from '../../src/services/auth.service.js';
+import { createAvatarService } from '../../src/services/avatar.service.js';
+import type { ObjectStorage } from '../../src/integrations/storage/types.js';
 import type { AppointmentQueries } from '../../src/repositories/appointments/queries.js';
 import type { AppointmentService } from '../../src/services/appointments.service.js';
 import type { CaseQueries } from '../../src/repositories/cases/queries.js';
@@ -48,6 +50,8 @@ export interface HarnessOptions {
   notifications?: { inbox: InboxStore };
   notices?: { service: NoticeService; store: NoticeStore; onPublished?: () => void };
   onPasswordReset?: (studentId: string) => Promise<void>;
+  /** Giving a storage turns on profile pictures (`/me/avatar`) and the `avatarUrl` on the signed-in user. */
+  avatarStorage?: ObjectStorage;
   now?: () => Date;
 }
 
@@ -70,9 +74,15 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
     account('staff', STAFF_TEMP.id, STAFF_TEMP.email, true),
     account('student', STUDENT_TEMP.id, STUDENT_TEMP.email, true),
   ]);
+  const storage = options.avatarStorage;
+  const authService = createAuthService({
+    repo,
+    rounds: ROUNDS,
+    avatarUrl: storage ? (key) => storage.presignGet(key) : undefined,
+  });
   return createApp({
     auth: {
-      service: createAuthService({ repo, rounds: ROUNDS }),
+      service: authService,
       sessionSecret: 'test-secret-test-secret-test-secret-1',
       clientOrigin: 'http://localhost:5173',
       loginRateLimit: { windowMs: 60_000, limit: 1000 },
@@ -81,6 +91,7 @@ export function buildHarnessApp(options: HarnessOptions = {}) {
     data: {
       handbook: options.handbook ?? createMemoryHandbookRepo(),
       studentViews: options.studentViews ?? createMemoryStudentViewRepo(),
+      avatar: storage ? { service: createAvatarService({ repo, storage, loadUser: authService.getUser }) } : undefined,
       cases: options.cases,
       sanctions: options.sanctions,
       appointments: options.appointments,
