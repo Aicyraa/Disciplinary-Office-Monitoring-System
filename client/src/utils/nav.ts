@@ -1,7 +1,19 @@
-import type { AccountRole } from '@shared/types';
+import type { AccountRole, StaffSummaryResponse } from '@shared/types';
 
 /** Which count a navigation entry shows as a badge (see useNavBadges). */
 export type BadgeKey = 'inbox' | 'cases' | 'students';
+
+export interface NavBadges {
+  /** Staff: reports waiting for review. */
+  cases: number;
+  /** Staff: sanctions waiting for verification. */
+  students: number;
+}
+
+/** The staff sidebar counts, read from the counts-only summary. */
+export function navBadgesFrom(summary: StaffSummaryResponse): NavBadges {
+  return { cases: summary.cases.reported, students: summary.sanctions.pendingVerification };
+}
 
 export interface NavItem {
   to: string;

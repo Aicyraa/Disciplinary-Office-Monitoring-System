@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AccountRole } from '@shared/types';
 import { notificationsApi } from '@/api/notifications';
-import { BADGE_POLL_MS, hasNewNotifications, shouldPoll } from '@/utils/revalidate';
+import { usePoller } from '@/hooks/usePoller';
+import { hasNewNotifications } from '@/utils/revalidate';
 
 const TOAST_MS = 7_000;
 
@@ -36,9 +37,10 @@ export function UnreadProvider({ role, children }: { role: AccountRole; children
   const announced = useRef(false);
   const lastCount = useRef<number | null>(null);
 
-  const refresh = useCallback(() => {
-    notificationsApi.notifications(role, { limit: 1 }).then(
-      ({ unreadCount: count }) => {
+  // A failed badge refresh must never break the page: the poller swallows it and the badge keeps its last value.
+  const load = useCallback(
+    () =>
+      notificationsApi.notifications(role, { limit: 1 }).then(({ unreadCount: count }) => {
         if (hasNewNotifications(lastCount.current, count)) setChangeSignal((value) => value + 1);
         lastCount.current = count;
         setUnreadCount(count);
@@ -47,27 +49,11 @@ export function UnreadProvider({ role, children }: { role: AccountRole; children
           announced.current = true;
           if (count > 0) setToast(unreadMessage(count));
         }
-      },
-      // A failed badge refresh must never break the page: the badge simply keeps its last value.
-      () => undefined,
-    );
-  }, [role]);
-
-  useEffect(() => {
-    refresh();
-    // Poll only while the tab is visible; coming back to the tab refreshes at once.
-    const refreshIfVisible = () => {
-      if (shouldPoll(document.visibilityState)) refresh();
-    };
-    const timer = setInterval(refreshIfVisible, BADGE_POLL_MS);
-    document.addEventListener('visibilitychange', refreshIfVisible);
-    window.addEventListener('focus', refreshIfVisible);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', refreshIfVisible);
-      window.removeEventListener('focus', refreshIfVisible);
-    };
-  }, [refresh]);
+      }),
+    [role],
+  );
+  // Poll only while the tab is visible, one request at a time, slower when idle; coming back refreshes at once.
+  const refresh = usePoller(load);
 
   useEffect(() => {
     if (toast === null) return;

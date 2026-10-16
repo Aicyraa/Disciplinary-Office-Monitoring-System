@@ -88,7 +88,7 @@ describe('sourceText and escalationNote (deck src 2751, 2760)', () => {
       escalationNote(
         detail({ severity: 'Major', convertedFrom: 'No ID', createdFromCaseIds: [3, 7], caseCodes: { '3': 'SDO-2026-003', '7': 'SDO-2026-007' } }),
       ),
-    ).toBe('Treated as Major as the 3rd minor violation (Sec. VI.E.20). Linked cases: SDO-2026-003, SDO-2026-007.');
+    ).toBe('Treated as Major as the 3rd minor violation. Linked cases: SDO-2026-003, SDO-2026-007.');
     expect(escalationNote(detail())).toBeNull();
   });
 });

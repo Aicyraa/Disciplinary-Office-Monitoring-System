@@ -15,7 +15,7 @@ import { casesApi } from '@/api/cases';
 import { useApi } from '@/hooks/useApi';
 import { CASE_STAGES, stageIndex, stageText } from '@/utils/caseView';
 import { codeOf, escalationNote, historyItems, latestRemark, sourceText } from '@/utils/caseWorkspace';
-import { formatDate } from '@/utils/format';
+import { formatDate, violationTitle } from '@/utils/format';
 import { CaseFilesTab } from './cases/CaseFilesTab';
 import { DecideFooter } from './cases/DecideFooter';
 import { ReviewFooter } from './cases/ReviewFooter';
@@ -60,14 +60,14 @@ function detailRows(detail: StaffCaseDetail): DetailRow[] {
     { label: 'Date reported', value: formatDate(detail.caseDate) },
     {
       label: 'Violation',
-      value: detail.violation,
+      value: violationTitle(detail.violation),
     },
     { label: 'Stage', value: stageText(detail.status) },
   ];
   if (detail.claimed?.program || detail.claimed?.year) {
     rows.push({ label: 'Typed on the form', value: [detail.claimed.program, detail.claimed.year].filter(Boolean).join(' · ') });
   }
-  if (detail.convertedFrom) rows.push({ label: 'Originally', value: detail.convertedFrom });
+  if (detail.convertedFrom) rows.push({ label: 'Originally', value: violationTitle(detail.convertedFrom) });
   if (detail.createdFromCaseIds.length > 0) rows.push({ label: 'Created from', value: links(detail.createdFromCaseIds) });
   if (detail.countedTowardCaseId !== null) rows.push({ label: 'Counted toward', value: links([detail.countedTowardCaseId]) });
   if (detail.siblingCaseIds.length > 0) rows.push({ label: 'Same report', value: links(detail.siblingCaseIds) });
@@ -116,7 +116,7 @@ export function CaseWorkspace({ caseId, onChanged }: { caseId: number; onChanged
     <article aria-label={`Case ${detail.code}`} className="flex min-h-full flex-col gap-5 rounded-xl border border-line bg-white p-6">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[22px] leading-tight font-bold text-pretty text-ink">{detail.violation}</h2>
+          <h2 className="text-[22px] leading-tight font-bold text-pretty text-ink">{violationTitle(detail.violation)}</h2>
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-body">
             <span className="font-semibold">{detail.student?.name ?? detail.claimed?.name ?? 'Unknown student'}</span>
             <span className="text-muted">· {detail.student?.id ?? detail.claimed?.studentId ?? 'No ID'}</span>

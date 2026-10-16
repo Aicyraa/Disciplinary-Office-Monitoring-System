@@ -15,8 +15,10 @@ export interface CaseRouterOptions {
 export function createCaseRouter({ service, queries, now = () => new Date() }: CaseRouterOptions): Router {
   const router = Router();
   const cases = createCaseController({ service, queries, now });
-  router.use(['/cases', '/submissions', '/case-sanctions'], ...requireStaff);
+  router.use(['/cases', '/submissions', '/case-sanctions', '/staff/summary'], ...requireStaff);
 
+  // Counts only, for the staff badges and dashboard tiles (PERFORMANCE-SPEC B4).
+  router.get('/staff/summary', cases.summary);
   router.get('/cases', cases.list);
   router.get('/cases/:id', cases.detail);
   router.get('/case-sanctions', cases.sanctionQueue);

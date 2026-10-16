@@ -1,4 +1,5 @@
 import type { NotificationKind } from '@shared/types.js';
+import { emailDetails, type EmailDetails } from './details.js';
 
 /** The `payload` of every Flow 2 request. Plain data only: built here, never from request bodies or DB rows. */
 export interface NotifyPayload {
@@ -78,16 +79,80 @@ const KIND_INTRO: Record<NotificationKind, { subjectPrefix: string; intro: strin
   notice: { subjectPrefix: 'Important notice', intro: 'The SDO office posted an important notice for students.' },
 };
 
+const FONT = "font-family:'Public Sans',Segoe UI,Arial,Helvetica,sans-serif;";
+
+/** Escaped text with its line breaks kept. */
+const textHtml = (text: string): string => escapeHtml(text).replace(/\r?\n/g, '<br>');
+
+/** The message card's contents: the lead sentence, then one labelled line per detail (label left, value right). */
+function detailsHtml({ lead, rows }: EmailDetails): string {
+  const leadHtml = lead
+    ? `<p style="margin:0${rows.length ? ' 0 12px' : ''};${FONT}font-size:15px;line-height:23px;color:#1C2445">${textHtml(lead)}</p>`
+    : '';
+  if (rows.length === 0) return leadHtml;
+  const lines = rows
+    .map(
+      ([label, value], index) =>
+        `<tr><td valign="top" width="130" style="padding:${index ? '8px' : '0'} 12px 0 0;${FONT}font-size:13px;line-height:21px;font-weight:600;color:#5B6576;white-space:nowrap">${escapeHtml(label)}</td>` +
+        `<td valign="top" style="padding:${index ? '8px' : '0'} 0 0;${FONT}font-size:15px;line-height:21px;font-weight:700;color:#1C2445">${textHtml(value)}</td></tr>`,
+    )
+    .join('');
+  return `${leadHtml}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${lines}</table>`;
+}
+
+/**
+ * The branded email around the text (header band, title, message card, button). Email clients ignore most CSS,
+ * so it is a full-width table with inline styles only and no images. Every value that comes from a person is
+ * escaped by the caller.
+ */
+function emailHtml(parts: {
+  preheader: string;
+  greeting: string;
+  intro: string;
+  title: string;
+  message: string;
+  href: string | null;
+}): string {
+  const font = FONT;
+  const button = parts.href
+    ? '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0">' +
+      `<tr><td bgcolor="#35408E" style="border-radius:10px">` +
+      `<a href="${parts.href}" style="display:inline-block;padding:13px 26px;${font}font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:10px">Open in SDO Portal &rarr;</a>` +
+      '</td></tr></table>'
+    : '';
+  return (
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="color-scheme" content="light only"><title>SDO Portal</title></head>' +
+    '<body style="margin:0;padding:0;background:#FFFFFF">' +
+    `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${parts.preheader}</div>` +
+    // Full width: no page colour, frame or rounded card around the email.
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="width:100%;background:#FFFFFF">' +
+    // Header: navy band with the office name; a thin gold rule under it.
+    `<tr><td bgcolor="#35408E" style="background:#35408E;padding:20px 28px;${font}color:#FFFFFF">` +
+    '<div style="font-size:17px;font-weight:800;line-height:22px">Student Discipline Office</div>' +
+    '<div style="font-size:13px;line-height:18px;color:#F2D46B;font-weight:600">NU Fairview &middot; SDO Portal</div>' +
+    '</td></tr>' +
+    '<tr><td bgcolor="#F2D46B" style="background:#F2D46B;height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>' +
+    // Body.
+    `<tr><td style="padding:28px;${font}color:#1C2445">` +
+    `<h1 style="margin:0;font-size:22px;line-height:29px;font-weight:800;color:#1C2445">${parts.title}</h1>` +
+    `<p style="margin:18px 0 0;font-size:15px;line-height:23px">${parts.greeting}</p>` +
+    `<p style="margin:6px 0 0;font-size:15px;line-height:23px;color:#5B6576">${parts.intro}</p>` +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px">' +
+    `<tr><td style="background:#F5F7FC;border-left:4px solid #35408E;border-radius:0 8px 8px 0;padding:16px 18px;${font}font-size:15px;line-height:23px;color:#1C2445">${parts.message}</td></tr>` +
+    '</table>' +
+    button +
+    '</td></tr>' +
+    '</table></body></html>'
+  );
+}
+
 type Builder = (input: NotifyInput) => NotifyPayload;
 
 function build(kind: NotificationKind): Builder {
   const { subjectPrefix, intro } = KIND_INTRO[kind];
   return (input) => {
     const href = safeHref(input.linkUrl);
-    const greeting = input.greetingName ? `Hi ${escapeHtml(input.greetingName)},` : 'Hello,';
-    const link = href
-      ? `<p><a href="${escapeHtml(href)}">Open it in the SDO Portal</a></p>`
-      : '';
     return {
       notification_id: input.notificationId,
       idempotency_key: input.idempotencyKey,
@@ -96,12 +161,14 @@ function build(kind: NotificationKind): Builder {
       cc: [],
       // A subject is one line: any line break in the title is flattened (header-injection defense in depth).
       subject: `[SDO Portal] ${subjectPrefix}: ${oneLine(input.title)}`.slice(0, 200),
-      html_body:
-        `<p>${greeting}</p>` +
-        `<p>${escapeHtml(intro)}</p>` +
-        `<p><strong>${escapeHtml(input.title)}</strong><br>${escapeHtml(input.message).replace(/\r?\n/g, '<br>')}</p>` +
-        link +
-        '<p style="color:#5B6576;font-size:12px">NU Fairview Student Discipline Office. This is an automatic message; do not reply.</p>',
+      html_body: emailHtml({
+        preheader: escapeHtml(oneLine(`${intro} ${input.title}`)),
+        greeting: input.greetingName ? `Hi ${escapeHtml(input.greetingName)},` : 'Hello,',
+        intro: escapeHtml(intro),
+        title: escapeHtml(input.title),
+        message: detailsHtml(emailDetails(input.message)),
+        href: href ? escapeHtml(href) : null,
+      }),
       link_url: href,
     };
   };

@@ -55,7 +55,7 @@ describe('reportRows: one row per gate submission (D4, src 2824)', () => {
         key: 'ref-a',
         caseId: 16,
         title: 'Juan Dela Cruz · 2023-1001230',
-        sub: 'GI-1042 · No ID, Inappropriate attire · 1 day',
+        sub: 'GI-1042 · No ID, Inappropriate Attire · 1 day',
         submissionRef: 'ref-a',
         unmatched: false,
         href: '/cases/16?queue=review',

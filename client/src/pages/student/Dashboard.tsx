@@ -83,7 +83,7 @@ export function StudentDashboard() {
             {next ? (
               <Link
                 to={appointment.href}
-                className="flex items-center gap-3.5 rounded-[10px] border border-line bg-upload-bg p-3 hover:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
+                className="flex items-center gap-4 rounded-[10px] border border-line bg-upload-bg p-3 hover:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
               >
                 <DateTile date={next.startDate} />
                 <span className="min-w-0 flex-1 leading-snug">

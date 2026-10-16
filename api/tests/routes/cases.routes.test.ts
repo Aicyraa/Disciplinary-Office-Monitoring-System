@@ -408,6 +408,65 @@ describe('GET /case-sanctions (staff queue)', () => {
   });
 });
 
+describe('GET /staff/summary (counts only, PERFORMANCE-SPEC B4)', () => {
+  const sanction = (id: number, status: 'assigned' | 'pending_verification' | 'completed', dueDate: string) => ({
+    caseSanctionId: id,
+    caseId: 3,
+    studentId: S1,
+    caseStatus: 'for_sanction' as const,
+    sanctionId: 2,
+    sanctionType: 'Community service',
+    status,
+    dueDate,
+    dateAssigned: new Date('2026-10-01T02:00:00Z'),
+    dateSubmitted: status === 'pending_verification' ? new Date('2026-10-08T02:00:00Z') : null,
+    dateCompleted: status === 'completed' ? new Date('2026-10-02T02:00:00Z') : null,
+    staffNote: null,
+    complianceNote: null,
+    files: [],
+  });
+
+  test('whole-system case counts per status and sanction counts, with no rows', async () => {
+    seedCase({ caseId: 1 });
+    seedCase({ caseId: 2 });
+    seedCase({ caseId: 3, status: 'for_sanction' });
+    seedCase({ caseId: 4, status: 'validated', handbookEntryId: 3 });
+    seedCase({ caseId: 5, status: 'resolved' });
+    store.state.caseSanctions.push(
+      sanction(1, 'assigned', '2026-10-05'),
+      sanction(2, 'pending_verification', '2026-10-30'),
+      sanction(3, 'completed', '2026-10-01'),
+    );
+
+    const response = await (await staff()).get('/staff/summary');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({
+      cases: { reported: 2, validated: 1, for_sanction: 1, resolved: 1, rejected: 0 },
+      sanctions: { pendingVerification: 1, overdue: 1, active: 2 },
+    });
+  });
+
+  test('the numbers match what the case list and sanction queue report', async () => {
+    seedCase({ caseId: 1 });
+    seedCase({ caseId: 2, status: 'validated' });
+    store.state.caseSanctions.push(sanction(1, 'pending_verification', '2026-10-01'));
+    const agent = await staff();
+    const summary = (await agent.get('/staff/summary')).body.data;
+    const reported = (await agent.get('/cases').query({ status: 'reported' })).body.data;
+    const queue = (await agent.get('/case-sanctions')).body.data;
+    expect(summary.cases.reported).toBe(reported.total);
+    expect(summary.sanctions).toEqual(queue.counts);
+  });
+
+  test('staff only: signed-out visitors 401, students 403', async () => {
+    const app = build();
+    expect((await request(app).get('/staff/summary')).status).toBe(401);
+    const student = await signedInAgent(app, STUDENT_A.email);
+    expect((await student.get('/staff/summary')).status).toBe(403);
+  });
+});
+
 describe('case list status counts and detail case codes', () => {
   test('statusCounts ignore the status filter but follow the class filter', async () => {
     seedCase({ caseId: 1, status: 'reported' });

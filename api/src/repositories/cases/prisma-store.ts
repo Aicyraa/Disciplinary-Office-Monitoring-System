@@ -460,6 +460,12 @@ function listWhere(filter: CaseListFilter, codeCaseId: number | null): Prisma.di
 }
 
 /** Prisma-backed staff queries. Staff see every case (one department), so there is no student scope here. */
+/** Active sanctions, and the active ones whose due date is before `today` (Manila day): the queue and the summary agree. */
+function sanctionWheres(today: string) {
+  const activeWhere = { status: { in: [...ACTIVE_SANCTION_STATUSES] } };
+  return { activeWhere, overdueWhere: { ...activeWhere, due_date: { lt: new Date(`${today}T00:00:00Z`) } } };
+}
+
 export function createPrismaCaseQueries(
   db: Pick<PrismaClient, 'disciplinary_cases' | 'case_sanctions' | '$queryRaw'>,
 ): CaseQueries {
@@ -514,9 +520,12 @@ export function createPrismaCaseQueries(
       for (const group of grouped) {
         if (group.status in statusCounts) statusCounts[group.status as CaseStatus] = group._count._all;
       }
-      const codes = await loadCaseCodes(db, rows.map((row) => row.disciplinary_case_id));
+      // Both display-code lookups depend only on the page's rows: one round trip, not two (PERFORMANCE-SPEC B2).
       const refs = [...new Set(rows.flatMap((row) => (row.submission_ref ? [row.submission_ref] : [])))];
-      const submissionCodes = await loadSubmissionCodes(db, refs);
+      const [codes, submissionCodes] = await Promise.all([
+        loadCaseCodes(db, rows.map((row) => row.disciplinary_case_id)),
+        loadSubmissionCodes(db, refs),
+      ]);
       return {
         rows: rows.map((row) =>
           toRow(
@@ -531,9 +540,24 @@ export function createPrismaCaseQueries(
       };
     },
 
+    async summary(today) {
+      const { activeWhere, overdueWhere } = sanctionWheres(today);
+      // Counts only, no rows or joins, all in one parallel round trip.
+      const [grouped, pendingVerification, overdue, active] = await Promise.all([
+        db.disciplinary_cases.groupBy({ by: ['status'], _count: { _all: true } }),
+        db.case_sanctions.count({ where: { status: 'pending_verification' } }),
+        db.case_sanctions.count({ where: overdueWhere }),
+        db.case_sanctions.count({ where: activeWhere }),
+      ]);
+      const cases = emptyStatusCounts();
+      for (const group of grouped) {
+        if (group.status in cases) cases[group.status as CaseStatus] = group._count._all;
+      }
+      return { cases, sanctions: { pendingVerification, overdue, active } };
+    },
+
     async sanctionQueue({ filter, page, today }) {
-      const activeWhere = { status: { in: [...ACTIVE_SANCTION_STATUSES] } };
-      const overdueWhere = { ...activeWhere, due_date: { lt: new Date(`${today}T00:00:00Z`) } };
+      const { activeWhere, overdueWhere } = sanctionWheres(today);
       const where =
         filter === 'pending_verification' ? { status: 'pending_verification' } : filter === 'overdue' ? overdueWhere : activeWhere;
       const [rows, total, pendingVerification, overdue, active] = await Promise.all([
@@ -595,13 +619,17 @@ export function createPrismaCaseQueries(
       });
       if (!row) return null;
 
-      const siblings = row.submission_ref
-        ? await db.disciplinary_cases.findMany({
-            where: { submission_ref: row.submission_ref, NOT: { disciplinary_case_id: caseId } },
-            select: { disciplinary_case_id: true },
-            orderBy: { disciplinary_case_id: 'asc' },
-          })
-        : [];
+      // Siblings and the submission code both depend only on the row: one round trip (PERFORMANCE-SPEC B2).
+      const [siblings, submissionCodes] = await Promise.all([
+        row.submission_ref
+          ? db.disciplinary_cases.findMany({
+              where: { submission_ref: row.submission_ref, NOT: { disciplinary_case_id: caseId } },
+              select: { disciplinary_case_id: true },
+              orderBy: { disciplinary_case_id: 'asc' },
+            })
+          : Promise.resolve([]),
+        loadSubmissionCodes(db, row.submission_ref ? [row.submission_ref] : []),
+      ]);
 
       const asMajor = row[AS_MAJOR] as Array<{ minor_case_id: number }>;
       const asMinor = row[AS_MINOR] as { major_case_id: number } | null;
@@ -611,12 +639,13 @@ export function createPrismaCaseQueries(
         ...(asMinor ? [asMinor.major_case_id] : []),
         ...siblings.map((sibling) => sibling.disciplinary_case_id),
       ];
+      // Codes are ranked over the whole table before filtering, so this case's own code comes from the same query.
       const allCodes = await loadCaseCodes(db, [...new Set(related)]);
       const detail: StaffCaseDetail = {
         ...toRow(
           row as unknown as ListRow,
-          (await loadCaseCodes(db, [caseId])).get(caseId) ?? '',
-          row.submission_ref ? ((await loadSubmissionCodes(db, [row.submission_ref])).get(row.submission_ref) ?? null) : null,
+          allCodes.get(caseId) ?? '',
+          row.submission_ref ? (submissionCodes.get(row.submission_ref) ?? null) : null,
         ),
         resolvedWithoutSanction: row.resolved_without_sanction,
         dateResolved: row.date_resolved?.toISOString() ?? null,

@@ -7,6 +7,7 @@ import { ApiError } from '@/api/client';
 import { templatesApi } from '@/api/templates';
 import { useToast } from '@/components/feedback';
 import { fileMeta } from '@/utils/files';
+import { violationTitle } from '@/utils/format';
 import { ladder, postedTemplates } from '@/utils/handbook';
 
 type TemplateFile = SanctionTemplateView['files'][number];
@@ -74,10 +75,10 @@ export function HandbookEntry({ entry, templates }: { entry: HandbookEntryView; 
   const posted = postedTemplates(entry, templates);
   const steps = ladder(entry);
   return (
-    <article aria-label={entry.violation} className="flex min-h-full flex-col gap-5 rounded-xl border border-line bg-white p-6">
+    <article aria-label={violationTitle(entry.violation)}className="flex min-h-full flex-col gap-5 rounded-xl border border-line bg-white p-6">
       <div>
         <p className="text-[13px] font-semibold text-muted">Handbook entry</p>
-        <h2 className="mt-0.5 text-[22px] leading-tight font-bold text-ink">{entry.violation}</h2>
+        <h2 className="mt-0.5 text-[22px] leading-tight font-bold text-ink">{violationTitle(entry.violation)}</h2>
         <p className="text-[13px] text-muted">
           {entry.severity} offense · Sec. {entry.section}
         </p>

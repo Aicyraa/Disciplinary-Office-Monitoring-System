@@ -75,7 +75,7 @@ export function AccountDetailsModal({
       </ProfilePicture>
       <dl className="flex flex-col rounded-[10px] border border-line-soft">
         {accountRows(user, profile).map(([label, value]) => (
-          <div key={label} className="flex gap-3 border-b border-line-soft px-3 py-2.5 text-[13px] last:border-b-0">
+          <div key={label} className="flex items-center gap-3 border-b border-line-soft px-3 py-2.5 text-[13px] last:border-b-0">
             <dt className="w-[110px] shrink-0 text-muted">{label}</dt>
             <dd className="min-w-0 flex-1 font-semibold break-words text-ink">{value}</dd>
           </div>

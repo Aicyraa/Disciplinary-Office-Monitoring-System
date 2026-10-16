@@ -130,6 +130,20 @@ export function createMemoryCaseQueries(
       };
     },
 
+    async summary(today) {
+      const cases = emptyStatusCounts();
+      for (const c of store.state.cases) cases[c.status] += 1;
+      const active = store.state.caseSanctions.filter((s) => (ACTIVE_SANCTION_STATUSES as readonly string[]).includes(s.status));
+      return {
+        cases,
+        sanctions: {
+          pendingVerification: active.filter((s) => s.status === 'pending_verification').length,
+          overdue: active.filter((s) => s.dueDate < today).length,
+          active: active.length,
+        },
+      };
+    },
+
     async detail(caseId, today) {
       const record = store.state.cases.find((c) => c.caseId === caseId);
       if (!record) return null;

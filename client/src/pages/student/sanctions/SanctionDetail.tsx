@@ -9,12 +9,13 @@ import { Button, buttonVariants } from '@/components/ui/Button';
 import { DetailTable } from '@/components/ui/DetailTable';
 import { HistoryList } from '@/components/ui/HistoryList';
 import { Icon } from '@/components/ui/Icon';
+import { IconHint } from '@/components/ui/IconHint';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { StageTracker } from '@/components/ui/StageTracker';
 import { cn } from '@/utils/cn';
 import { manilaToday } from '@/utils/files';
-import { SANCTION_STEP_LABELS, formatDate, sanctionStepIndex } from '@/utils/format';
-import { dueLine, proofSummary, sanctionHistoryItems, sanctionNextStep, uploadPanel } from '@/utils/studentView';
+import { SANCTION_STEP_LABELS, formatDate, sanctionStepIndex, violationTitle } from '@/utils/format';
+import { dueLine, proofStatusHint, proofSummary, sanctionHistoryItems, sanctionNextStep, uploadPanel } from '@/utils/studentView';
 
 const DUE_TONE = { info: 'text-info-ink', bad: 'text-bad-ink', done: 'text-success' } as const;
 
@@ -23,6 +24,7 @@ function ProofRow({ sanction, onOpen }: { sanction: StudentSanctionView; onOpen:
   const panel = uploadPanel(sanction);
   const files = sanction.files.length;
   const label = panel.open ? (files === 0 ? 'Upload proof' : 'Continue upload') : 'View files';
+  const hint = proofStatusHint(sanction.status);
   return (
     <div className="overflow-hidden rounded-xl border border-line">
       <div className="flex flex-wrap items-center gap-3 bg-surface-2 px-4 py-3">
@@ -30,9 +32,9 @@ function ProofRow({ sanction, onOpen }: { sanction: StudentSanctionView; onOpen:
           <Icon name="upload_file" className="!text-xl" />
         </span>
         <span className="min-w-0 flex-1 basis-40 leading-snug">
-          <span className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5">
             <span className="text-[15px] font-bold text-ink">Proof of completion</span>
-            <StatusPill status={sanction.status} kind="sanction" />
+            <IconHint icon={hint.icon} tone={hint.tone} label={hint.label} />
           </span>
           <span className="block truncate text-xs text-muted">{proofSummary(sanction)}</span>
         </span>
@@ -129,10 +131,8 @@ export function SanctionDetail({
               label: 'Violation',
               value: (
                 <span className="flex flex-wrap items-center gap-2">
-                  {caseRow?.violation ?? '—'}
-                  <StatusPill status={caseRow?.severity ?? sanction.severity} />
-                  {caseRow ? <span className="text-muted">Sec. {caseRow.section}</span> : null}
-                </span>
+                  {caseRow ? violationTitle(caseRow.violation) : '—'}
+                  <StatusPill status={caseRow?.severity ?? sanction.severity} />                </span>
               ),
             },
             { label: 'Assigned', value: formatDate(sanction.dateAssigned) },

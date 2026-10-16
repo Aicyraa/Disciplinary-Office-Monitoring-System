@@ -14,7 +14,7 @@ import { studentsApi } from '@/api/students';
 import { useApi } from '@/hooks/useApi';
 import { ordinalYear } from '@/utils/account';
 import { cn } from '@/utils/cn';
-import { formatTerm } from '@/utils/format';
+import { formatTerm, violationTitle } from '@/utils/format';
 import { defaultRecordTab, isActiveCase, recordCaseRow, recordSanctionRow, recordTiles, type RecordTab, type RecordTile } from '@/utils/studentRecord';
 
 const ACCENT: Record<RecordTile['accent'], string> = {
@@ -105,7 +105,7 @@ function RecordLists({ data, tab }: { data: StaffStudentRecord; tab: RecordTab }
             </span>
             <span className="min-w-0 flex-1 leading-snug">
               <span className="flex flex-wrap items-center gap-1.5">
-                <span className="font-semibold text-ink">{item.violation}</span>
+                <span className="font-semibold text-ink">{violationTitle(item.violation)}</span>
               </span>
               <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
                 <span className="text-xs text-muted">{row.line}</span>
@@ -162,7 +162,7 @@ export function StudentRecordPane({ studentId }: { studentId: string }) {
         <div className="min-w-0">
           <h2 className="text-2xl leading-tight font-bold text-ink">{name}</h2>
           <p className="text-muted">
-            {profile.studentId} · {profile.program} · {ordinalYear(profile.yearLevel)}
+            {profile.program} · {ordinalYear(profile.yearLevel)}
           </p>
           <p className="text-xs text-muted">{profile.email}</p>
           {!profile.isActive ? <p className="mt-1 text-xs font-semibold text-danger">Account is inactive</p> : null}

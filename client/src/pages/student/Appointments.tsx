@@ -28,43 +28,42 @@ function AppointmentCard({ appointment, selected }: { appointment: StudentAppoin
   return (
     <article
       aria-label={`Appointment ${appointment.code}`}
-      className={cn('flex flex-col gap-3 rounded-xl border bg-white p-5', selected ? 'border-primary ring-[3px] ring-primary/18' : 'border-line')}
+      className={cn('flex items-start gap-5 rounded-xl border bg-white p-5', selected ? 'border-primary ring-[3px] ring-primary/18' : 'border-line')}
     >
-      <div className="flex gap-5">
-        <div
-          aria-hidden="true"
-          className={cn(
-            'grid size-[88px] shrink-0 place-content-center rounded-[10px] text-center',
-            upcoming ? 'bg-primary text-white' : 'bg-line-soft text-neutral-ink',
-          )}
-        >
-          <div className="text-xs font-semibold tracking-[0.04em] uppercase">{parts.dow}</div>
-          <div className="text-[28px] leading-tight font-extrabold">{parts.day}</div>
-          <div className="text-xs font-semibold">{parts.mon}</div>
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-base font-bold text-ink">{dayRange(appointment.startDate, appointment.endDate)}</p>
-              <p className="text-[13px] text-muted">Visit any day · 7:00 AM to 5:00 PM</p>
-            </div>
-            <StatusPill status={appointment.status} kind="appointment" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-muted">Reason</p>
-            <p className="text-sm text-pretty text-ink">{appointment.purpose}</p>
-          </div>
-        </div>
+      {/* The date tile holds the left column on its own; everything else sits in the column beside it. */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          'grid size-[88px] shrink-0 place-content-center rounded-[10px] text-center',
+          upcoming ? 'bg-primary text-white' : 'bg-line-soft text-neutral-ink',
+        )}
+      >
+        <div className="text-xs font-semibold tracking-[0.04em] uppercase">{parts.dow}</div>
+        <div className="text-[28px] leading-tight font-extrabold">{parts.day}</div>
+        <div className="text-xs font-semibold">{parts.mon}</div>
       </div>
-      {remarks ? (
-        <div className="rounded-lg border border-line-soft bg-surface-2 px-3 py-2.5">
-          <p className="text-xs font-semibold text-muted">{cancelled ? 'Reason for cancelling' : 'Remarks from the SDO'}</p>
-          <p className="text-sm text-pretty text-ink">{remarks}</p>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-base font-bold text-ink">{dayRange(appointment.startDate, appointment.endDate)}</p>
+            <p className="text-[13px] text-muted">Visit any day · 7:00 AM to 5:00 PM</p>
+          </div>
+          <StatusPill status={appointment.status} kind="appointment" />
         </div>
-      ) : null}
-      <p className="text-xs text-muted">
-        {appointment.code} · Updated {formatDate(appointment.dateUpdated)}
-      </p>
+        <div>
+          <p className="text-xs font-semibold text-muted">Reason</p>
+          <p className="text-sm text-pretty wrap-anywhere text-ink">{appointment.purpose}</p>
+        </div>
+        {remarks ? (
+          <div className="rounded-lg border border-line-soft bg-surface-2 px-3 py-2.5">
+            <p className="text-xs font-semibold text-muted">{cancelled ? 'Reason for cancelling' : 'Remarks from the SDO'}</p>
+            <p className="text-sm text-pretty wrap-anywhere text-ink">{remarks}</p>
+          </div>
+        ) : null}
+        <p className="text-xs text-muted">
+          {appointment.code} · Updated {formatDate(appointment.dateUpdated)}
+        </p>
+      </div>
     </article>
   );
 }

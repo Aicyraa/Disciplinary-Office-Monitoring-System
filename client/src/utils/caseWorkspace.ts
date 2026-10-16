@@ -41,7 +41,7 @@ export function escalationNote(
 ): string | null {
   if (detail.convertedFrom) {
     const linked = detail.createdFromCaseIds.map((id) => codeOf(detail, id)).join(', ');
-    return `Treated as Major as the 3rd minor violation (Sec. VI.E.20).${linked ? ` Linked cases: ${linked}.` : ''}`;
+    return `Treated as Major as the 3rd minor violation.${linked ? ` Linked cases: ${linked}.` : ''}`;
   }
   if (detail.isEscalated && detail.countedTowardCaseId !== null) {
     return `Flagged as escalated. This minor counted toward ${codeOf(detail, detail.countedTowardCaseId)}. Handbook severity stays Minor.`;

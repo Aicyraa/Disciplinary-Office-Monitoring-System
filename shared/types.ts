@@ -520,6 +520,15 @@ export type StaffSanctionQueueResponse = {
   counts: { pendingVerification: number; overdue: number; active: number };
 };
 
+/**
+ * GET /staff/summary: numbers only, for the staff sidebar badges and dashboard tiles (PERFORMANCE-SPEC B4).
+ * Whole-system counts with no filter; `sanctions` is the same shape and meaning as the sanction queue's `counts`.
+ */
+export type StaffSummaryResponse = {
+  cases: Record<CaseStatus, number>;
+  sanctions: StaffSanctionQueueResponse['counts'];
+};
+
 export type StaffCaseRow = {
   id: number;
   /** Display code, C001 style. */

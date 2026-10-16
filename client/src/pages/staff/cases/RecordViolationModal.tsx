@@ -14,6 +14,7 @@ import { handbookApi } from '@/api/handbook';
 import { useApi } from '@/hooks/useApi';
 import { useStudentLookup } from '@/hooks/useStudentLookup';
 import { cn } from '@/utils/cn';
+import { violationTitle } from '@/utils/format';
 import { matchViolations, recordedToast, recordProblem, violationCounts, type ClassFilter } from '@/utils/recordForm';
 
 const CLASSES: Array<{ value: Exclude<ClassFilter, ''>; label: string }> = [
@@ -143,7 +144,7 @@ export function RecordViolationModal({ onClose }: { onClose: () => void }) {
                     >
                       <Icon name={selected ? 'radio_button_checked' : 'radio_button_unchecked'} className={cn('!text-lg', selected ? 'text-primary' : 'text-muted-2')} />
                       <span className="min-w-0 flex-1">
-                        <strong className="font-semibold text-ink">{entry.violation}</strong> <span className="text-muted">· Sec. {entry.section}</span>
+                        <strong className="font-semibold text-ink">{violationTitle(entry.violation)}</strong>
                       </span>
                     </button>
                   );

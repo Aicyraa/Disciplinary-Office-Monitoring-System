@@ -6,7 +6,6 @@ import { DetailTable } from '@/components/ui/DetailTable';
 import { EmptyBlock } from '@/components/ui/EmptyBlock';
 import { FileRow } from '@/components/ui/FileRow';
 import { GroupHead } from '@/components/ui/GroupHead';
-import { HighTag } from '@/components/ui/HighTag';
 import { HistoryList } from '@/components/ui/HistoryList';
 import { ListCard } from '@/components/ui/ListCard';
 import { Pill } from '@/components/ui/Pill';
@@ -26,12 +25,8 @@ test('Pill tones use the named tokens', () => {
   expect(html(createElement(Pill, { tone: 'action', children: 'Escalated' }))).toContain('bg-amber-soft');
 });
 
-test('Tag is the amber label and HighTag the small red one', () => {
+test('Tag is the amber label', () => {
   expect(html(createElement(Tag, null, 'Escalated'))).toContain('bg-amber-soft');
-  const high = html(createElement(HighTag, null, 'HIGH'));
-  expect(high).toContain('bg-bad-soft');
-  expect(high).toContain('rounded');
-  expect(high).toContain('>HIGH<');
 });
 
 test('ListCard is a bordered rounded card', () => {

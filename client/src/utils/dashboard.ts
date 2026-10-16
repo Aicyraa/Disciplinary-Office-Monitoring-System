@@ -5,6 +5,7 @@ import type {
   StudentClearanceView,
   StudentSanctionView,
 } from '@shared/types';
+import { violationTitle } from '@/utils/format';
 
 /** Dashboard summaries (UI-POLISH-SPEC P1). Pure, so the cards are tested without a DOM or an API. */
 
@@ -101,7 +102,7 @@ export interface StudentDashRow {
 export const violationsHint = (counts: CaseCounts): string => (counts.active ? `${counts.minor} minor · ${counts.major} major` : 'Nothing open');
 
 export function violationRow(row: Pick<StudentCaseView, 'id' | 'code' | 'violation' | 'severity' | 'caseDate'>): StudentDashRow {
-  return { key: String(row.id), title: row.violation, sub: `${row.code} · ${row.severity} · ${shortDate(row.caseDate)}`, href: `/violations/${row.id}` };
+  return { key: String(row.id), title: violationTitle(row.violation),sub: `${row.code} · ${row.severity} · ${shortDate(row.caseDate)}`, href: `/violations/${row.id}` };
 }
 
 export const sanctionsHint = (counts: SanctionCounts): string => `${counts.active} active · ${counts.cleared} of ${counts.total} cleared`;

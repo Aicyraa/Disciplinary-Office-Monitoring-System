@@ -8,7 +8,24 @@ import {
   pillTone,
   sanctionStepIndex,
   statusLabel,
+  violationTitle,
 } from '@/utils/format';
+
+describe('violationTitle', () => {
+  test.each([
+    ['Unwelcome sexual advances', 'Unwelcome Sexual Advances'],
+    ['Under influence of alcohol or drugs', 'Under Influence of Alcohol or Drugs'],
+    ['ID lending / using another\'s ID', 'ID Lending / Using Another\'s ID'],
+    ['Possessing or detonating IED', 'Possessing or Detonating IED'],
+    ['Gender-based sexual harassment', 'Gender-Based Sexual Harassment'],
+    ['Anti-Hazing Act violation', 'Anti-Hazing Act Violation'],
+    ['3 minor offense', '3 Minor Offense'],
+    ['Smoking / Vaping', 'Smoking / Vaping'],
+    ['  of  spaces kept ', '  Of  Spaces Kept '],
+  ])('%s -> %s', (input, expected) => {
+    expect(violationTitle(input)).toBe(expected);
+  });
+});
 
 describe('pillTone (SPEC 9 colors)', () => {
   test.each([

@@ -8,6 +8,7 @@ import { controlVariants } from '@/components/ui/FieldShell';
 import { Icon } from '@/components/ui/Icon';
 import { ListCard } from '@/components/ui/ListCard';
 import { cn } from '@/utils/cn';
+import { violationTitle } from '@/utils/format';
 
 type Category = 'all' | Severity;
 
@@ -68,7 +69,7 @@ export function ViolationList({ entries, selectedId }: { entries: HandbookEntryV
               )}
             >
               <span className="min-w-0 flex-1 leading-snug">
-                <span className="block truncate text-sm font-semibold text-ink">{entry.violation}</span>
+                <span className="block truncate text-sm font-semibold text-ink">{violationTitle(entry.violation)}</span>
                 <span className="block truncate text-xs text-muted">
                   Sec. {entry.section} · {entry.description}
                 </span>

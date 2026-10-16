@@ -39,7 +39,7 @@ export function caseTag(item: Pick<StudentCaseView, 'convertedFrom' | 'isEscalat
 
 export function escalationText(detail: Pick<StudentCaseDetailView, 'linkedCaseCodes' | 'countedTowardCode'>): string | null {
   if (detail.linkedCaseCodes.length > 0) {
-    return `This was your 3rd minor violation, so it is treated as a Major offense (Sec. VI.E.20). The handbook still lists it as Minor. Linked cases: ${detail.linkedCaseCodes.join(', ')}.`;
+    return `This was your 3rd minor violation, so it is treated as a Major offense. The handbook still lists it as Minor. Linked cases: ${detail.linkedCaseCodes.join(', ')}.`;
   }
   if (detail.countedTowardCode) return `This minor violation counted toward ${detail.countedTowardCode}, which is treated as Major.`;
   return null;
@@ -63,6 +63,20 @@ export interface UploadPanelModel {
   returned: string | null;
   submitLabel: string;
   note: { icon: 'info' | 'lock'; text: string } | null;
+}
+
+/** The status icon and tooltip next to "Proof of completion" (it replaced the status pill there). */
+export function proofStatusHint(status: StudentSanctionView['status']): { icon: string; tone: 'pending' | 'info' | 'bad' | 'good'; label: string } {
+  switch (status) {
+    case 'pending_verification':
+      return { icon: 'hourglass_top', tone: 'pending', label: 'Pending verification: the SDO is reviewing your proof.' };
+    case 'returned':
+      return { icon: 'undo', tone: 'bad', label: 'Returned: check the reason and upload again.' };
+    case 'completed':
+      return { icon: 'check_circle', tone: 'good', label: 'Verified by the SDO.' };
+    default:
+      return { icon: 'upload', tone: 'info', label: 'In progress: upload your proof when you are done.' };
+  }
 }
 
 /** What the proof box says for one sanction (src 2442 to 2459), from what the API allows. */

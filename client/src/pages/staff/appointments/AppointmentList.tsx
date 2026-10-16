@@ -204,10 +204,7 @@ export function AppointmentList({
                     )}
                   >
                     <span className="min-w-0 flex-1 leading-snug">
-                      <span className="flex min-w-0 items-baseline gap-2">
-                        <span className="truncate text-[15px] font-bold text-ink">{row.student.name}</span>
-                        <span className="shrink-0 text-[13px] font-medium text-muted">{row.student.id}</span>
-                      </span>
+                      <span className="block truncate text-[15px] font-bold text-ink">{row.student.name}</span>
                       <span className="mt-1 flex items-center gap-1.5 text-[13px] font-medium text-body">
                         <Icon name="schedule" className="!text-base text-muted" />
                         {dayRange(row.startDate, row.endDate)}

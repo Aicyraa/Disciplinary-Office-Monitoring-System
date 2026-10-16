@@ -60,14 +60,6 @@ describe('queues (deck src 2625)', () => {
 });
 
 describe('caseRowView (src 2635 to 2645)', () => {
-  test('HIGH: reported for a day or more, or Major; never when closed', () => {
-    expect(caseRowView(row(), TODAY).high).toBe(true);
-    expect(caseRowView(row({ caseDate: '2026-10-09T01:00:00.000Z' }), TODAY).high).toBe(false);
-    expect(caseRowView(row({ status: 'validated', severity: 'Major', caseDate: '2026-10-09T01:00:00.000Z' }), TODAY).high).toBe(true);
-    expect(caseRowView(row({ status: 'resolved', severity: 'Major' }), TODAY).high).toBe(false);
-    expect(caseRowView(row({ status: 'validated' }), TODAY).high).toBe(false);
-  });
-
   test('tag: "3rd minor · Major" on a converted case, "Escalated" on a counted minor', () => {
     expect(caseRowView(row({ convertedFrom: 'No ID', severity: 'Major' }), TODAY).tag).toBe('3rd minor · Major');
     expect(caseRowView(row({ isEscalated: true }), TODAY).tag).toBe('Escalated');

@@ -14,7 +14,7 @@ import { useApi } from '@/hooks/useApi';
 import { CASE_STAGES, stageIndex } from '@/utils/caseView';
 import { caseEventSentence } from '@/utils/caseWorkspace';
 import { cn } from '@/utils/cn';
-import { formatDate } from '@/utils/format';
+import { formatDate, violationTitle } from '@/utils/format';
 import { caseNextStep, escalationText, latestRemark } from '@/utils/studentView';
 
 const longDate = (iso: string): string =>
@@ -24,18 +24,10 @@ function rows(record: StudentCaseDetailView): DetailRow[] {
   const list: DetailRow[] = [
     { label: 'Case ID', value: record.code },
     { label: 'Filed', value: formatDate(record.caseDate) },
-    {
-      label: 'Handbook',
-      value: (
-        <span className="flex flex-wrap items-center gap-1.5">
-          <StatusPill status={record.severity} />
-          <span className="text-muted">Sec. {record.section}</span>
-        </span>
-      ),
-    },
+    { label: 'Category', value: <StatusPill status={record.severity} /> },
     { label: 'Source', value: record.source === 'gate' ? `Gate report${record.submissionCode ? ` ${record.submissionCode}` : ''}` : 'Recorded by SDO staff' },
   ];
-  if (record.convertedFrom) list.push({ label: 'Originally', value: record.convertedFrom });
+  if (record.convertedFrom) list.push({ label: 'Originally', value: violationTitle(record.convertedFrom) });
   for (const sanction of record.sanctions) {
     list.push({
       label: 'Sanction',
@@ -78,7 +70,7 @@ export function ViolationDetail({ caseId }: { caseId: number }) {
     <article aria-label={`Violation ${record.code}`} className="flex min-h-full flex-col gap-5 rounded-xl border border-line bg-white p-6">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[22px] leading-tight font-bold text-pretty text-ink">{record.violation}</h2>
+          <h2 className="text-[22px] leading-tight font-bold text-pretty text-ink">{violationTitle(record.violation)}</h2>
           <p className="mt-1 text-[13px] text-muted">{record.code}</p>
         </div>
         <span className="mt-1 shrink-0">

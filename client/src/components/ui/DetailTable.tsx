@@ -12,7 +12,7 @@ export function DetailTable({ rows, className }: { rows: readonly DetailRow[]; c
           key={row.label}
           className={cn(
             'border-b border-line-soft px-4 py-2.5 last:border-b-0',
-            row.full ? 'block' : 'grid grid-cols-[104px_1fr] gap-3',
+            row.full ? 'block' : 'grid grid-cols-[104px_1fr] items-center gap-3',
           )}
         >
           <dt className="text-xs font-semibold text-muted">{row.label}</dt>

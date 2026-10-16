@@ -4,6 +4,7 @@ import type {
   StaffCaseDetail,
   StaffCaseRow,
   StaffSanctionQueueResponse,
+  StaffSummaryResponse,
 } from '@shared/types.js';
 
 export const CASE_PAGE_SIZE = 6;
@@ -73,5 +74,7 @@ export interface CaseQueries {
   detail(caseId: number, today: string): Promise<StaffCaseDetail | null>;
   /** The staff sanction queue: oldest due date first, with whole-system counts. */
   sanctionQueue(query: SanctionQueueQuery): Promise<StaffSanctionQueueResponse>;
+  /** Whole-system counts only (no rows): the staff badges and dashboard tiles. `today` as in `sanctionQueue`. */
+  summary(today: string): Promise<StaffSummaryResponse>;
 }
 

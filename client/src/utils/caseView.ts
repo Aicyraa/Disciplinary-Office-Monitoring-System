@@ -72,7 +72,6 @@ export function groupHeads(
   return heads;
 }
 
-const manilaDay = (iso: string): string => new Date(Date.parse(iso) + 8 * 3_600_000).toISOString().slice(0, 10);
 const monthDay = (iso: string): string =>
   new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric' }).format(new Date(iso));
 
@@ -80,8 +79,6 @@ export interface CaseRowView {
   name: string;
   studentId: string;
   unmatched: boolean;
-  /** "HIGH": still at Pending review a day or more, or a Major; never on a closed case (D5). */
-  high: boolean;
   tag: string | null;
   /** "S-019 · Pending verification", "Resolved Oct 9", "No sanction", "Open 1 day". */
   line3: string;
@@ -91,12 +88,10 @@ export interface CaseRowView {
 export function caseRowView(row: StaffCaseRow, today: string): CaseRowView {
   const closed = row.status === 'resolved' || row.status === 'rejected';
   const age = ageText(row.caseDate, today);
-  const waitedADay = row.status === 'reported' && manilaDay(row.caseDate) < today;
   return {
     name: row.student?.name ?? row.claimed?.name ?? 'Unknown student',
     studentId: row.student?.id ?? row.claimed?.studentId ?? 'No ID',
     unmatched: row.student === null,
-    high: !closed && (waitedADay || row.severity === 'Major'),
     tag: row.convertedFrom ? '3rd minor · Major' : row.isEscalated ? 'Escalated' : null,
     line3: row.sanction
       ? `${row.sanction.code} · ${statusLabel(row.sanction.status, 'sanction')}`

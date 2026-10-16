@@ -2,6 +2,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { cn } from '@/utils/cn';
+import { violationTitle } from '@/utils/format';
 import { YEAR_PILLS, type GateFormValues, type GateViolation } from '@/utils/gateForm';
 import { CardHeader, CategoryPill, gateBackButton, gateCard, gateNavButton, gateNavRow } from './GateCard';
 
@@ -36,7 +37,7 @@ export function ReviewStep({
               ['Year level', yearLabel ? `${yearLabel} Year` : ''],
             ] as const
           ).map(([label, value]) => (
-            <div key={label} className="grid grid-cols-[110px_minmax(0,1fr)] gap-3 border-b border-pale-line py-2 text-sm last:border-b-0">
+            <div key={label} className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3 border-b border-pale-line py-2 text-sm last:border-b-0">
               <dt className="text-muted">{label}</dt>
               <dd className="min-w-0 font-semibold break-words text-ink">{value}</dd>
             </div>
@@ -52,7 +53,7 @@ export function ReviewStep({
           {chosen.map((violation) => (
             <li key={violation.id} className="flex min-h-11 items-center gap-2.5 rounded-xl border-[1.5px] border-line bg-white px-3 py-1.5">
               <Icon name="check_circle" filled className="shrink-0 !text-xl text-primary" />
-              <span className="min-w-0 flex-1 text-sm font-semibold text-ink">{violation.name}</span>
+              <span className="min-w-0 flex-1 text-sm font-semibold text-ink">{violationTitle(violation.name)}</span>
               <CategoryPill category={violation.category} />
             </li>
           ))}
