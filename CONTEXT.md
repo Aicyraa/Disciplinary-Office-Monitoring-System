@@ -1184,3 +1184,4 @@ The human asked to follow `PERFORMANCE-SPEC.md`; only slices that need no D1–D
   ```
   (`ix_appt_student` is unneeded if the exclusion constraint is restored: its gist index serves student lookups.) The other 23 unindexed FKs are "who did it" employee/student audit columns that no query filters on.
 - Open decisions: D2 (mostly moot on Vercel); dashboard-with-rows endpoint (F4).
+- Fix prepared for the human (not applied by any agent): `docs/db-preflight.sql` (read-only, every count must be 0; ran on dev 2026-10-16: all 0, `btree_gist` present) and `docs/db-restore-constraints.sql` (one transaction, idempotent: all CHECKs, `appointments_no_overlap` EXCLUDE, `ux_cases_gate_dedupe`, and the six FK indexes; `ix_appt_student` kept because the overlap index is partial, live appointments only).
