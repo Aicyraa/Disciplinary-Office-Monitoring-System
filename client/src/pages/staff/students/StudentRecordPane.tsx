@@ -162,7 +162,7 @@ export function StudentRecordPane({ studentId }: { studentId: string }) {
         <div className="min-w-0">
           <h2 className="text-2xl leading-tight font-bold text-ink">{name}</h2>
           <p className="text-muted">
-            {profile.studentId} · {profile.program} · {ordinalYear(profile.yearLevel)}
+            {profile.program} · {ordinalYear(profile.yearLevel)}
           </p>
           <p className="text-xs text-muted">{profile.email}</p>
           {!profile.isActive ? <p className="mt-1 text-xs font-semibold text-danger">Account is inactive</p> : null}

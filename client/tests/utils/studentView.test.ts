@@ -98,7 +98,7 @@ describe('My violations (deck W62 to W64, src 2950 to 2986, D14)', () => {
   test('escalation text names the linked cases', () => {
     const detail = (over: Partial<StudentCaseDetailView>) => ({ linkedCaseCodes: [], countedTowardCode: null, ...over }) as StudentCaseDetailView;
     expect(escalationText(detail({ linkedCaseCodes: ['SDO-2026-003', 'SDO-2026-007'] }))).toBe(
-      'This was your 3rd minor violation, so it is treated as a Major offense (Sec. VI.E.20). The handbook still lists it as Minor. Linked cases: SDO-2026-003, SDO-2026-007.',
+      'This was your 3rd minor violation, so it is treated as a Major offense. The handbook still lists it as Minor. Linked cases: SDO-2026-003, SDO-2026-007.',
     );
     expect(escalationText(detail({ countedTowardCode: 'SDO-2025-042' }))).toBe('This minor violation counted toward SDO-2025-042, which is treated as Major.');
     expect(escalationText(detail({}))).toBeNull();

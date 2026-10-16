@@ -24,15 +24,7 @@ function rows(record: StudentCaseDetailView): DetailRow[] {
   const list: DetailRow[] = [
     { label: 'Case ID', value: record.code },
     { label: 'Filed', value: formatDate(record.caseDate) },
-    {
-      label: 'Handbook',
-      value: (
-        <span className="flex flex-wrap items-center gap-1.5">
-          <StatusPill status={record.severity} />
-          <span className="text-muted">Sec. {record.section}</span>
-        </span>
-      ),
-    },
+    { label: 'Category', value: <StatusPill status={record.severity} /> },
     { label: 'Source', value: record.source === 'gate' ? `Gate report${record.submissionCode ? ` ${record.submissionCode}` : ''}` : 'Recorded by SDO staff' },
   ];
   if (record.convertedFrom) list.push({ label: 'Originally', value: violationTitle(record.convertedFrom) });

@@ -19,7 +19,7 @@ function SlipDocument({ slip }: { slip: ClearanceSlipView }) {
         <p className="mt-1 text-lg font-semibold text-ink">Clearance slip</p>
         <p className="text-sm text-muted">{formatTerm(slip.academicYear, slip.semester)}</p>
       </header>
-      <dl className="mt-4 grid grid-cols-[7rem_1fr] gap-y-2 text-sm">
+      <dl className="mt-4 grid grid-cols-[7rem_1fr] items-center gap-y-2 text-sm">
         <dt className="text-muted">Name</dt>
         <dd className="font-medium text-ink">{name}</dd>
         <dt className="text-muted">Student ID</dt>

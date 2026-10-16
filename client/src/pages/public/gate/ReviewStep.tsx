@@ -37,7 +37,7 @@ export function ReviewStep({
               ['Year level', yearLabel ? `${yearLabel} Year` : ''],
             ] as const
           ).map(([label, value]) => (
-            <div key={label} className="grid grid-cols-[110px_minmax(0,1fr)] gap-3 border-b border-pale-line py-2 text-sm last:border-b-0">
+            <div key={label} className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3 border-b border-pale-line py-2 text-sm last:border-b-0">
               <dt className="text-muted">{label}</dt>
               <dd className="min-w-0 font-semibold break-words text-ink">{value}</dd>
             </div>

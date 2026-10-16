@@ -79,9 +79,7 @@ export function ClearancePane({ studentId, term, onChanged }: { studentId: strin
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-xl font-bold text-ink">{student.name}</h2>
-          <p className="text-muted">
-            {student.studentId} · {termText}
-          </p>
+          <p className="text-muted">{termText}</p>
         </div>
         <Pill tone={status === 'Cleared' ? 'done' : status === 'In progress' ? 'pending' : 'neutral'}>{status}</Pill>
       </header>

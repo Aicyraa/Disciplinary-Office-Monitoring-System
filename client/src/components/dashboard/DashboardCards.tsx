@@ -186,7 +186,10 @@ export function DateTile({ date, past = false }: { date: string; past?: boolean 
   return (
     <div
       aria-hidden="true"
-      className={cn('flex w-[58px] shrink-0 flex-col items-center rounded-lg py-1.5 leading-tight', past ? 'bg-line-soft text-neutral-ink' : 'bg-primary text-white')}
+      className={cn(
+        'flex size-16 shrink-0 flex-col items-center justify-center rounded-lg leading-tight',
+        past ? 'bg-line-soft text-neutral-ink' : 'bg-primary text-white',
+      )}
     >
       <span className="text-[11px] font-bold tracking-[0.06em]">{weekday}</span>
       <span className="text-2xl font-extrabold">{parsed.getUTCDate()}</span>
