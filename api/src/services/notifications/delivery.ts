@@ -188,10 +188,7 @@ export async function deliverPending({
           message: row.message,
           linkUrl,
           to: group.map((recipient) => recipient.email),
-          greetingName: audience === 'student' ? (group[0].firstName ?? null) : null,
-          // client/public/seal.png, served at the site root.
-          logoUrl: absoluteUrl(appBaseUrl, '/seal.png'),
-        });
+          greetingName: audience === 'student' ? (group[0].firstName ?? null) : null,        });
         if (requestsMade > 0 && pauseBetweenMs > 0) await sleep(pauseBetweenMs);
         requestsMade += 1;
         let outcome: Outcome = await send(row.kind, payload);
