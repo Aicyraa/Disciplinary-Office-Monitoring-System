@@ -133,20 +133,9 @@ export default function Login() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <label htmlFor={passwordId} className="text-[13px] font-semibold text-ink">
-              Password
-            </label>
-            <button
-              type="button"
-              aria-expanded={showHelp}
-              onClick={() => setShowHelp((value) => !value)}
-              className="min-h-8 rounded-full px-1 text-[13px] font-semibold text-primary hover:underline focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
-            >
-              Forgot password?
-            </button>
-          </div>
-          {showHelp ? <Alert tone="info">{FORGOT_TEXT}</Alert> : null}
+          <label htmlFor={passwordId} className="text-[13px] font-semibold text-ink">
+            Password
+          </label>
           <span className="relative block">
             <Icon name="lock" className={iconClass} />
             <input
@@ -185,6 +174,17 @@ export default function Login() {
               Caps Lock is on.
             </p>
           ) : null}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              aria-expanded={showHelp}
+              onClick={() => setShowHelp((value) => !value)}
+              className="min-h-8 rounded-full px-1 text-[13px] font-semibold text-primary hover:underline focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
+            >
+              Forgot password?
+            </button>
+          </div>
+          {showHelp ? <Alert tone="info">{FORGOT_TEXT}</Alert> : null}
         </div>
 
         <Button type="submit" size="xl" fullWidth busy={busy} busyLabel="Signing in…" disabled={locked}>

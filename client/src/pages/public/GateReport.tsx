@@ -193,6 +193,7 @@ export default function GateReportPage() {
       {step === 3 ? (
         <ReviewStep
           values={values}
+          chosen={options.violations.filter((violation) => values.violationIds.includes(violation.id))}
           failure={failure}
           busy={busy}
           onBack={() => go(2)}

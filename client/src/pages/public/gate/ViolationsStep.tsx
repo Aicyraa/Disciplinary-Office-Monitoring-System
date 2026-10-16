@@ -98,10 +98,7 @@ export function ViolationsStep({
               )}
             >
               <Icon name={on ? 'check_box' : 'check_box_outline_blank'} filled={on} className={cn('shrink-0 !text-2xl', on ? 'text-primary' : 'text-muted-2')} />
-              <span className="min-w-0 flex-1 leading-snug">
-                <span className="block text-[15px] font-semibold text-ink">{violationTitle(violation.name)}</span>
-                <span className="block text-xs text-muted">Sec. {violation.section}</span>
-              </span>
+              <span className="min-w-0 flex-1 text-[15px] leading-snug font-semibold text-ink">{violationTitle(violation.name)}</span>
               <CategoryPill category={violation.category} />
             </button>
           );
