@@ -162,7 +162,7 @@ export function AppointmentModal({
               ? reviewRows({ name: student.name, studentId: student.id, startDate, reason, remarks, status }).map(([label, value]) => (
                   <div key={label} className="flex flex-wrap gap-x-4 gap-y-1 border-b border-line-soft py-2.5 last:border-b-0">
                     <dt className="flex-[0_0_150px] text-[13px] font-semibold text-muted">{label}</dt>
-                    <dd className="min-w-0 flex-[1_1_200px] text-sm text-pretty text-ink">{value}</dd>
+                    <dd className="min-w-0 flex-[1_1_200px] text-sm text-pretty wrap-anywhere text-ink">{value}</dd>
                   </div>
                 ))
               : null}
