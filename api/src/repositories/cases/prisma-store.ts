@@ -460,6 +460,12 @@ function listWhere(filter: CaseListFilter, codeCaseId: number | null): Prisma.di
 }
 
 /** Prisma-backed staff queries. Staff see every case (one department), so there is no student scope here. */
+/** Active sanctions, and the active ones whose due date is before `today` (Manila day): the queue and the summary agree. */
+function sanctionWheres(today: string) {
+  const activeWhere = { status: { in: [...ACTIVE_SANCTION_STATUSES] } };
+  return { activeWhere, overdueWhere: { ...activeWhere, due_date: { lt: new Date(`${today}T00:00:00Z`) } } };
+}
+
 export function createPrismaCaseQueries(
   db: Pick<PrismaClient, 'disciplinary_cases' | 'case_sanctions' | '$queryRaw'>,
 ): CaseQueries {
@@ -534,9 +540,24 @@ export function createPrismaCaseQueries(
       };
     },
 
+    async summary(today) {
+      const { activeWhere, overdueWhere } = sanctionWheres(today);
+      // Counts only, no rows or joins, all in one parallel round trip.
+      const [grouped, pendingVerification, overdue, active] = await Promise.all([
+        db.disciplinary_cases.groupBy({ by: ['status'], _count: { _all: true } }),
+        db.case_sanctions.count({ where: { status: 'pending_verification' } }),
+        db.case_sanctions.count({ where: overdueWhere }),
+        db.case_sanctions.count({ where: activeWhere }),
+      ]);
+      const cases = emptyStatusCounts();
+      for (const group of grouped) {
+        if (group.status in cases) cases[group.status as CaseStatus] = group._count._all;
+      }
+      return { cases, sanctions: { pendingVerification, overdue, active } };
+    },
+
     async sanctionQueue({ filter, page, today }) {
-      const activeWhere = { status: { in: [...ACTIVE_SANCTION_STATUSES] } };
-      const overdueWhere = { ...activeWhere, due_date: { lt: new Date(`${today}T00:00:00Z`) } };
+      const { activeWhere, overdueWhere } = sanctionWheres(today);
       const where =
         filter === 'pending_verification' ? { status: 'pending_verification' } : filter === 'overdue' ? overdueWhere : activeWhere;
       const [rows, total, pendingVerification, overdue, active] = await Promise.all([

@@ -1,5 +1,16 @@
 import { describe, expect, test } from 'vitest';
-import { breadcrumb, initials, moreItems, navGroups, phoneTabs } from '@/utils/nav';
+import { breadcrumb, initials, moreItems, navBadgesFrom, navGroups, phoneTabs } from '@/utils/nav';
+
+describe('navBadgesFrom (GET /staff/summary)', () => {
+  test('Cases shows reports waiting for review, Students shows sanctions waiting for verification', () => {
+    expect(
+      navBadgesFrom({
+        cases: { reported: 4, validated: 2, for_sanction: 1, resolved: 9, rejected: 3 },
+        sanctions: { pendingVerification: 5, overdue: 1, active: 7 },
+      }),
+    ).toEqual({ cases: 4, students: 5 });
+  });
+});
 
 describe('navGroups (deck src 2579)', () => {
   test('staff groups: Overview, Manage, Handbook (create actions are dialogs, not nav items)', () => {

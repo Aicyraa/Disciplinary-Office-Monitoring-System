@@ -2,13 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AccountRole } from '@shared/types';
 import { casesApi } from '@/api/cases';
 import { usePoller } from '@/hooks/usePoller';
-
-export interface NavBadges {
-  /** Staff: reports waiting for review. */
-  cases: number;
-  /** Staff: sanctions waiting for verification. */
-  students: number;
-}
+import { navBadgesFrom, type NavBadges } from '@/utils/nav';
 
 /**
  * Counts for the sidebar badges (the Inbox badge comes from the unread context). Staff only: students have
@@ -18,13 +12,8 @@ export interface NavBadges {
 export function useNavBadges(role: AccountRole, refreshKey: string): NavBadges {
   const [badges, setBadges] = useState<NavBadges>({ cases: 0, students: 0 });
 
-  const load = useCallback(
-    () =>
-      Promise.all([casesApi.staffCases({ status: 'reported', page: 1 }), casesApi.sanctionQueue({ filter: 'pending_verification' })]).then(
-        ([cases, queue]) => setBadges({ cases: cases.total, students: queue.counts.pendingVerification }),
-      ),
-    [],
-  );
+  // One counts-only request (GET /staff/summary) instead of a case page plus the sanction queue.
+  const load = useCallback(() => casesApi.staffSummary().then((summary) => setBadges(navBadgesFrom(summary))), []);
   const trigger = usePoller(load, role === 'staff');
 
   // A page change refreshes the numbers (an action on the last page may have changed them).

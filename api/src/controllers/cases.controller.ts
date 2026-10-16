@@ -55,6 +55,10 @@ export function createCaseController({ service, queries, now }: CaseControllerDe
     sendOk(response, await queries.sanctionQueue({ ...input.value, today: manilaToday(now()) }));
   };
 
+  const summary: RequestHandler = async (_request, response) => {
+    sendOk(response, await queries.summary(manilaToday(now())));
+  };
+
   const record: RequestHandler = async (request, response) => {
     const input = parseRecordViolationBody(request.body);
     if (!input.ok) return sendError(response, 400, 'invalid_input', input.message);
@@ -137,6 +141,7 @@ export function createCaseController({ service, queries, now }: CaseControllerDe
     list,
     detail,
     sanctionQueue,
+    summary,
     record,
     previewEscalation,
     validateSubmission,

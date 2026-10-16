@@ -1,4 +1,10 @@
-import type { EscalationConversion, StaffCaseDetail, StaffCaseListResponse, StaffSanctionQueueResponse } from '@shared/types';
+import type {
+  EscalationConversion,
+  StaffCaseDetail,
+  StaffCaseListResponse,
+  StaffSanctionQueueResponse,
+  StaffSummaryResponse,
+} from '@shared/types';
 import { get, post, patch } from './client';
 
 export interface StaffCaseQuery {
@@ -23,6 +29,8 @@ export const casesApi = {
     return get<StaffCaseListResponse>('/cases', params);
   },
   staffCase: (id: number) => get<{ case: StaffCaseDetail }>(`/cases/${id}`),
+  /** Counts only (no rows): the sidebar badges. */
+  staffSummary: () => get<StaffSummaryResponse>('/staff/summary'),
   sanctionQueue: (query: { filter?: 'active' | 'pending_verification' | 'overdue'; page?: number } = {}) => {
     const params: Record<string, string | number> = {};
     if (query.filter) params.filter = query.filter;
