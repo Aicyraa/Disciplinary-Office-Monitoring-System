@@ -12,6 +12,7 @@ import { Pager } from '@/components/ui/Pager';
 import { casesApi } from '@/api/cases';
 import { studentsApi } from '@/api/students';
 import { useApi } from '@/hooks/useApi';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { cn } from '@/utils/cn';
 import { matchesStudent } from '@/utils/studentRecord';
 
@@ -26,7 +27,9 @@ export function StudentList({ selectedId, onFirstRow }: { selectedId: string | n
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [page, setPage] = useState(1);
-  const list = useApi(() => studentsApi.students({ q: query.trim() || undefined, page }), [query, page]);
+  // The API is asked once typing pauses; the rows already shown are still narrowed per key (matchesStudent below).
+  const q = useDebouncedValue(query.trim());
+  const list = useApi(() => studentsApi.students({ q: q || undefined, page }), [q, page]);
   // Sanctions waiting for verification, counted per student (the gold badge).
   const queue = useApi(() => casesApi.sanctionQueue({ filter: 'pending_verification' }), []);
   const toVerify = useMemo(() => {

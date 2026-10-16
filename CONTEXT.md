@@ -1118,3 +1118,47 @@ Live database, object-storage bucket and a real Power Automate flow (no live ope
 - `DEPENDENCY:` none (hand-written validators; zod not added).
 - `SPEC QUESTION:` none.
 - Open for the human: `React.lazy` route splitting for the >500 kB chunk; renaming `App.tsx` to `app.tsx` (hot file, left).
+
+## Performance step 11, first batch (PERFORMANCE-SPEC P0 part, F1, F3, F7, B2) — branch worktree-perf-step11 (from c_v1 25ed567)
+
+The human asked to follow `PERFORMANCE-SPEC.md`; only slices that need no D1–D7 decision were built.
+
+### Performance baseline (P0)
+| Measure | Before (c_v1) | After |
+|---|---|---|
+| Client JS chunks | one `index` chunk, 636.78 kB raw, 184.81 kB gzip | entry + 4 shared chunks; every page but Login is its own chunk |
+| JS loaded by `/login` (static import graph of the entry) | 636.78 kB raw, 184.81 kB gzip | 419.1 kB raw, 133.7 kB gzip (budget 150 kB: met) |
+| Staff/student page code in `/login` | all of it | none (Playwright on `vite preview`: `/login` fetched 5 chunks; `/report` added only `GateReport` and 2 tiny shared chunks) |
+| Staff case list: sequential DB waits (q not a case code) | 3 (page+count+groupBy, case codes, submission codes) | 2 |
+| Staff case detail: sequential DB waits | 5 (row, siblings, related codes, own code, submission code) | 3 (row, siblings ∥ submission code, related codes) |
+| Hidden staff tab: nav-badge requests per hour | 120 (60 polls × 2 calls; visibility ignored) | 0 |
+| Idle visible tab (no input for 5 min): badge polls per hour | 60 | 30 |
+| Staff Students search: requests while typing "maria" quickly | 5 | 1 |
+
+### What changed
+- F1: `routes/AppRoutes.tsx` loads every page except Login with `React.lazy`; one `Suspense` around the routes (public spinner) and one inside `Shell` around the `Outlet` (`PageLoading`), so the frame stays while a page chunk arrives. `vite.config.ts`: `build.rolldownOptions.output.codeSplitting` puts react/react-dom/react-router in a stable `react` chunk (Vite 8 bundles with Rolldown; option checked in Context7). `@base-ui/react` is not imported anywhere, so it got no group.
+- F3: `utils/poller.ts` (pure, tested with fake timers and a visibility stub): visible tab only, one refresh at a time, 60 s, then 120 s after 5 min without pointer/key input, back to 60 s on activity. `hooks/usePoller.ts` wires it; `useNavBadges` and `UnreadContext` use it. The badge still makes two list calls (the counts-only endpoint is B4 and needs D7).
+- F7: `utils/debounce.ts` + `hooks/useDebouncedValue.ts`; `StudentList` was the only server search without a debounce (Cases and Appointments already waited 250 ms).
+- B2: `repositories/cases/prisma-store.ts`: the list runs both display-code lookups in one `Promise.all`; the detail runs siblings ∥ submission code and reuses the related-codes result for the case's own code (codes are ranked over the whole table before filtering, so the value is identical). Route tests unchanged.
+- P0 step 2 (partial): `middlewares/timing.ts` logs `[timing] METHOD /route/:pattern STATUS ms` per request, mounted only when `NODE_ENV !== 'production'`; no body, user or query string is logged. Prisma query count per request is not included (it needs a `$extends` client whose type differs from `PrismaClient`; left for a follow-up).
+
+### Findings that change the spec's plan
+- D1 is answered by the code: `vercel.json` runs client and API as Vercel services on one origin (`/api` rewrite); the API is a serverless function (`api/src/index.ts`).
+- B5 (sweep wakes Neon every 60 s) does not happen on Vercel: `server.ts` starts no sweep timer there, and delivery is kicked per request with `waitUntil`. Only a long-running `npm start` host sweeps.
+- B1 / I2: Vercel compresses responses and caches hashed assets itself, so the `compression` dependency should not be needed (HUMAN CHECK below).
+- B8: serverless means many short-lived instances; an in-process cache only helps a warm instance. Use a short TTL or `Cache-Control` only.
+- B6: each serverless instance holds its own two pools; `max` should be small (1 to 3) against the pooled endpoint.
+
+### Commands run
+`npm test` (104 files, 1454 tests, all pass), `npm run lint` (clean), `npm run typecheck` (clean), `npm run build` (clean; the >500 kB chunk warning is gone).
+
+### Not verified
+- API latency median/p95, EXPLAIN plans, cold start and compute activity (P0 steps 2 to 5): need the running API against the dev branch.
+- Lighthouse (P0 step 6) and signed-in pages in a browser: need the API.
+- HUMAN CHECK: `curl -sI -H 'Accept-Encoding: br, gzip' -b 'sdo.sid=<cookie>' https://<deployment>/api/cases` -> `content-encoding: br` or `gzip`.
+- HUMAN CHECK: `curl -sI https://<deployment>/assets/<any hashed file>.js` -> `cache-control: public, max-age=31536000, immutable`; `index.html` -> no long max-age.
+- HUMAN CHECK: `npm run dev`, sign in as staff and as student, open every nav page -> each renders after its chunk loads; the API console prints `[timing]` lines.
+
+### Raised items
+- DEPENDENCY: remove `mammoth` from `client/package.json` (F8, D6; no import anywhere).
+- Open decisions: D2 (mostly moot on Vercel), D3, D4, D5, D7 (B4: `SPEC CHANGE: add GET /staff/summary`, counts only).

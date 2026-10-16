@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import type { AuthUser } from '@shared/types';
 import seal from '@/assets/seal.png';
 import { AccountDetailsModal, ChangePasswordModal } from '@/components/account/AccountModals';
 import { ModalOpenProvider, useAnyModalOpen } from '@/components/feedback/modalOpen';
-import { NudgeCard } from '@/components/feedback/PageState';
+import { NudgeCard, PageLoading } from '@/components/feedback/PageState';
 import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
@@ -301,7 +301,10 @@ function ShellFrame({ user }: { user: AuthUser }) {
           <PhoneTitle user={user} onOpen={setDialog} />
           {/* Keyed on the first path segment only: list -> detail inside one page keeps its state and does not replay. */}
           <div key={location.pathname.split('/')[1] ?? ''} className="page-enter">
-            <Outlet />
+            {/* Pages load as separate chunks (AppRoutes); the frame stays put while one arrives. */}
+            <Suspense fallback={<PageLoading page="the page" />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

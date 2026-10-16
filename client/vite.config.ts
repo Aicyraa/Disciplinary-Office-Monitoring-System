@@ -21,5 +21,18 @@ export default defineConfig(({ mode }) => {
     // (they are never run at the same time), and the API allows exactly that origin.
     server: { host: 'localhost', port: devPort, strictPort: true },
     preview: { host: 'localhost', port: devPort, strictPort: true },
+    // Stable vendor chunks (PERFORMANCE-SPEC F1): an app-code deploy does not change their hash, so browsers keep
+    // them cached. Pages are split per route in routes/AppRoutes.tsx.
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom)[\\/]/ },
+            ],
+          },
+        },
+      },
+    },
   };
 });

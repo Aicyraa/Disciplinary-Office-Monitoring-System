@@ -8,6 +8,7 @@ import { createAuthRouter, type LoginRateLimitOptions } from './routes/auth.rout
 import type { AuthService } from './services/auth.service.js';
 import { sendError } from './helpers/http.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.js';
+import { requestTiming, type TimingEntry } from './middlewares/timing.js';
 import { registerDataRoutes, type DataDeps } from './routes/index.js';
 
 export interface AppDeps {
@@ -34,6 +35,8 @@ export interface AppDeps {
   unconfigured?: { clientOrigin: string; reason: string };
   /** Read-side repositories and services. Routes mount only when `auth` is also given (they need the session). */
   data?: DataDeps;
+  /** Development only: called once per finished request with its route and duration (PERFORMANCE-SPEC P0). */
+  timing?: (entry: TimingEntry) => void;
 }
 
 /** CORS for exactly one origin; any other origin gets no CORS headers. */
@@ -44,8 +47,9 @@ function clientCors(origin: string) {
   });
 }
 
-export function createApp({ auth, data, unconfigured }: AppDeps = {}) {
+export function createApp({ auth, data, unconfigured, timing }: AppDeps = {}) {
   const app = express();
+  if (timing) app.use(requestTiming(timing));
 
   // The one route outside the response envelope: a probe with a documented plain body.
   app.get('/health', (_request, response) => {
