@@ -14,7 +14,6 @@
     "start": "node --env-file-if-exists=../.env dist/api/src/server.js",
     "prisma:validate": "node --env-file-if-exists=../.env node_modules/prisma/build/index.js validate --config prisma.config.ts",
     "prisma:generate": "node --env-file-if-exists=../.env node_modules/prisma/build/index.js generate --config prisma.config.ts",
-    "prisma:push": "node --env-file-if-exists=../.env node_modules/prisma/build/index.js db push --config prisma.config.ts",
     "prisma:smoke": "tsx --env-file-if-exists=../.env scripts/prisma-smoke.ts",
     "prisma:pull": "node --env-file-if-exists=../.env node_modules/prisma/build/index.js db pull --config prisma.config.ts",
     "prisma:migrate": "node --env-file=../.env ./node_modules/.bin/prisma migrate dev --name prod",
