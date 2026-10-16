@@ -13,7 +13,7 @@ import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { StageTracker } from '@/components/ui/StageTracker';
 import { cn } from '@/utils/cn';
 import { manilaToday } from '@/utils/files';
-import { SANCTION_STEP_LABELS, formatDate, sanctionStepIndex } from '@/utils/format';
+import { SANCTION_STEP_LABELS, formatDate, sanctionStepIndex, violationTitle } from '@/utils/format';
 import { dueLine, proofSummary, sanctionHistoryItems, sanctionNextStep, uploadPanel } from '@/utils/studentView';
 
 const DUE_TONE = { info: 'text-info-ink', bad: 'text-bad-ink', done: 'text-success' } as const;
@@ -129,7 +129,7 @@ export function SanctionDetail({
               label: 'Violation',
               value: (
                 <span className="flex flex-wrap items-center gap-2">
-                  {caseRow?.violation ?? '—'}
+                  {caseRow ? violationTitle(caseRow.violation) : '—'}
                   <StatusPill status={caseRow?.severity ?? sanction.severity} />
                   {caseRow ? <span className="text-muted">Sec. {caseRow.section}</span> : null}
                 </span>

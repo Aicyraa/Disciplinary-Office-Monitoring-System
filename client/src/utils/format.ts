@@ -29,6 +29,24 @@ export function formatDate(value: string): string {
   }).format(new Date(dateOnly ? `${value}T00:00:00Z` : value));
 }
 
+const MINOR_WORDS = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'in', 'of', 'on', 'or', 'the', 'to', 'with']);
+
+/**
+ * A violation name as every screen shows it: "Unwelcome sexual advances" -> "Unwelcome Sexual Advances".
+ * Display only; the stored name is unchanged. Short joining words stay lower case unless they lead, words that
+ * already carry a capital (ID, IED, Anti-Hazing) are kept, and each part of a hyphenated word is capitalised.
+ */
+export function violationTitle(name: string): string {
+  let first = true;
+  return name.replace(/[^\s/]+/g, (word) => {
+    const leading = first;
+    first = false;
+    if (/[A-Z]/.test(word.slice(1))) return word;
+    if (!leading && MINOR_WORDS.has(word.toLowerCase())) return word.toLowerCase();
+    return word.replace(/(^|-)([a-z])/g, (_match, dash: string, letter: string) => dash + letter.toUpperCase());
+  });
+}
+
 const TERM_ORDINALS = ['1st', '2nd', '3rd'] as const;
 
 /** A term is one of three fixed terms of a school year: "1st Term 2026–2027" (en dash, as the deck). */

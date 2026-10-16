@@ -5,7 +5,7 @@ import { ListCard } from '@/components/ui/ListCard';
 import { Pager } from '@/components/ui/Pager';
 import { Tag } from '@/components/ui/Tag';
 import { cn } from '@/utils/cn';
-import { formatDate } from '@/utils/format';
+import { formatDate, violationTitle } from '@/utils/format';
 import { caseTag } from '@/utils/studentView';
 
 export const VIOLATIONS_PER_PAGE = 5;
@@ -58,7 +58,7 @@ export function ViolationTable({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate font-semibold text-ink">{row.violation}</span>
+                  <span className="truncate font-semibold text-ink">{violationTitle(row.violation)}</span>
                   {tag ? <Tag className="shrink-0">{tag}</Tag> : null}
                 </span>
                 <span className="block truncate text-xs text-muted rail:hidden">

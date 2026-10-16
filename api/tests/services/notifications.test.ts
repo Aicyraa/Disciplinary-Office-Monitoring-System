@@ -90,6 +90,15 @@ describe('payload builders', () => {
     expect(buildNotifyPayload('case', { ...input, linkUrl: null }).html_body).not.toContain('<a ');
   });
 
+  test('the email is the branded template: seal from an http(s) URL, button to the link', () => {
+    const body = buildNotifyPayload('case', { ...input, logoUrl: 'https://sdo.example.invalid/seal.png' }).html_body;
+    expect(body).toContain('<img src="https://sdo.example.invalid/seal.png"');
+    expect(body).toContain('Student Discipline Office');
+    expect(body).toContain('href="http://localhost:5173/sanctions"');
+    expect(body).toContain('Open in SDO Portal');
+    expect(buildNotifyPayload('case', { ...input, logoUrl: 'javascript:alert(1)' }).html_body).not.toContain('<img');
+  });
+
   test('a line break in the title cannot become a second mail header', () => {
     const subject = buildNotifyPayload('case', { ...input, title: 'Hello\r\nBcc: attacker@example.com' }).subject;
     expect(subject).not.toMatch(/[\r\n]/);

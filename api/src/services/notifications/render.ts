@@ -24,6 +24,8 @@ export interface NotifyInput {
   to: string[];
   /** First name for the greeting, or null for a group (all staff). */
   greetingName: string | null;
+  /** Absolute URL of the seal for the email header; without it the header shows a gold "SDO" badge. */
+  logoUrl?: string | null;
 }
 
 export function escapeHtml(text: string): string {
@@ -78,16 +80,91 @@ const KIND_INTRO: Record<NotificationKind, { subjectPrefix: string; intro: strin
   notice: { subjectPrefix: 'Important notice', intro: 'The SDO office posted an important notice for students.' },
 };
 
+/** The label chip per kind, in the status-pill colours of SPEC section 9: [background, text]. */
+const KIND_CHIP: Record<NotificationKind, readonly [string, string]> = {
+  report: ['#FDF3D3', '#7A5A00'],
+  case: ['#E8EBF7', '#2B347A'],
+  esc: ['#FBE4E1', '#B42318'],
+  sanction: ['#FCE9C6', '#7A4600'],
+  appt: ['#E8EBF7', '#2B347A'],
+  clr: ['#E3F1E8', '#1E6B3E'],
+  account: ['#EEF0F3', '#5B6576'],
+  newviol: ['#FBE4E1', '#B42318'],
+  notice: ['#FDF3D3', '#7A5A00'],
+};
+
+/**
+ * The branded email around the text (header band with the seal, label chip, title, message card, button, footer).
+ * Email clients ignore most CSS, so it is a 600 px table with inline styles only, and it reads fine with images
+ * blocked. Every value that comes from a person is escaped by the caller.
+ */
+function emailHtml(parts: {
+  chip: string;
+  chipColors: readonly [string, string];
+  preheader: string;
+  greeting: string;
+  intro: string;
+  title: string;
+  message: string;
+  href: string | null;
+  logoUrl: string | null;
+}): string {
+  const font = "font-family:'Public Sans',Segoe UI,Arial,Helvetica,sans-serif;";
+  const logo = parts.logoUrl
+    ? `<img src="${parts.logoUrl}" width="44" height="44" alt="NU Fairview SDO" style="display:block;border:0;width:44px;height:44px">`
+    : `<div style="width:44px;height:44px;border-radius:22px;background:#F2D46B;color:#262F73;${font}font-size:14px;font-weight:800;line-height:44px;text-align:center">SDO</div>`;
+  const button = parts.href
+    ? '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px">' +
+      `<tr><td bgcolor="#35408E" style="border-radius:10px">` +
+      `<a href="${parts.href}" style="display:inline-block;padding:13px 26px;${font}font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:10px">Open in SDO Portal &rarr;</a>` +
+      '</td></tr></table>' +
+      `<p style="margin:0;${font}font-size:12px;line-height:18px;color:#5B6576">Button not working? Copy this link into your browser:<br>` +
+      `<a href="${parts.href}" style="color:#35408E;word-break:break-all">${parts.href}</a></p>`
+    : '';
+  return (
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="color-scheme" content="light only"><title>SDO Portal</title></head>' +
+    '<body style="margin:0;padding:0;background:#F2F5F5">' +
+    `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${parts.preheader}</div>` +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F2F5F5" style="background:#F2F5F5">' +
+    '<tr><td align="center" style="padding:28px 12px">' +
+    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#FFFFFF;border:1px solid #DDE3E8;border-radius:16px;overflow:hidden">' +
+    // Header: navy band, seal, office name; a thin gold rule under it.
+    '<tr><td bgcolor="#35408E" style="background:#35408E;padding:20px 28px">' +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>' +
+    `<td valign="middle" style="padding-right:14px">${logo}</td>` +
+    `<td valign="middle" style="${font}color:#FFFFFF">` +
+    '<div style="font-size:17px;font-weight:800;line-height:22px">Student Discipline Office</div>' +
+    '<div style="font-size:13px;line-height:18px;color:#F2D46B;font-weight:600">NU Fairview &middot; SDO Portal</div>' +
+    '</td></tr></table></td></tr>' +
+    '<tr><td bgcolor="#F2D46B" style="background:#F2D46B;height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>' +
+    // Body.
+    `<tr><td style="padding:28px 28px 8px;${font}color:#1C2445">` +
+    `<span style="display:inline-block;padding:4px 10px;border-radius:999px;background:${parts.chipColors[0]};color:${parts.chipColors[1]};font-size:12px;font-weight:700;letter-spacing:.02em">${parts.chip}</span>` +
+    `<h1 style="margin:14px 0 0;font-size:22px;line-height:29px;font-weight:800;color:#1C2445">${parts.title}</h1>` +
+    `<p style="margin:18px 0 0;font-size:15px;line-height:23px">${parts.greeting}</p>` +
+    `<p style="margin:6px 0 0;font-size:15px;line-height:23px;color:#5B6576">${parts.intro}</p>` +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px">' +
+    `<tr><td style="background:#F5F7FC;border-left:4px solid #35408E;border-radius:8px;padding:16px 18px;${font}font-size:15px;line-height:23px;color:#1C2445">${parts.message}</td></tr>` +
+    '</table>' +
+    button +
+    '</td></tr>' +
+    // Footer.
+    `<tr><td style="padding:24px 28px 28px;${font}">` +
+    '<div style="border-top:1px solid #DDE3E8;padding-top:16px;font-size:12px;line-height:18px;color:#5B6576">' +
+    'NU Fairview Student Discipline Office<br>This is an automatic message from the SDO Portal. Please do not reply to this email.' +
+    '</div></td></tr>' +
+    '</table></td></tr></table></body></html>'
+  );
+}
+
 type Builder = (input: NotifyInput) => NotifyPayload;
 
 function build(kind: NotificationKind): Builder {
   const { subjectPrefix, intro } = KIND_INTRO[kind];
   return (input) => {
     const href = safeHref(input.linkUrl);
-    const greeting = input.greetingName ? `Hi ${escapeHtml(input.greetingName)},` : 'Hello,';
-    const link = href
-      ? `<p><a href="${escapeHtml(href)}">Open it in the SDO Portal</a></p>`
-      : '';
+    const logo = safeHref(input.logoUrl ?? null);
     return {
       notification_id: input.notificationId,
       idempotency_key: input.idempotencyKey,
@@ -96,12 +173,17 @@ function build(kind: NotificationKind): Builder {
       cc: [],
       // A subject is one line: any line break in the title is flattened (header-injection defense in depth).
       subject: `[SDO Portal] ${subjectPrefix}: ${oneLine(input.title)}`.slice(0, 200),
-      html_body:
-        `<p>${greeting}</p>` +
-        `<p>${escapeHtml(intro)}</p>` +
-        `<p><strong>${escapeHtml(input.title)}</strong><br>${escapeHtml(input.message).replace(/\r?\n/g, '<br>')}</p>` +
-        link +
-        '<p style="color:#5B6576;font-size:12px">NU Fairview Student Discipline Office. This is an automatic message; do not reply.</p>',
+      html_body: emailHtml({
+        chip: escapeHtml(subjectPrefix),
+        chipColors: KIND_CHIP[kind],
+        preheader: escapeHtml(oneLine(`${intro} ${input.title}`)),
+        greeting: input.greetingName ? `Hi ${escapeHtml(input.greetingName)},` : 'Hello,',
+        intro: escapeHtml(intro),
+        title: escapeHtml(input.title),
+        message: escapeHtml(input.message).replace(/\r?\n/g, '<br>'),
+        href: href ? escapeHtml(href) : null,
+        logoUrl: logo ? escapeHtml(logo) : null,
+      }),
       link_url: href,
     };
   };

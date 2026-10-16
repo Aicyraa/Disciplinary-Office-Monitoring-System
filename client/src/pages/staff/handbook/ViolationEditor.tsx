@@ -4,6 +4,7 @@ import { useToast } from '@/components/feedback';
 import { Button } from '@/components/ui/Button';
 import { toApiError } from '@/api/client';
 import { handbookApi } from '@/api/handbook';
+import { violationTitle } from '@/utils/format';
 import { formErrors, isDirty, toPicks, toSanctionList, type ViolationFormValues } from '@/utils/handbookForm';
 import { ViolationFields, useViolationForm, type SanctionChoice } from './ViolationFields';
 
@@ -70,10 +71,10 @@ export function ViolationEditor({
   }
 
   return (
-    <section aria-label={`Edit ${entry.violation}`} className="flex flex-col gap-[18px] rounded-xl border border-line bg-white p-6">
+    <section aria-label={`Edit ${violationTitle(entry.violation)}`} className="flex flex-col gap-[18px] rounded-xl border border-line bg-white p-6">
       <div>
         <p className="text-[13px] font-semibold text-muted">Edit violation</p>
-        <h2 className="mt-0.5 text-[22px] leading-tight font-bold text-ink">{entry.violation}</h2>
+        <h2 className="mt-0.5 text-[22px] leading-tight font-bold text-ink">{violationTitle(entry.violation)}</h2>
         <p className="mt-0.5 text-[13px] text-muted">
           {entry.severity} offense · Sec. {entry.section} · Used in {used} case{used === 1 ? '' : 's'}
         </p>

@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toApiError } from '@/api/client';
 import { gateApi } from '@/api/gate';
 import { Alert } from '@/components/ui/Alert';
-import { SkeletonPanel } from '@/components/feedback/Skeleton';
 import { waitBeforeSubmit, type GateCategory, type GateFormValues, type GateViolation } from '@/utils/gateForm';
 import type { DetailsErrors } from '@/validators/gateForm';
 import { DetailsStep } from './gate/DetailsStep';
 import { GatePinned } from './gate/GatePinned';
+import { GateSkeleton } from './gate/GateSkeleton';
 import { ReceivedCard } from './gate/ReceivedCard';
 import { ReviewStep } from './gate/ReviewStep';
 import { ViolationsStep } from './gate/ViolationsStep';
@@ -157,8 +157,8 @@ export default function GateReportPage() {
 
   if (!options) {
     return (
-      <GateColumn>
-        <SkeletonPanel label="Opening the form…" lines={5} className="border-0 p-0" />
+      <GateColumn step={1}>
+        <GateSkeleton />
       </GateColumn>
     );
   }
@@ -193,7 +193,6 @@ export default function GateReportPage() {
       {step === 3 ? (
         <ReviewStep
           values={values}
-          chosen={options.violations.filter((violation) => values.violationIds.includes(violation.id))}
           failure={failure}
           busy={busy}
           onBack={() => go(2)}

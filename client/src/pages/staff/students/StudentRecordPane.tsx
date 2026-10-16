@@ -14,7 +14,7 @@ import { studentsApi } from '@/api/students';
 import { useApi } from '@/hooks/useApi';
 import { ordinalYear } from '@/utils/account';
 import { cn } from '@/utils/cn';
-import { formatTerm } from '@/utils/format';
+import { formatTerm, violationTitle } from '@/utils/format';
 import { defaultRecordTab, isActiveCase, recordCaseRow, recordSanctionRow, recordTiles, type RecordTab, type RecordTile } from '@/utils/studentRecord';
 
 const ACCENT: Record<RecordTile['accent'], string> = {
@@ -105,7 +105,7 @@ function RecordLists({ data, tab }: { data: StaffStudentRecord; tab: RecordTab }
             </span>
             <span className="min-w-0 flex-1 leading-snug">
               <span className="flex flex-wrap items-center gap-1.5">
-                <span className="font-semibold text-ink">{item.violation}</span>
+                <span className="font-semibold text-ink">{violationTitle(item.violation)}</span>
               </span>
               <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
                 <span className="text-xs text-muted">{row.line}</span>

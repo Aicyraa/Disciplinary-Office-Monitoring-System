@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/Icon';
 import { ListCard } from '@/components/ui/ListCard';
 import { Pager } from '@/components/ui/Pager';
 import { cn } from '@/utils/cn';
+import { violationTitle } from '@/utils/format';
 import { HANDBOOK_PER_PAGE, firstSanctionText } from '@/utils/handbook';
 
 const COLUMNS = 'rail:grid rail:grid-cols-[minmax(0,1.6fr)_84px_84px_minmax(0,1.2fr)] rail:gap-3';
@@ -65,7 +66,7 @@ export function HandbookTable({
               )}
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold text-ink">{entry.violation}</span>
+                <span className="block truncate font-semibold text-ink">{violationTitle(entry.violation)}</span>
                 <span className="block truncate text-xs text-muted rail:hidden">
                   Sec. {entry.section} · {firstSanctionText(entry)}
                 </span>

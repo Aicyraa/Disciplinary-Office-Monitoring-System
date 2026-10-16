@@ -1,4 +1,5 @@
 import type { ClearanceRosterRow, StaffAppointmentView, StaffCaseRow, StaffSanctionQueueRow, TermRef } from '@shared/types';
+import { violationTitle } from '@/utils/format';
 
 /** The staff dashboard's row rules (deck W15, src 2822 to 2871). Every row links to its record (UI-POLISH-SPEC 5.4b). */
 
@@ -48,7 +49,7 @@ export function reportRows(cases: StaffCaseRow[], today: string): ReportRow[] {
       key,
       caseId: first.id,
       title: who(first),
-      sub: [first.submissionCode ?? first.code, rows.map((r) => r.violation).join(', '), ageText(first.caseDate, today)].join(' · '),
+      sub: [first.submissionCode ?? first.code, rows.map((r) => violationTitle(r.violation)).join(', '), ageText(first.caseDate, today)].join(' · '),
       submissionRef: first.submissionRef,
       unmatched: first.student === null,
       href: `/cases/${first.id}?queue=review`,
@@ -68,7 +69,7 @@ export function decisionRow(row: StaffCaseRow, today: string): DashRow {
   return {
     key: String(row.id),
     title: `${row.student?.name ?? 'Unknown student'} · ${row.code}`,
-    sub: `${row.violation} · ${row.severity} · ${ageText(row.caseDate, today)}`,
+    sub: `${violationTitle(row.violation)} · ${row.severity} · ${ageText(row.caseDate, today)}`,
     flag: row.severity === 'Major' ? 'Major' : null,
     href: `/cases/${row.id}?queue=all`,
   };

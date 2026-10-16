@@ -189,6 +189,8 @@ export async function deliverPending({
           linkUrl,
           to: group.map((recipient) => recipient.email),
           greetingName: audience === 'student' ? (group[0].firstName ?? null) : null,
+          // client/public/seal.png, served at the site root.
+          logoUrl: absoluteUrl(appBaseUrl, '/seal.png'),
         });
         if (requestsMade > 0 && pauseBetweenMs > 0) await sleep(pauseBetweenMs);
         requestsMade += 1;

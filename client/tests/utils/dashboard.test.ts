@@ -123,7 +123,7 @@ describe('student dashboard rows (src 3062 to 3067, UI-POLISH-SPEC 5.14 and 5.4b
   test('violationRow: violation, "code · class · short date" in Manila, opens the case', () => {
     expect(violationRow(caseOf({ id: 21, code: 'SDO-2026-021', violation: 'Inappropriate attire', caseDate: '2026-10-08T17:00:00.000Z' }))).toEqual({
       key: '21',
-      title: 'Inappropriate attire',
+      title: 'Inappropriate Attire',
       sub: 'SDO-2026-021 · Minor · Oct 9',
       href: '/violations/21',
     });

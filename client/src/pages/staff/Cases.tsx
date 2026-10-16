@@ -20,7 +20,7 @@ import { useApi } from '@/hooks/useApi';
 import { caseRowView, groupHeads, queueFromParam, queueOptions, type QueueKey } from '@/utils/caseView';
 import { cn } from '@/utils/cn';
 import { manilaToday } from '@/utils/files';
-import { formatDate } from '@/utils/format';
+import { formatDate, violationTitle } from '@/utils/format';
 import { CaseWorkspace } from './CaseDetail';
 import { RecordViolationModal } from './cases/RecordViolationModal';
 
@@ -193,7 +193,7 @@ function CaseQueue({
                       <span className="mt-[3px] flex min-w-0 items-center gap-1.5">
                         <span className="truncate text-[13px] text-body">
                           <span className="@min-[560px]:hidden">{row.code} · </span>
-                          {row.violation}
+                          {violationTitle(row.violation)}
                         </span>
                       </span>
                       <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
