@@ -93,7 +93,7 @@ const KIND_CHIP: Record<NotificationKind, readonly [string, string]> = {
 
 /**
  * The branded email around the text (header band, label chip, title, message card, button). Email clients ignore
- * most CSS, so it is a 600 px table with inline styles only and no images. Every value that comes from a person
+ * most CSS, so it is a full-width table with inline styles only and no images. Every value that comes from a person
  * is escaped by the caller.
  */
 function emailHtml(parts: {
@@ -116,11 +116,10 @@ function emailHtml(parts: {
   return (
     '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<meta name="color-scheme" content="light only"><title>SDO Portal</title></head>' +
-    '<body style="margin:0;padding:0;background:#F2F5F5">' +
+    '<body style="margin:0;padding:0;background:#FFFFFF">' +
     `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${parts.preheader}</div>` +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F2F5F5" style="background:#F2F5F5">' +
-    '<tr><td align="center" style="padding:28px 12px">' +
-    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#FFFFFF;border:1px solid #DDE3E8;border-radius:16px;overflow:hidden">' +
+    // Full width: no page colour, frame or rounded card around the email.
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="width:100%;background:#FFFFFF">' +
     // Header: navy band with the office name; a thin gold rule under it.
     `<tr><td bgcolor="#35408E" style="background:#35408E;padding:20px 28px;${font}color:#FFFFFF">` +
     '<div style="font-size:17px;font-weight:800;line-height:22px">Student Discipline Office</div>' +
@@ -138,7 +137,7 @@ function emailHtml(parts: {
     '</table>' +
     button +
     '</td></tr>' +
-    '</table></td></tr></table></body></html>'
+    '</table></body></html>'
   );
 }
 
