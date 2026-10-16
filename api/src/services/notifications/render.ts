@@ -1,4 +1,5 @@
 import type { NotificationKind } from '@shared/types.js';
+import { emailDetails, type EmailDetails } from './details.js';
 
 /** The `payload` of every Flow 2 request. Plain data only: built here, never from request bodies or DB rows. */
 export interface NotifyPayload {
@@ -78,27 +79,33 @@ const KIND_INTRO: Record<NotificationKind, { subjectPrefix: string; intro: strin
   notice: { subjectPrefix: 'Important notice', intro: 'The SDO office posted an important notice for students.' },
 };
 
-/** The label chip per kind, in the status-pill colours of SPEC section 9: [background, text]. */
-const KIND_CHIP: Record<NotificationKind, readonly [string, string]> = {
-  report: ['#FDF3D3', '#7A5A00'],
-  case: ['#E8EBF7', '#2B347A'],
-  esc: ['#FBE4E1', '#B42318'],
-  sanction: ['#FCE9C6', '#7A4600'],
-  appt: ['#E8EBF7', '#2B347A'],
-  clr: ['#E3F1E8', '#1E6B3E'],
-  account: ['#EEF0F3', '#5B6576'],
-  newviol: ['#FBE4E1', '#B42318'],
-  notice: ['#FDF3D3', '#7A5A00'],
-};
+const FONT = "font-family:'Public Sans',Segoe UI,Arial,Helvetica,sans-serif;";
+
+/** Escaped text with its line breaks kept. */
+const textHtml = (text: string): string => escapeHtml(text).replace(/\r?\n/g, '<br>');
+
+/** The message card's contents: the lead sentence, then one labelled line per detail (label left, value right). */
+function detailsHtml({ lead, rows }: EmailDetails): string {
+  const leadHtml = lead
+    ? `<p style="margin:0${rows.length ? ' 0 12px' : ''};${FONT}font-size:15px;line-height:23px;color:#1C2445">${textHtml(lead)}</p>`
+    : '';
+  if (rows.length === 0) return leadHtml;
+  const lines = rows
+    .map(
+      ([label, value], index) =>
+        `<tr><td valign="top" width="130" style="padding:${index ? '8px' : '0'} 12px 0 0;${FONT}font-size:13px;line-height:21px;font-weight:600;color:#5B6576;white-space:nowrap">${escapeHtml(label)}</td>` +
+        `<td valign="top" style="padding:${index ? '8px' : '0'} 0 0;${FONT}font-size:15px;line-height:21px;font-weight:700;color:#1C2445">${textHtml(value)}</td></tr>`,
+    )
+    .join('');
+  return `${leadHtml}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${lines}</table>`;
+}
 
 /**
- * The branded email around the text (header band, label chip, title, message card, button). Email clients ignore
- * most CSS, so it is a full-width table with inline styles only and no images. Every value that comes from a person
- * is escaped by the caller.
+ * The branded email around the text (header band, title, message card, button). Email clients ignore most CSS,
+ * so it is a full-width table with inline styles only and no images. Every value that comes from a person is
+ * escaped by the caller.
  */
 function emailHtml(parts: {
-  chip: string;
-  chipColors: readonly [string, string];
   preheader: string;
   greeting: string;
   intro: string;
@@ -106,7 +113,7 @@ function emailHtml(parts: {
   message: string;
   href: string | null;
 }): string {
-  const font = "font-family:'Public Sans',Segoe UI,Arial,Helvetica,sans-serif;";
+  const font = FONT;
   const button = parts.href
     ? '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0">' +
       `<tr><td bgcolor="#35408E" style="border-radius:10px">` +
@@ -128,12 +135,11 @@ function emailHtml(parts: {
     '<tr><td bgcolor="#F2D46B" style="background:#F2D46B;height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>' +
     // Body.
     `<tr><td style="padding:28px;${font}color:#1C2445">` +
-    `<span style="display:inline-block;padding:4px 10px;border-radius:999px;background:${parts.chipColors[0]};color:${parts.chipColors[1]};font-size:12px;font-weight:700;letter-spacing:.02em">${parts.chip}</span>` +
-    `<h1 style="margin:14px 0 0;font-size:22px;line-height:29px;font-weight:800;color:#1C2445">${parts.title}</h1>` +
+    `<h1 style="margin:0;font-size:22px;line-height:29px;font-weight:800;color:#1C2445">${parts.title}</h1>` +
     `<p style="margin:18px 0 0;font-size:15px;line-height:23px">${parts.greeting}</p>` +
     `<p style="margin:6px 0 0;font-size:15px;line-height:23px;color:#5B6576">${parts.intro}</p>` +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px">' +
-    `<tr><td style="background:#F5F7FC;border-left:4px solid #35408E;border-radius:8px 0 8px 0;padding:16px 18px;${font}font-size:15px;line-height:23px;color:#1C2445">${parts.message}</td></tr>` +
+    `<tr><td style="background:#F5F7FC;border-left:4px solid #35408E;border-radius:0 8px 8px 0;padding:16px 18px;${font}font-size:15px;line-height:23px;color:#1C2445">${parts.message}</td></tr>` +
     '</table>' +
     button +
     '</td></tr>' +
@@ -156,13 +162,11 @@ function build(kind: NotificationKind): Builder {
       // A subject is one line: any line break in the title is flattened (header-injection defense in depth).
       subject: `[SDO Portal] ${subjectPrefix}: ${oneLine(input.title)}`.slice(0, 200),
       html_body: emailHtml({
-        chip: escapeHtml(subjectPrefix),
-        chipColors: KIND_CHIP[kind],
         preheader: escapeHtml(oneLine(`${intro} ${input.title}`)),
         greeting: input.greetingName ? `Hi ${escapeHtml(input.greetingName)},` : 'Hello,',
         intro: escapeHtml(intro),
         title: escapeHtml(input.title),
-        message: escapeHtml(input.message).replace(/\r?\n/g, '<br>'),
+        message: detailsHtml(emailDetails(input.message)),
         href: href ? escapeHtml(href) : null,
       }),
       link_url: href,
