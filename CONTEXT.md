@@ -1160,5 +1160,6 @@ The human asked to follow `PERFORMANCE-SPEC.md`; only slices that need no D1–D
 - HUMAN CHECK: `npm run dev`, sign in as staff and as student, open every nav page -> each renders after its chunk loads; the API console prints `[timing]` lines.
 
 ### Raised items
-- DEPENDENCY: remove `mammoth` from `client/package.json` (F8, D6; no import anywhere).
+- F8 / D6 (human approved 2026-10-16): `mammoth` removed from `client/package.json` and its lockfile (`npm --prefix client uninstall mammoth`, 22 packages removed).
+- Human decision 2026-10-16: the staff Cases "HIGH" row flag is removed. It was already not rendered; the dead `caseRowView().high` logic, `components/ui/HighTag.tsx` and their tests are gone. `UI-POLISH-SPEC.md` D5 still describes it (team agents do not edit docs): `SPEC CHANGE: drop the HIGH flag from UI-POLISH-SPEC D5`.
 - Open decisions: D2 (mostly moot on Vercel), D3, D4, D5, D7 (B4: `SPEC CHANGE: add GET /staff/summary`, counts only).
