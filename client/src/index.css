@@ -162,13 +162,21 @@
 .stagger > :nth-child(7) { animation-delay: 240ms; }
 .stagger > :nth-child(n + 8) { animation-delay: 280ms; }
 
-/* Hover lift for clickable cards and stat tiles. */
+/* Hover lift for clickable cards and stat tiles. Mouse only: on a touch screen a lift sticks after the tap. */
 .lift {
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
-.lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(16, 22, 52, 0.1);
+@media (hover: hover) {
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(16, 22, 52, 0.1);
+  }
+}
+/* Touch screens get a short press-in instead, the way native apps answer a tap. */
+@media (hover: none) {
+  .lift:active {
+    transform: scale(0.985);
+  }
 }
 
 /* Page content fades up when the route changes (keyed on the pathname by the shell). */
@@ -270,6 +278,44 @@ body {
   button:disabled,
   [aria-disabled='true'] {
     cursor: not-allowed;
+  }
+}
+
+/*
+ * App feel on touch screens and in the installed app (PWA):
+ * - taps act at once (no double-tap zoom wait) and show the app's own pressed and focus states, not the grey flash;
+ * - buttons, tabs and navigation do not get selected or open the long-press menu, while text and fields still do;
+ * - iPhone fields stay at 16 px so focusing one does not zoom the page.
+ */
+html {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+@media (hover: none) {
+  button,
+  [role='button'],
+  [role='tab'],
+  nav a,
+  img {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+@supports (-webkit-touch-callout: none) {
+  @media (hover: none) {
+    input,
+    select,
+    textarea {
+      font-size: max(16px, 1em) !important;
+    }
+  }
+}
+/* Installed app: no rubber-band bounce past the page edges (it reveals a blank strip and a browser-style reload). */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: none;
   }
 }
 
