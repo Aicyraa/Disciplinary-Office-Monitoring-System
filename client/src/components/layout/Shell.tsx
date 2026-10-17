@@ -61,7 +61,7 @@ function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclud
   }, [open]);
 
   const item =
-    'flex min-h-[42px] w-full items-center gap-2.5 rounded-full px-2.5 text-left text-sm focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)] focus-visible:outline-none';
+    'flex min-h-11 w-full items-center gap-2.5 rounded-full px-2.5 text-left text-sm focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)] focus-visible:outline-none';
 
   return (
     <div ref={rootRef} className="relative">
@@ -71,7 +71,7 @@ function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclud
         aria-expanded={open}
         aria-label="Account menu"
         onClick={() => setOpen((value) => !value)}
-        className="flex min-h-[42px] items-center gap-2 rounded-full px-1.5 text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none"
+        className="flex min-h-11 items-center gap-2 rounded-full px-1.5 rail:min-h-[42px] text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none"
       >
         <Avatar firstName={user.firstName} lastName={user.lastName} url={user.avatarUrl} className="size-8 bg-gold text-xs" />
         <span className="hidden text-sm font-semibold whitespace-nowrap rail:inline">{user.firstName}</span>

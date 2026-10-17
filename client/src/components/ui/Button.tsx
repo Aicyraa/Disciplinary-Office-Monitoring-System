@@ -24,8 +24,8 @@ export const buttonVariants = cva(
         text: 'border-transparent bg-transparent text-primary hover:bg-info-soft',
       },
       size: {
-        sm: 'min-h-[34px] px-3.5 text-[13px]',
-        md: 'min-h-[42px] px-5 text-sm',
+        sm: 'min-h-11 px-3.5 text-[13px] rail:min-h-[34px]',
+        md: 'min-h-11 px-5 text-sm rail:min-h-[42px]',
         lg: 'min-h-[44px] px-5 text-sm',
         xl: 'min-h-[48px] px-6 text-[15px]',
         xxl: 'min-h-[50px] px-6 text-[15px]',

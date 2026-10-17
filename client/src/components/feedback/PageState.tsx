@@ -151,7 +151,7 @@ export function NudgeCard({ text, onDismiss }: { text: string; onDismiss: () => 
         type="button"
         aria-label="Dismiss"
         onClick={onDismiss}
-        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-line-soft"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-line-soft rail:size-8"
       >
         <Icon name="close" className="!text-xl" />
       </button>

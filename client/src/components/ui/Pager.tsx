@@ -3,7 +3,7 @@ import { cn } from '@/utils/cn';
 import { pagerItems } from '@/utils/pager';
 
 const roundButton =
-  'inline-flex size-10 items-center justify-center rounded-full text-[13px] font-semibold outline-none rail:size-[34px] ' +
+  'inline-flex h-11 min-w-8 max-w-11 flex-1 items-center justify-center rounded-full text-[13px] font-semibold outline-none rail:size-[34px] rail:flex-none ' +
   'focus-visible:ring-[3px] focus-visible:ring-primary/35';
 
 /** Numbered round pager. Draws nothing when everything fits on one page. */
@@ -20,7 +20,7 @@ export function Pager({
 }) {
   if (pageCount <= 1) return null;
   return (
-    <nav aria-label="Pagination" className={cn('flex items-center justify-center gap-1.5 py-3', className)}>
+    <nav aria-label="Pagination" className={cn('flex items-center justify-center gap-0 py-3 rail:gap-1.5', className)}>
       <button
         type="button"
         aria-label="Previous page"

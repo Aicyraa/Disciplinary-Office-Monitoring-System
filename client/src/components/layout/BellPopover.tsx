@@ -118,7 +118,7 @@ export function BellPopover({ role }: { role: AccountRole }) {
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((value) => !value)}
-        className="relative grid size-[42px] place-items-center rounded-full text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none"
+        className="relative grid size-11 place-items-center rail:size-[42px] rounded-full text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none"
       >
         <Icon name="notifications" className="!text-2xl" />
         {unreadCount > 0 ? (
@@ -142,7 +142,7 @@ export function BellPopover({ role }: { role: AccountRole }) {
               <button
                 type="button"
                 onClick={() => void markAll()}
-                className="min-h-8 rounded-full px-2 text-[13px] font-semibold text-primary hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
+                className="min-h-11 rounded-full px-2 text-[13px] rail:min-h-8 font-semibold text-primary hover:bg-primary-tint focus-visible:ring-[3px] focus-visible:ring-primary/25 focus-visible:outline-none"
               >
                 Mark all as read
               </button>

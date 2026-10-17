@@ -34,7 +34,7 @@ export function SegmentedTabs({
             tabIndex={index === stop ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              'inline-flex min-h-[34px] items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold whitespace-nowrap outline-none',
+              'inline-flex min-h-11 items-center rail:min-h-[34px] gap-1.5 rounded-full px-4 text-[13px] font-semibold whitespace-nowrap outline-none',
               'focus-visible:ring-[3px] focus-visible:ring-primary/35',
               selected ? 'bg-white text-ink shadow-tab' : 'text-muted hover:text-ink',
             )}
