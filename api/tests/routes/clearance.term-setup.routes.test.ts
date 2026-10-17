@@ -78,6 +78,25 @@ describe(`POST ${PATH} (Power Automate term set-up)`, () => {
     expect(again.body.data).toMatchObject({ created: 0, skipped: 2 });
   });
 
+  test('a run notifies each new student and staff once; a retry adds no notifications', async () => {
+    const { app, store } = build();
+    await request(app).post(PATH).set(JOB_KEY_HEADER, KEY).send({});
+    const summary = (n: { recipient: string; studentId: string | null }) => [n.recipient, n.studentId];
+    expect(store.state.notifications.map(summary)).toEqual([
+      ['student', STUDENT_A.id],
+      ['student', STUDENT_B.id],
+      ['staff', null],
+    ]);
+    await request(app).post(PATH).set(JOB_KEY_HEADER, KEY).send({});
+    expect(store.state.notifications).toHaveLength(3);
+  });
+
+  test('a refused run (no key) notifies nobody', async () => {
+    const { app, store } = build();
+    await request(app).post(PATH).send({});
+    expect(store.state.notifications).toEqual([]);
+  });
+
   test.each([
     [{ academicYear: 2026 }],
     [{ semester: 1 }],

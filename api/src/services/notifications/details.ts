@@ -135,6 +135,20 @@ const PATTERNS: Pattern[] = [
       rows: [...row('Requirement', g.label), ...row('Term', g.term), ...row('Reason', g.reason)],
     }),
   },
+  {
+    re: /^Your clearance for (?<term>.+?) was set up with the standard requirements: (?<labels>.+)\. The SDO office marks each one done; you can follow your progress on the Clearance page\.$/,
+    read: (g) => ({
+      lead: 'Your clearance checklist is ready. The SDO office marks each requirement done.',
+      rows: [...row('Term', g.term), ...row('Requirements', g.labels)],
+    }),
+  },
+  {
+    re: /^The automatic term set-up gave (?<created>\d+) of (?<active>\d+) active students a clearance for (?<term>.+)\. (?<skipped>\d+) already had one\.$/,
+    read: (g) => ({
+      lead: 'The automatic clearance set-up finished.',
+      rows: [...row('Term', g.term), ...row('New clearances', g.created), ...row('Already set up', g.skipped), ...row('Active students', g.active)],
+    }),
+  },
   // Important notices (notices.service.ts `inboxMessage`).
   {
     re: /^(?<message>[\s\S]+?)\n\nWhat to do: (?<todo>[\s\S]+)$/,

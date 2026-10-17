@@ -46,6 +46,13 @@ export interface ClearanceNotificationInput {
   idempotencyKey: string;
 }
 
+/** A notification to the shared staff inbox (recipient_type 'staff', no student), opening the Clearance page. */
+export interface ClearanceStaffNotificationInput {
+  title: string;
+  message: string;
+  idempotencyKey: string;
+}
+
 /** Everything the clearance workflow reads and writes, scoped to one database transaction. */
 export interface ClearanceTx {
   /** Serialises changes for one student (SELECT ... FOR UPDATE on the account). */
@@ -62,8 +69,9 @@ export interface ClearanceTx {
   employeeExists(employeeId: string): Promise<boolean>;
   /**
    * The term set-up: every active student without a clearance for the term gets one, with the default items and
-   * one `set_up` history row. Students who already have one are left alone (the unique key decides, so two runs
-   * at once cannot double up).
+   * one `set_up` history row, and its student one `clr` notification (key `clr:<clearanceId>:set_up`). Students
+   * who already have one are left alone and get no notification (the unique key decides, so two runs at once
+   * cannot double up).
    */
   setUpTermForActiveStudents(input: {
     academicYear: number;
@@ -71,6 +79,7 @@ export interface ClearanceTx {
     employeeId: string;
     remarks: string;
     date: Date;
+    notice: { title: string; message: string };
   }): Promise<{ activeStudents: number; created: number }>;
   insertClearance(input: { studentId: string; employeeId: string; academicYear: number; semester: number }): Promise<number>;
   addItems(clearanceId: number, requirementIds: number[]): Promise<void>;
@@ -89,6 +98,8 @@ export interface ClearanceTx {
   addHistory(input: ClearanceHistoryInput): Promise<void>;
   /** Idempotent: an existing key is left alone. */
   addNotification(input: ClearanceNotificationInput): Promise<void>;
+  /** Idempotent, like `addNotification`. */
+  addStaffNotification(input: ClearanceStaffNotificationInput): Promise<void>;
 }
 
 export interface ClearanceStore {

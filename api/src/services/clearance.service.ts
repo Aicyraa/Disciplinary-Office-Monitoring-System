@@ -57,7 +57,8 @@ export interface ClearanceService {
   }): Promise<ClearanceResult<{ clearanceId: number }>>;
   /**
    * The automatic term set-up (Power Automate, first day of a term): the standard checklist for every active
-   * student who has no clearance for the term yet. Safe to run again: existing clearances are skipped.
+   * student who has no clearance for the term yet. Safe to run again: existing clearances are skipped. Each new
+   * clearance's student is notified, and staff get one summary when the run created any.
    */
   setUpTerm(input: {
     employeeId: string;
@@ -162,17 +163,35 @@ export function createClearanceService({
         if (!(await tx.employeeExists(employeeId))) {
           return fail('server_not_configured', `The ${employeeId} employee account is missing. Add it from db/seed.sql before running the term set-up.`);
         }
-        if ((await tx.listDefaultRequirements()).length === 0) {
+        const defaults = await tx.listDefaultRequirements();
+        if (defaults.length === 0) {
           return fail('invalid_status', 'There are no standard requirements to set up. Ask the administrator to check the seed data.');
         }
+        const label = termLabel(year, term);
+        const at = now();
         const { activeStudents, created } = await tx.setUpTermForActiveStudents({
           academicYear: year,
           semester: term,
           employeeId,
-          remarks: `Standard requirements set up automatically for ${termLabel(year, term)}.`,
-          date: now(),
+          remarks: `Standard requirements set up automatically for ${label}.`,
+          date: at,
+          notice: {
+            title: `Clearance checklist ready for ${label}`,
+            message:
+              `Your clearance for ${label} was set up with the standard requirements: ${defaults.map((entry) => entry.label).join(', ')}. ` +
+              'The SDO office marks each one done; you can follow your progress on the Clearance page.',
+          },
         });
-        return { ok: true as const, activeStudents, created, skipped: activeStudents - created };
+        const skipped = activeStudents - created;
+        // Staff hear about a run that changed something; a retry that created nothing stays quiet.
+        if (created > 0) {
+          await tx.addStaffNotification({
+            title: `Clearance set up for ${label}`,
+            message: `The automatic term set-up gave ${created} of ${activeStudents} active students a clearance for ${label}. ${skipped} already had one.`,
+            idempotencyKey: `clr:term:${year}-${term}:set_up:${at.getTime()}`,
+          });
+        }
+        return { ok: true as const, activeStudents, created, skipped };
       });
     },
 

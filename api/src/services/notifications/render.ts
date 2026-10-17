@@ -73,7 +73,8 @@ const KIND_INTRO: Record<NotificationKind, { subjectPrefix: string; intro: strin
   esc: { subjectPrefix: 'Escalation', intro: 'A case was treated as a Major offense.' },
   sanction: { subjectPrefix: 'Sanction', intro: 'There is an update on a sanction.' },
   appt: { subjectPrefix: 'Appointment', intro: 'There is an update on an SDO appointment.' },
-  clr: { subjectPrefix: 'Clearance', intro: 'There is an update on your clearance.' },
+  // Not "your": staff get clearance emails too (the term set-up summary).
+  clr: { subjectPrefix: 'Clearance', intro: 'There is an update on a clearance.' },
   account: { subjectPrefix: 'Account', intro: 'There is a change to your account.' },
   newviol: { subjectPrefix: 'New violation', intro: 'A violation was recorded.' },
   notice: { subjectPrefix: 'Important notice', intro: 'The SDO office posted an important notice for students.' },
