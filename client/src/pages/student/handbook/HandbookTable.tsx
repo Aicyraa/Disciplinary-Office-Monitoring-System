@@ -43,42 +43,51 @@ export function HandbookTable({
           />
         </label>
       </div>
-      <div className={cn('hidden border-b border-line-soft bg-surface-2 px-6 py-3 text-[13px] font-semibold text-muted', COLUMNS)}>
-        <span>Violation</span>
-        <span>Category</span>
-        <span>Section</span>
-        <span>Sanction</span>
-      </div>
-      <div className="min-h-0 flex-1">
-        {shown.length === 0 ? <p className="px-5 py-8 text-center text-[13px] text-muted">No handbook entry matches your search.</p> : null}
-        {shown.map((entry) => {
-          const selected = entry.id === selectedId;
-          return (
-            <Link
-              key={entry.id}
-              to={`/handbook/${entry.id}`}
-              state={{ fromList: true }}
-              aria-current={selected ? 'true' : undefined}
-              className={cn(
-                'flex min-h-[52px] items-center gap-2.5 border-b border-line-soft px-3 py-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset rail:items-center rail:px-6',
-                COLUMNS,
-                selected ? 'bg-row-selected shadow-[inset_3px_0_0_var(--color-primary)]' : 'bg-white hover:bg-row-hover',
-              )}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold text-ink">{violationTitle(entry.violation)}</span>
-                <span className="block truncate text-xs text-muted rail:hidden">
-                  Sec. {entry.section} · {firstSanctionText(entry)}
+      <div role="table" aria-label="Handbook violations" className="flex min-h-0 flex-1 flex-col">
+        <div role="row" className={cn('hidden border-b border-line-soft bg-surface-2 px-6 py-3 text-[13px] font-semibold text-muted', COLUMNS)}>
+          <span role="columnheader">Violation</span>
+          <span role="columnheader">Category</span>
+          <span role="columnheader">Section</span>
+          <span role="columnheader">Sanction</span>
+        </div>
+        <div role="rowgroup" className="min-h-0 flex-1">
+          {shown.length === 0 ? (
+            <div role="row">
+              <p role="cell" className="px-5 py-8 text-center text-[13px] text-muted">
+                No handbook entry matches your search.
+              </p>
+            </div>
+          ) : null}
+          {shown.map((entry) => {
+            const selected = entry.id === selectedId;
+            return (
+              <Link
+                key={entry.id}
+                to={`/handbook/${entry.id}`}
+                state={{ fromList: true }}
+                role="row"
+                aria-current={selected ? 'true' : undefined}
+                className={cn(
+                  'flex min-h-[52px] items-center gap-2.5 border-b border-line-soft px-3 py-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset rail:items-center rail:px-6',
+                  COLUMNS,
+                  selected ? 'bg-row-selected shadow-[inset_3px_0_0_var(--color-primary)]' : 'bg-white hover:bg-row-hover',
+                )}
+              >
+                <span role="cell" className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-ink">{violationTitle(entry.violation)}</span>
+                  <span className="block truncate text-xs text-muted rail:hidden">
+                    Sec. {entry.section} · {firstSanctionText(entry)}
+                  </span>
                 </span>
-              </span>
-              <span className="min-w-0 rail:order-none">
-                <StatusPill status={entry.severity} />
-              </span>
-              <span className="hidden truncate text-xs text-muted rail:block">Sec. {entry.section}</span>
-              <span className="hidden truncate text-xs text-body rail:block">{firstSanctionText(entry)}</span>
-            </Link>
-          );
-        })}
+                <span role="cell" className="min-w-0 rail:order-none">
+                  <StatusPill status={entry.severity} />
+                </span>
+                <span role="cell" className="hidden truncate text-xs text-muted rail:block">Sec. {entry.section}</span>
+                <span role="cell" className="hidden truncate text-xs text-body rail:block">{firstSanctionText(entry)}</span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
       <Pager page={page} pageCount={Math.max(1, Math.ceil(rows.length / HANDBOOK_PER_PAGE))} onChange={onPage} className="mt-auto border-t border-line-soft py-2.5" />
     </ListCard>

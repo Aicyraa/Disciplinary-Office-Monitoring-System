@@ -27,3 +27,22 @@ describe('an empty student list says one thing, once', () => {
     expect(html).not.toContain('No handbook entry selected.');
   });
 });
+
+describe('handbook table semantics', () => {
+  const entry = {
+    id: 1,
+    violation: 'unauthorized access',
+    severity: 'Minor',
+    section: '4.1',
+    sanctions: [],
+  } as unknown as Parameters<typeof HandbookTable>[0]['rows'][number];
+
+  test('the header and rows are a real table structure', () => {
+    const html = inRouter(<HandbookTable rows={[entry]} query="" onQuery={() => undefined} page={1} onPage={() => undefined} selectedId={null} />);
+    expect(html).toContain('role="table"');
+    expect(html).toContain('role="rowgroup"');
+    expect((html.match(/role="columnheader"/g) ?? []).length).toBe(4);
+    expect((html.match(/role="row"/g) ?? []).length).toBe(2);
+    expect(html).toContain('role="cell"');
+  });
+});
