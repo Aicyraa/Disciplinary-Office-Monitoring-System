@@ -70,7 +70,8 @@ export function Sidebar({
       )}
     >
       <div className={cn('flex h-[72px] shrink-0 items-center gap-3 border-b border-white/14 px-[18px]', labels ? 'justify-start' : 'justify-center')}>
-        <img src={seal} alt="NU Fairview" className="w-[34px] shrink-0" />
+        {/* The seal is 48 px in a fixed 72 px bar; with labels its negative margins eat into the padding and gap, so the text keeps its place. */}
+        <img src={seal} alt="NU Fairview" className={cn('size-12 shrink-0', labels && '-mr-1 -ml-2')} />
         {labels ? (
           <div className="min-w-0 flex-1">
             <div className="text-base leading-tight font-bold tracking-[0.02em]">NU FAIRVIEW</div>

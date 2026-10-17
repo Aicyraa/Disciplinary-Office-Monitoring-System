@@ -1,12 +1,15 @@
 import { CLEARANCE_PAGE_SIZE, ROSTER_PAGE_SIZE, type ClearanceQueries, type ClearanceRow } from './queries.js';
-import type {
-  ClearanceHistoryInput,
-  ClearanceNotificationInput,
-  ClearanceRecord,
-  ClearanceStore,
-  ClearanceTx,
-  RequirementRecord,
-} from './types.js';
+import type { ClearanceHistoryInput, ClearanceRecord, ClearanceStore, ClearanceTx, RequirementRecord } from './types.js';
+
+/** A stored notification: a student one (with its clearance) or one for the shared staff inbox. */
+export interface MemoryClearanceNotification {
+  recipient: 'student' | 'staff';
+  studentId: string | null;
+  clearanceId: number | null;
+  title: string;
+  message: string;
+  idempotencyKey: string;
+}
 
 export interface MemoryClearanceState {
   /** The active students. */
@@ -16,7 +19,7 @@ export interface MemoryClearanceState {
   requirements: RequirementRecord[];
   clearances: ClearanceRecord[];
   history: ClearanceHistoryInput[];
-  notifications: ClearanceNotificationInput[];
+  notifications: MemoryClearanceNotification[];
   /** Open cases per student, for the staff warning chip. */
   openCases: Record<string, number>;
   nextClearanceId: number;
@@ -152,6 +155,11 @@ export function createMemoryClearanceQueries(
 function createTx(state: MemoryClearanceState): ClearanceTx {
   const find = (clearanceId: number) => state.clearances.find((c) => c.clearanceId === clearanceId);
   const labelOf = (requirementId: number) => state.requirements.find((r) => r.requirementId === requirementId)?.label ?? '';
+  /** The unique idempotency key: an existing key is left alone. */
+  const addOnce = (notification: MemoryClearanceNotification) => {
+    if (state.notifications.some((n) => n.idempotencyKey === notification.idempotencyKey)) return;
+    state.notifications.push(notification);
+  };
   return {
     async lockStudent() {},
     async studentExists(studentId) {
@@ -186,7 +194,7 @@ function createTx(state: MemoryClearanceState): ClearanceTx {
     async employeeExists(employeeId) {
       return state.employees.includes(employeeId);
     },
-    async setUpTermForActiveStudents({ academicYear, semester, employeeId, remarks, date }) {
+    async setUpTermForActiveStudents({ academicYear, semester, employeeId, remarks, date, notice }) {
       const defaults = state.requirements.filter((r) => r.isDefault);
       let created = 0;
       for (const studentId of state.students) {
@@ -209,6 +217,7 @@ function createTx(state: MemoryClearanceState): ClearanceTx {
           })),
         });
         state.history.push({ clearanceId, requirementId: null, eventType: 'set_up', remarks, employeeId, date });
+        addOnce({ recipient: 'student', studentId, clearanceId, ...notice, idempotencyKey: `clr:${clearanceId}:set_up` });
         created += 1;
       }
       return { activeStudents: state.students.length, created };
@@ -269,8 +278,10 @@ function createTx(state: MemoryClearanceState): ClearanceTx {
       state.history.push(input);
     },
     async addNotification(input) {
-      if (state.notifications.some((n) => n.idempotencyKey === input.idempotencyKey)) return;
-      state.notifications.push(input);
+      addOnce({ recipient: 'student', ...input });
+    },
+    async addStaffNotification(input) {
+      addOnce({ recipient: 'staff', studentId: null, clearanceId: null, ...input });
     },
   };
 }

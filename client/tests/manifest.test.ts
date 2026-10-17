@@ -23,6 +23,16 @@ describe('web app manifest', () => {
     }
   });
 
+  test('has a service worker that serves the shell offline and never caches API calls', () => {
+    const worker = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf-8');
+    expect(worker).toContain("addEventListener('fetch'");
+    expect(worker).toContain("request.mode === 'navigate'");
+    expect(worker).toContain("caches.match('/index.html')");
+    expect(worker).toContain("!url.pathname.startsWith('/api/')");
+    const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf-8');
+    expect(main).toContain("navigator.serviceWorker.register('/sw.js')");
+  });
+
   test('index.html links the manifest, the theme color and an icon', () => {
     expect(html).toContain('rel="manifest" href="/manifest.webmanifest"');
     expect(html).toContain('name="theme-color" content="#35408E"');

@@ -90,7 +90,7 @@ function createTx(db: Prisma.TransactionClient): ClearanceTx {
     async employeeExists(employeeId) {
       return (await db.employee_accounts.findUnique({ where: { employee_id: employeeId }, select: { employee_id: true } })) !== null;
     },
-    async setUpTermForActiveStudents({ academicYear, semester, employeeId, remarks, date }) {
+    async setUpTermForActiveStudents({ academicYear, semester, employeeId, remarks, date, notice }) {
       // One statement: a data-modifying CTE always runs once, even when the final SELECT does not read it.
       const [row] = await db.$queryRaw<Array<{ active_students: number; created: number }>>`
         WITH active AS (
@@ -100,7 +100,7 @@ function createTx(db: Prisma.TransactionClient): ClearanceTx {
           SELECT student_id, ${employeeId}::varchar, ${academicYear}::smallint, ${semester}::smallint, 'pending'
           FROM active
           ON CONFLICT (student_id, academic_year, semester) DO NOTHING
-          RETURNING clearance_id
+          RETURNING clearance_id, student_id
         ), items AS (
           INSERT INTO clearance_requirements (clearance_id, requirement_id)
           SELECT n.clearance_id, r.requirement_id
@@ -110,6 +110,12 @@ function createTx(db: Prisma.TransactionClient): ClearanceTx {
           INSERT INTO clearance_history (clearance_id, requirement_id, event_type, remarks, employee_id, date_logged)
           SELECT clearance_id, NULL, 'set_up', ${remarks}::text, ${employeeId}::varchar, ${date}::timestamptz
           FROM new_clearances
+        ), notified AS (
+          INSERT INTO notifications (recipient_type, student_id, kind, title, message, link_type, link_id, idempotency_key)
+          SELECT 'student', student_id, 'clr', ${notice.title}::text, ${notice.message}::text, 'clearance', clearance_id,
+                 'clr:' || clearance_id || ':set_up'
+          FROM new_clearances
+          ON CONFLICT (idempotency_key) DO NOTHING
         )
         SELECT (SELECT count(*) FROM active)::int AS active_students, (SELECT count(*) FROM new_clearances)::int AS created`;
       return { activeStudents: Number(row.active_students), created: Number(row.created) };
@@ -166,6 +172,23 @@ function createTx(db: Prisma.TransactionClient): ClearanceTx {
             message: input.message,
             link_type: 'clearance',
             link_id: input.clearanceId,
+            idempotency_key: input.idempotencyKey,
+          },
+        ],
+        skipDuplicates: true,
+      });
+    },
+    async addStaffNotification(input) {
+      await db.notifications.createMany({
+        data: [
+          {
+            recipient_type: 'staff',
+            student_id: null,
+            kind: 'clr',
+            title: input.title,
+            message: input.message,
+            link_type: 'clearance',
+            link_id: null,
             idempotency_key: input.idempotencyKey,
           },
         ],

@@ -23,6 +23,10 @@ describe('resolveAccess', () => {
     expect(resolveAccess({ status: 'loading' })).toBe('loading');
   });
 
+  test('never sends an offline visitor to login (the connection screen covers it)', () => {
+    expect(resolveAccess({ status: 'offline' })).toBe('loading');
+  });
+
   test('sends anonymous visitors to login', () => {
     expect(resolveAccess({ status: 'anonymous' })).toBe('login');
   });

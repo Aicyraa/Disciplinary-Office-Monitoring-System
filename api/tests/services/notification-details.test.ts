@@ -92,6 +92,17 @@ describe('emailDetails: one labelled block per service message', () => {
       'A clearance requirement was reopened. Your clearance is pending again.',
       [['Requirement', 'Library'], ['Term', '1st Term 2026–2027'], ['Reason', 'Missing book.']],
     ],
+    [
+      'Your clearance for 2026-2027, Semester 1 was set up with the standard requirements: No active violations, SDO signature. ' +
+        'The SDO office marks each one done; you can follow your progress on the Clearance page.',
+      'Your clearance checklist is ready. The SDO office marks each requirement done.',
+      [['Term', '2026-2027, Semester 1'], ['Requirements', 'No active violations, SDO signature']],
+    ],
+    [
+      'The automatic term set-up gave 2 of 3 active students a clearance for 2026-2027, Semester 1. 1 already had one.',
+      'The automatic clearance set-up finished.',
+      [['Term', '2026-2027, Semester 1'], ['New clearances', '2'], ['Already set up', '1'], ['Active students', '3']],
+    ],
     ['Classes resume Monday.\n\nWhat to do: Wear your ID.', 'Classes resume Monday.', [['What to do', 'Wear your ID.']]],
   ])('%s', (message, lead, rows) => {
     expect(emailDetails(message)).toEqual({ lead, rows });

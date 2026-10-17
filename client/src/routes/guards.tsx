@@ -9,7 +9,8 @@ export type Access = 'loading' | 'login' | 'change-password' | 'allow';
 
 /** What a protected route should do for the current session. Pure, so it is testable without a DOM. */
 export function resolveAccess(state: AuthState): Access {
-  if (state.status === 'loading') return 'loading';
+  // Offline never reaches the routes (App shows the connection screen instead); wait like a slow probe.
+  if (state.status === 'loading' || state.status === 'offline') return 'loading';
   if (state.status === 'anonymous') return 'login';
   return state.user.mustChangePassword ? 'change-password' : 'allow';
 }

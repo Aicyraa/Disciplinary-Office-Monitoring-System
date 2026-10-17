@@ -20,6 +20,7 @@ describe('linkPath', () => {
     ['staff', 'sanction', 3, '/cases'],
     ['staff', 'inbox', null, '/inbox'],
     ['staff', 'appointment', 1, '/appointments/1'],
+    ['staff', 'clearance', null, '/clearance'],
   ] as const)('%s / %s / %s -> %s', (audience, type, id, expected) => {
     expect(linkPath(audience, type, id)).toBe(expected);
   });

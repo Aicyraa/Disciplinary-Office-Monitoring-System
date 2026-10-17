@@ -42,6 +42,9 @@ export function linkPath(
       return id === null ? '/appointments' : `/appointments/${id}`;
     case 'inbox':
       return '/inbox';
+    case 'clearance':
+      // The staff Clearance page opens on the current term's roster.
+      return '/clearance';
     case 'sanction':
       // No staff page per sanction; the case list is the nearest honest destination.
       return '/cases';

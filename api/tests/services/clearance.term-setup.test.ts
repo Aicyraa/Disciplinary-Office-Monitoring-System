@@ -55,10 +55,52 @@ describe('setUpTerm (the automatic set-up when a term starts)', () => {
     expect(store.state.clearances).toHaveLength(6);
   });
 
-  test('sends no student notifications (only the manual checklist actions do)', async () => {
+  test('tells each student whose clearance was created, once, with the term and the standard requirements', async () => {
     const { store, run } = build();
     await run();
-    expect(store.state.notifications).toEqual([]);
+    const forStudents = store.state.notifications.filter((n) => n.recipient === 'student');
+    expect(forStudents.map((n) => n.studentId).sort()).toEqual([S1, S2, S3]);
+    const first = forStudents.find((n) => n.studentId === S1);
+    expect(first).toMatchObject({
+      clearanceId: store.state.clearances.find((c) => c.studentId === S1)?.clearanceId,
+      title: 'Clearance checklist ready for 2026-2027, Semester 1',
+      message:
+        'Your clearance for 2026-2027, Semester 1 was set up with the standard requirements: No active violations, All sanctions served, ' +
+        'Guidance exit interview, SDO signature. The SDO office marks each one done; you can follow your progress on the Clearance page.',
+      idempotencyKey: `clr:${first?.clearanceId}:set_up`,
+    });
+  });
+
+  test('tells staff once per run that created clearances, with the counts', async () => {
+    const { store, service, run } = build();
+    await service.setUp({ employeeId: 'E001', studentId: S1, academicYear: 2026, semester: 1 });
+    await run();
+    const forStaff = store.state.notifications.filter((n) => n.recipient === 'staff');
+    expect(forStaff).toEqual([
+      {
+        recipient: 'staff',
+        studentId: null,
+        clearanceId: null,
+        title: 'Clearance set up for 2026-2027, Semester 1',
+        message: 'The automatic term set-up gave 2 of 3 active students a clearance for 2026-2027, Semester 1. 1 already had one.',
+        idempotencyKey: `clr:term:2026-1:set_up:${NOW.getTime()}`,
+      },
+    ]);
+  });
+
+  test('a re-run that creates nothing notifies nobody', async () => {
+    const { store, run } = build();
+    await run();
+    const before = store.state.notifications.length;
+    await run();
+    expect(store.state.notifications).toHaveLength(before);
+  });
+
+  test('students skipped because they already had a clearance get no set-up notification', async () => {
+    const { store, service, run } = build();
+    await service.setUp({ employeeId: 'E001', studentId: S1, academicYear: 2026, semester: 1 });
+    await run();
+    expect(store.state.notifications.filter((n) => n.recipient === 'student').map((n) => n.studentId).sort()).toEqual([S2, S3]);
   });
 
   test.each([
