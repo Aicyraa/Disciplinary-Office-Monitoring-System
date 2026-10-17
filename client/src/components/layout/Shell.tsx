@@ -70,6 +70,7 @@ function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclud
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
+        data-account-trigger
         onClick={() => setOpen((value) => !value)}
         className="flex min-h-11 items-center gap-2 rounded-full px-1.5 rail:min-h-[42px] text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none"
       >

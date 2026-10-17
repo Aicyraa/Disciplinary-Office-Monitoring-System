@@ -1,6 +1,10 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
-const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])';
+/** Never a tab stop: disabled controls and anything taken out of the tab order (the visually hidden file input of a picker). */
+const SKIP = ':not([disabled]):not([tabindex="-1"])';
+export const FOCUSABLE = ['a[href]', 'button', 'textarea', 'input:not([type="hidden"])', 'select', 'iframe', '[tabindex]'].map((tag) => `${tag}${SKIP}`).join(', ');
+/** The first thing to focus: an element marked `data-autofocus`, else the first text field, else the first focusable control. */
+export const INITIAL_FOCUS = ['[data-autofocus]', `textarea${SKIP}`, `input:not([type="hidden"]):not([type="file"])${SKIP}`].join(', ');
 
 /**
  * Modal focus handling shared by every dialog: focus moves into the panel when it opens (the first field,
@@ -11,19 +15,24 @@ export function useDialogFocus({
   open,
   panelRef,
   onClose,
+  fallbackFocus,
 }: {
   open: boolean;
   panelRef: RefObject<HTMLElement | null>;
   onClose: (() => void) | undefined;
+  /** Where focus goes on close when the element that opened the dialog is gone (a menu item whose menu closed). */
+  fallbackFocus?: () => HTMLElement | null;
 }): void {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const fallbackRef = useRef(fallbackFocus);
+  fallbackRef.current = fallbackFocus;
 
   useEffect(() => {
     if (!open) return;
     const returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const panel = panelRef.current;
-    const first = panel?.querySelector<HTMLElement>('textarea, input') ?? panel?.querySelector<HTMLElement>(FOCUSABLE);
+    const first = panel?.querySelector<HTMLElement>(INITIAL_FOCUS) ?? panel?.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
 
     function onKey(event: KeyboardEvent) {
@@ -47,7 +56,8 @@ export function useDialogFocus({
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
-      returnTo?.focus();
+      const target = returnTo?.isConnected && returnTo !== document.body ? returnTo : (fallbackRef.current?.() ?? null);
+      target?.focus();
     };
   }, [open, panelRef]);
 }
