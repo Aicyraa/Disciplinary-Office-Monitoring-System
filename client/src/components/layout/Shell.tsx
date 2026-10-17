@@ -254,12 +254,12 @@ function PhoneTitle({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclude
   );
 }
 
-/** Students see the unread nudge after sign-in (src 2074): top right under the header, 7 s. */
+/** Students see the unread nudge after sign-in (src 2074), 7 s: in the page flow on a phone (it pushes content down), top right under the header on wide screens. */
 function UnreadNudge({ role }: { role: 'staff' | 'student' }) {
   const { toast, dismissToast } = useUnread();
   if (toast === null || role !== 'student') return null;
   return (
-    <div className="fixed top-4 right-4 left-4 z-[70] flex justify-end rail:top-[76px] rail:right-5 rail:left-auto print:hidden">
+    <div className="mb-3 flex justify-end print:hidden rail:fixed rail:top-[76px] rail:right-5 rail:left-auto rail:z-[70] rail:mb-0">
       <NudgeCard text={toast} onDismiss={dismissToast} />
     </div>
   );
@@ -323,9 +323,8 @@ function ShellFrame({ user }: { user: AuthUser }) {
           </div>
         </header>
 
-        <UnreadNudge role={role} />
-
         <main className="ui-zoom w-full flex-1 p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
+          <UnreadNudge role={role} />
           <PhoneTitle user={user} onOpen={setDialog} />
           {/* Keyed on the first path segment only: list -> detail inside one page keeps its state and does not replay. */}
           <div key={location.pathname.split('/')[1] ?? ''} className="page-enter">
