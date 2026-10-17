@@ -118,6 +118,11 @@ export function NoticesPage() {
       <MasterDetail
         ratio="notices"
         detailKey={mode === 'detail' ? (current?.id ?? null) : mode}
+        backLabel="Notices"
+        onBack={() => {
+          setMode('detail');
+          setSelected(null);
+        }}
         list={
           <ListCard className="flex h-full flex-col">
             <ListHeader title="Important notices" subtitle="Shown in every student’s bell and inbox" />

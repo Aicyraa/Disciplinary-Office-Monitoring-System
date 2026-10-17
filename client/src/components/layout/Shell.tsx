@@ -205,24 +205,52 @@ function FloatingAction({ hidden }: { hidden: boolean }) {
   );
 }
 
-/** Phone page header: scrolls with the content, no bar. Seal line, the page title and the bell and avatar. */
+/**
+ * Phone page header, the large-title pattern of phone apps: the seal line, a big page title and the bell and
+ * avatar scroll with the content; once the big title is gone a compact bar with the title stays on top.
+ */
 function PhoneTitle({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclude<AccountDialog, null>) => void }) {
   const location = useLocation();
   const [, page] = breadcrumb(user.role, location.pathname);
+  const titleRef = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
+
+  useEffect(() => {
+    const title = titleRef.current;
+    if (!title || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setCompact(entry ? !entry.isIntersecting : false));
+    observer.observe(title);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="mb-3 flex items-start gap-2 print:hidden rail:hidden">
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-xs font-semibold text-muted">
-          <img src={seal} alt="" className="size-4" />
-          NU Fairview · SDO
-        </p>
-        <p className="mt-0.5 truncate text-[28px] leading-tight font-extrabold text-ink">{page}</p>
+    <>
+      {/* Title only: the bell and avatar have one home (the header below), so their popovers never open twice. */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          'ui-zoom-phone pointer-events-none fixed inset-x-0 top-0 z-40 border-b border-line bg-white/92 px-4 pt-[env(safe-area-inset-top)] text-center backdrop-blur-md transition-[opacity,transform] duration-200 print:hidden rail:hidden',
+          compact ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0',
+        )}
+      >
+        <p className="truncate py-3.5 text-[17px] leading-6 font-bold text-ink">{page}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <BellPopover role={user.role} />
-        <AccountMenu user={user} onOpen={onOpen} />
+      <div className="mb-3 flex items-start gap-2 print:hidden rail:hidden">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-muted">
+            <img src={seal} alt="" className="size-5" />
+            NU Fairview · SDO
+          </p>
+          <div ref={titleRef} className="mt-0.5 truncate text-[28px] leading-tight font-extrabold text-ink">
+            {page}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <BellPopover role={user.role} />
+          <AccountMenu user={user} onOpen={onOpen} />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

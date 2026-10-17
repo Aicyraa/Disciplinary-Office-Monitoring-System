@@ -1,28 +1,45 @@
+import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { PageHeader } from '@/components/ui';
+import { AuthProvider } from '@/context/AuthContext';
 
-describe('MasterDetail v2 (UI-POLISH-SPEC 5.1, D9)', () => {
+const render = (node: ReactNode, path = '/sanctions/11') =>
+  renderToStaticMarkup(
+    <MemoryRouter initialEntries={[path]}>
+      <AuthProvider>{node}</AuthProvider>
+    </MemoryRouter>,
+  );
+
+describe('MasterDetail v3 (side by side on wide screens, list then record screen on narrow ones)', () => {
   test('side by side from 800 px of content, with the screen’s proportions and equal-height panes', () => {
-    const html = renderToStaticMarkup(<MasterDetail ratio="cases" list={<p>list</p>} detail={<p>detail</p>} />);
+    const html = render(<MasterDetail ratio="cases" list={<p>list</p>} detail={<p>detail</p>} />);
     expect(html).toContain('@container');
     expect(html).toContain('@min-[800px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]');
     expect(html).toContain('@min-[800px]:h-[var(--page-h)]');
     expect(html).toContain('overflow-y-auto');
   });
 
-  test('stacked below 800 px: both panes on one page, no "Back to list" link', () => {
-    const html = renderToStaticMarkup(<MasterDetail ratio="students" list={<p>list</p>} detail={<p>detail</p>} />);
-    expect(html).toContain('>list<');
+  test('narrow with a record open: the list hides and a back bar to the list sits above the record', () => {
+    const html = render(<MasterDetail ratio="students" list={<p>list</p>} detail={<p>detail</p>} />);
+    expect(html).toMatch(/class="[^"]*hidden @min-\[800px\]:block[^"]*"><p>list<\/p>/);
     expect(html).toContain('>detail<');
-    expect(html).not.toContain('Back');
-    expect(html).toContain('@min-[800px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]');
+    // The back bar names the list page and disappears once the panes sit side by side.
+    expect(html).toMatch(/<button type="button" class="[^"]*@min-\[800px\]:hidden[^"]*">.*My Sanctions<\/button>/);
   });
 
-  test('nothing selected: the empty pane shows only beside the list', () => {
-    const html = renderToStaticMarkup(<MasterDetail list={<p>list</p>} detail={null} emptyDetail={<p>pick one</p>} />);
+  test('a custom back label is used when given', () => {
+    const html = render(<MasterDetail list={<p>list</p>} detail={<p>detail</p>} backLabel="All notices" />);
+    expect(html).toContain('All notices');
+  });
+
+  test('nothing selected: the list shows, and the empty pane shows only beside it', () => {
+    const html = render(<MasterDetail list={<p>list</p>} detail={null} emptyDetail={<p>pick one</p>} />, '/sanctions');
+    expect(html).toMatch(/<div class="min-w-0 [^"]*"><p>list<\/p>/);
     expect(html).toMatch(/class="[^"]*hidden[^"]*@min-\[800px\]:block[^"]*"[^>]*><p>pick one<\/p>/);
+    expect(html).not.toContain('<button');
   });
 });
 
