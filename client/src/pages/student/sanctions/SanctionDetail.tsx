@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StudentCaseView, StudentSanctionView } from '@shared/types';
 import { sanctionsApi } from '@/api/sanctions';
-import { useToast } from '@/components/feedback';
+import { FilePreview } from '@/components/feedback/FilePreview';
 import { ProofUploadModal } from '@/components/sanctions/ProofUploadModal';
 import { StatusPill } from '@/components/ui';
 import { Button, buttonVariants } from '@/components/ui/Button';
@@ -13,7 +13,7 @@ import { IconHint } from '@/components/ui/IconHint';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { StageTracker } from '@/components/ui/StageTracker';
 import { cn } from '@/utils/cn';
-import { manilaToday } from '@/utils/files';
+import { fileMeta, manilaToday } from '@/utils/files';
 import { SANCTION_STEP_LABELS, formatDate, sanctionStepIndex, violationTitle } from '@/utils/format';
 import { dueLine, proofStatusHint, proofSummary, sanctionHistoryItems, sanctionNextStep, uploadPanel } from '@/utils/studentView';
 
@@ -65,19 +65,16 @@ export function SanctionDetail({
   const [tab, setTab] = useState<'details' | 'timeline'>('details');
   // The page keys this component by sanction id, so switching sanctions closes the dialog.
   const [uploading, setUploading] = useState(false);
-  const toast = useToast();
+  const [previewing, setPreviewing] = useState<StudentSanctionView['files'][number] | null>(null);
 
-  /** "View files": the upload dialog while proof can still be sent; otherwise the file itself (same tab, never a pop-up; UI-POLISH-SPEC 4.2b). */
+  /** "View files": the upload dialog while proof can still be sent; otherwise the file in the in-app preview modal (as templates open). */
   function openProof() {
     const first = sanction.files[0];
     if (uploadPanel(sanction).open || !first) {
       setUploading(true);
       return;
     }
-    sanctionsApi.fileUrl(first.id).then(
-      ({ url }) => window.location.assign(url),
-      () => toast.show('Could not open the file. Try again.', 'error'),
-    );
+    setPreviewing(first);
   }
   const due = dueLine(sanction, manilaToday());
   const verified = sanction.status === 'completed';
@@ -165,6 +162,13 @@ export function SanctionDetail({
       ) : null}
       {uploading ? (
         <ProofUploadModal sanction={sanction} handbookEntryId={caseRow?.handbookEntryId} onClose={() => setUploading(false)} onChanged={onChanged} />
+      ) : null}
+      {previewing ? (
+        <FilePreview
+          file={{ name: previewing.name, meta: fileMeta(previewing) }}
+          loadUrl={async () => (await sanctionsApi.fileUrl(previewing.id)).url}
+          onClose={() => setPreviewing(null)}
+        />
       ) : null}
     </article>
   );
