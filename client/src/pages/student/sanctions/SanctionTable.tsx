@@ -6,7 +6,7 @@ import { cn } from '@/utils/cn';
 import { formatDate } from '@/utils/format';
 
 /** The My sanctions table (deck src 1260 to 1277): ID, Sanction (with its case), Due, Status. */
-export function SanctionTable({ rows, selectedId }: { rows: StudentSanctionView[]; selectedId: number | null }) {
+export function SanctionTable({ rows, selectedId, emptyText = 'No sanctions with this status.' }: { rows: StudentSanctionView[]; selectedId: number | null; emptyText?: string }) {
   return (
     <ListCard className="flex min-h-0 flex-1 flex-col">
       <div className="hidden grid-cols-[60px_minmax(0,1fr)_100px_150px] gap-3 border-b border-line-soft bg-surface-2 px-6 py-3 text-[13px] font-semibold text-muted rail:grid">
@@ -16,7 +16,7 @@ export function SanctionTable({ rows, selectedId }: { rows: StudentSanctionView[
         <span>Status</span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {rows.length === 0 ? <p className="px-5 py-8 text-center text-[13px] text-muted">No sanctions with this status.</p> : null}
+        {rows.length === 0 ? <p className="px-5 py-8 text-center text-[13px] text-muted">{emptyText}</p> : null}
         {rows.map((row) => {
           const selected = row.id === selectedId;
           return (

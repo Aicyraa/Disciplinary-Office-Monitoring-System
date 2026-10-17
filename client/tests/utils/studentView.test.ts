@@ -6,6 +6,7 @@ import {
   classTiles,
   dueLine,
   escalationText,
+  hiddenByFilters,
   latestRemark,
   proofSummary,
   sanctionChips,
@@ -199,5 +200,22 @@ describe('latestRemark', () => {
   test('the newest remark, or null', () => {
     expect(latestRemark([{ eventType: 'remark', statusAfter: null, remarks: 'A', date: 'x' }, { eventType: 'remark', statusAfter: null, remarks: 'B', date: 'y' }])).toBe('B');
     expect(latestRemark([])).toBeNull();
+  });
+});
+
+describe('hiddenByFilters', () => {
+  const all = [{ id: 1 }, { id: 2 }, { id: 3 }];
+  test('is false with nothing selected', () => {
+    expect(hiddenByFilters(null, all, [])).toBe(false);
+  });
+  test('is false while the selected record is in the filtered list', () => {
+    expect(hiddenByFilters(2, all, [{ id: 2 }])).toBe(false);
+  });
+  test('is true when the record exists but the filters leave it out', () => {
+    expect(hiddenByFilters(2, all, [{ id: 3 }])).toBe(true);
+    expect(hiddenByFilters(2, all, [])).toBe(true);
+  });
+  test('is false for a record that does not exist at all (that is a not-found, not a filter)', () => {
+    expect(hiddenByFilters(99, all, [])).toBe(false);
   });
 });
