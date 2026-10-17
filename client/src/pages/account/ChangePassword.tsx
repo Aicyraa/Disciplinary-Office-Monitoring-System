@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { useAuth } from '@/context/AuthContext';
 import { forcedPasswordError } from '@/validators/account';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 /**
  * "Set a new password" after signing in with a temporary password (deck W05, W06). Only the new password and
@@ -17,6 +18,7 @@ import { forcedPasswordError } from '@/validators/account';
  * the Change password dialog, so anyone else is sent there.
  */
 export default function ChangePassword() {
+  useDocumentTitle('Set a new password');
   const { state, setUser, signOut } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();

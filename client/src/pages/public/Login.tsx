@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { LOGIN_LOCK_SECONDS, LOGIN_MAX_ATTEMPTS, lockLabel, wrongCredentials } from '@/utils/account';
 import { loginErrors, type LoginErrors } from '@/validators/account';
 import { cn } from '@/utils/cn';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const FORGOT_TEXT = 'Visit the SDO in Room 204 for a temporary password.';
 
@@ -24,6 +25,7 @@ function FieldError({ id, children }: { id: string; children: string }) {
 
 /** Sign-in (deck W01 to W04, M01 to M04): per-field errors, a wrong-credentials banner, a 60-second pause after 5 failures. */
 export default function Login() {
+  useDocumentTitle('Sign in');
   const { state, signIn } = useAuth();
   const ids = useId();
   const emailId = `${ids}-email`;

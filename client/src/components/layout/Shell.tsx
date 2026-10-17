@@ -9,6 +9,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
 import { UnreadProvider, badgeText, useUnread } from '@/context/UnreadContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUiZoom } from '@/hooks/useUiZoom';
 import { useNavBadges } from '@/hooks/useNavBadges';
@@ -285,6 +286,7 @@ function ShellFrame({ user }: { user: AuthUser }) {
   const location = useLocation();
   const navigate = useNavigate();
   useUiZoom();
+  useDocumentTitle(breadcrumb(user.role, location.pathname)[1] ?? '');
   const wide = useMediaQuery('(min-width: 1100px)');
   // null = follow the width (rail from 720 to 1100 px, full sidebar above); the sidebar toggle overrides it.
   const [collapsedChoice, setCollapsedChoice] = useState<boolean | null>(null);
