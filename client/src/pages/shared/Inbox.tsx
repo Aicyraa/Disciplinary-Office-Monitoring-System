@@ -27,7 +27,7 @@ export function InboxRow({ item, onOpen }: { item: NotificationView; onOpen: () 
       onClick={onOpen}
       aria-label={`${item.isRead ? '' : 'Unread. '}${item.title}`}
       className={cn(
-        'flex h-20 w-full items-center gap-3 overflow-hidden border-b border-line-soft px-6 text-left outline-none transition-colors hover:bg-row-hover focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)]',
+        'flex min-h-20 w-full items-center py-2 gap-3 overflow-hidden border-b border-line-soft px-6 text-left outline-none transition-colors hover:bg-row-hover focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)]',
         item.isRead ? 'bg-white' : 'bg-tint-soft',
       )}
     >
@@ -36,8 +36,8 @@ export function InboxRow({ item, onOpen }: { item: NotificationView; onOpen: () 
         <Icon name={look.icon} className="!text-xl" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className={cn('truncate text-sm leading-snug text-ink', item.isRead ? 'font-medium' : 'font-bold')}>{item.title}</span>
+        <span className="flex min-w-0 flex-col items-start gap-0.5 rail:flex-row rail:items-center rail:gap-2">
+          <span className={cn('line-clamp-2 text-sm break-words rail:truncate leading-snug text-ink', item.isRead ? 'font-medium' : 'font-bold')}>{item.title}</span>
           <span className={cn('shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold', look.tint)}>{look.category}</span>
         </span>
         <span className="mt-px block truncate text-[13px] leading-snug text-body">{item.message}</span>

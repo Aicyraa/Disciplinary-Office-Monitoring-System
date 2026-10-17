@@ -111,3 +111,12 @@ describe('inbox API calls choose the route by role', () => {
     await expect(notificationsApi.notifications('student')).rejects.toMatchObject({ name: 'ApiError', status: 0 });
   });
 });
+
+describe('inbox row on a phone', () => {
+  test('the title wraps to two lines and the category chip sits below it until the rail width', () => {
+    const html = renderToStaticMarkup(<InboxRow item={view({ title: 'Clearance requirement reminder for your account' })} onOpen={() => {}} />);
+    expect(html).toContain('line-clamp-2');
+    expect(html).toContain('flex-col');
+    expect(html).toContain('rail:flex-row');
+  });
+});

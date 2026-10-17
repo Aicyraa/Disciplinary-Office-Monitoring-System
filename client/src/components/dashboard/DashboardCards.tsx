@@ -120,7 +120,7 @@ export function DashRow({ title, flag, sub, action }: { title: string; flag?: Re
     <div className="-mb-px flex min-h-14 items-center gap-3 border-b border-line-soft px-3.5 py-2">
       <div className="min-w-0 flex-1 leading-snug">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-semibold text-ink">{title}</span>
+          <span className="line-clamp-2 text-sm font-semibold break-words text-ink">{title}</span>
           {flag}
         </div>
         <div className="truncate text-xs text-muted">{sub}</div>
@@ -138,7 +138,7 @@ export function LinkRow({ to, title, sub, end }: { to: string; title: string; su
       className="-mb-px flex min-h-[52px] items-center gap-2.5 border-b border-line-soft bg-white px-3.5 py-2 hover:bg-tint-soft focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)] focus-visible:outline-none"
     >
       <span className="min-w-0 flex-1 leading-snug">
-        <span className="block truncate text-sm font-semibold text-ink">{title}</span>
+        <span className="line-clamp-2 text-sm font-semibold break-words text-ink">{title}</span>
         <span className="block truncate text-xs text-muted">{sub}</span>
       </span>
       {end}
