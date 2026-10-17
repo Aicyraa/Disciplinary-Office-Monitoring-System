@@ -90,7 +90,7 @@ export function CaseWorkspace({ caseId, onChanged }: { caseId: number; onChanged
   if (resource.status === 'error') {
     return (
       <div className="rounded-xl border border-line bg-white">
-        <PageError page="this case" detail={resource.error.message} onRetry={resource.reload} />
+        <PageError page="this case" status={resource.error.status} detail={resource.error.message} onRetry={resource.reload} />
       </div>
     );
   }

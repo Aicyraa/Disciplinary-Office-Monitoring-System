@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
-import { NudgeCard, PageEmpty, PageError, PageLoading, PageNoAccess } from '@/components/feedback/PageState';
+import { NudgeCard, PageEmpty, PageError, PageLoading, PageNoAccess, PageNotFound } from '@/components/feedback/PageState';
 
 const inRouter = (node: React.ReactNode) => renderToStaticMarkup(<MemoryRouter>{node}</MemoryRouter>);
 
@@ -51,5 +51,28 @@ describe('NudgeCard (src 2074)', () => {
     expect(html).toContain('You have 7 unread notifications.');
     expect(html).toMatch(/<a [^>]*href="\/inbox"[^>]*>Open inbox<\/a>/);
     expect(html).toContain('aria-label="Dismiss"');
+  });
+});
+
+describe('PageError and PageNotFound (a missing record is not a connection problem)', () => {
+  test('a 404 shows the not-found state and never the connection advice', () => {
+    const html = inRouter(<PageError page="this violation" status={404} detail="Not found" onRetry={() => undefined} />);
+    expect(html).toContain('We couldn’t find that violation');
+    expect(html).not.toContain('Check your connection');
+    expect(html).not.toContain('Try again');
+  });
+
+  test('no response (status 0) or a server fault still says the load failed', () => {
+    for (const status of [0, 500, 503]) {
+      const html = inRouter(<PageError page="this violation" status={status} onRetry={() => undefined} />);
+      expect(html).toContain('Couldn’t load this violation');
+      expect(html).toContain('Check your connection');
+    }
+  });
+
+  test('not found can offer a way back', () => {
+    const html = inRouter(<PageNotFound what="handbook entry" backTo="/handbook" backLabel="Back to the handbook" />);
+    expect(html).toContain('We couldn’t find that handbook entry');
+    expect(html).toMatch(/<a [^>]*href="\/handbook"[^>]*>Back to the handbook<\/a>/);
   });
 });

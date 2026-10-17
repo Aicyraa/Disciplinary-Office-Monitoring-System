@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PageError } from '@/components/feedback/PageState';
+import { PageError, PageNotFound } from '@/components/feedback/PageState';
 import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { usePageAction } from '@/components/layout/PageAction';
@@ -43,6 +43,8 @@ export function StaffViolationsPage() {
   const current = selectedId === null ? (entries[0] ?? null) : (entries.find((e) => e.id === selectedId) ?? null);
   const editor = current ? (
     <ViolationEditor key={`${current.id}-${current.violation}-${current.section}-${current.sanctions.length}`} entry={current} entries={entries} choices={choices} onSaved={saved} />
+  ) : selectedId !== null ? (
+    <PageNotFound what="violation" backTo="/handbook" backLabel="Back to violations" />
   ) : (
     <div className="rounded-xl border border-line bg-white">
       <EmptyBlock icon="menu_book" title="Violation not found">

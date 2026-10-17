@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import type { SanctionTemplateView } from '@shared/types';
-import { PageError } from '@/components/feedback/PageState';
+import { PageError, PageNotFound } from '@/components/feedback/PageState';
 import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ClassTiles } from '@/components/student/ClassTiles';
 import { handbookApi } from '@/api/handbook';
 import { templatesApi } from '@/api/templates';
 import { useApi } from '@/hooks/useApi';
+import { hiddenByFilters } from '@/utils/studentView';
 import { HANDBOOK_PER_PAGE, filterHandbook, handbookTiles, type HandbookClass } from '@/utils/handbook';
 import { HandbookEntry } from './handbook/HandbookEntry';
 import { HandbookTable } from './handbook/HandbookTable';
@@ -44,12 +45,14 @@ export function StudentHandbookPage() {
   if (handbook.status === 'error') return <PageError page="the Student Handbook" detail={handbook.error.message} onRetry={handbook.reload} />;
 
   const list = templates.status === 'ready' ? templates.data.templates : [];
-  const current = selectedId === null ? rows[(page - 1) * HANDBOOK_PER_PAGE] : entries.find((e) => e.id === selectedId);
+  // A selected entry the search or category hides is not shown beside a list that no longer holds it.
+  const hidden = hiddenByFilters(selectedId, entries, rows);
+  const current = selectedId === null || hidden ? rows[(page - 1) * HANDBOOK_PER_PAGE] : entries.find((e) => e.id === selectedId);
   const pane = current ? (
     <HandbookEntry key={current.id} entry={current} templates={list} />
-  ) : (
-    <div className="grid min-h-40 place-items-center rounded-xl border border-line bg-white px-5 py-10 text-center text-muted">No handbook entry selected.</div>
-  );
+  ) : selectedId !== null && !hidden ? (
+    <PageNotFound what="handbook entry" backTo="/handbook" backLabel="Back to the handbook" />
+  ) : null;
 
   return (
     <>
@@ -81,7 +84,7 @@ export function StudentHandbookPage() {
             />
           </div>
         }
-        detail={selectedId === null ? null : pane}
+        detail={selectedId === null || hidden ? null : pane}
         emptyDetail={pane}
       />
     </>

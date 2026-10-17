@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
 import { ApiError } from '@/api/client';
-import { ACTION_PILL, AllClear, CardBody, DashboardCard, DateTile, EmptyLine, Flag, LinkRow, ProgressBar } from '@/components/dashboard/DashboardCards';
+import { ACTION_PILL, AllClear, CardBody, DashboardCard, DashRow, DateTile, EmptyLine, Flag, LinkRow, ProgressBar } from '@/components/dashboard/DashboardCards';
 import { StatTile } from '@/components/ui/StatTile';
 
 const render = (node: React.ReactNode) => renderToStaticMarkup(<MemoryRouter>{node}</MemoryRouter>);
@@ -71,6 +71,14 @@ describe('small parts', () => {
     expect(html).toContain('Inappropriate attire');
     expect(html).toContain('SDO-2026-021 · Minor · Oct 9');
     expect(html).toContain('<span>Pending</span>');
+  });
+
+  test('a long row title wraps to two lines instead of being cut off at phone width', () => {
+    const long = 'Clearance requirement for the incoming academic term';
+    const link = render(<LinkRow to="/x" title={long} sub="line" />);
+    expect(link).toContain('line-clamp-2');
+    expect(link).not.toMatch(/truncate[^"]*">Clearance requirement/);
+    expect(render(<DashRow title={long} sub="line" />)).toContain('line-clamp-2');
   });
 
   test('Flag, AllClear and EmptyLine carry their text', () => {

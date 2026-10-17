@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import type { Severity } from '@shared/types';
-import { PageError } from '@/components/feedback/PageState';
+import { PageError, PageNotFound } from '@/components/feedback/PageState';
 import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ClassTiles } from '@/components/student/ClassTiles';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { meApi } from '@/api/me';
 import { useApi } from '@/hooks/useApi';
-import { matchesSanctionChip, sanctionChips, type ClassKey, type SanctionChip } from '@/utils/studentView';
+import { hiddenByFilters, matchesSanctionChip, sanctionChips, type ClassKey, type SanctionChip } from '@/utils/studentView';
 import { SanctionDetail } from './sanctions/SanctionDetail';
 import { SanctionTable } from './sanctions/SanctionTable';
 
@@ -42,14 +42,14 @@ export function SanctionsPage() {
   const byClass = all.filter((item) => cls === 'all' || item.severity === (cls as Severity));
   const rows = byClass.filter((item) => matchesSanctionChip(item, chip));
   const caseRows = cases.status === 'ready' ? cases.data.cases : [];
-  const current = selectedId === null ? rows[0] : all.find((item) => item.id === selectedId);
+  // A selected sanction the filters hide is not shown beside a list that no longer holds it.
+  const hidden = hiddenByFilters(selectedId, all, rows);
+  const current = selectedId === null || hidden ? rows[0] : all.find((item) => item.id === selectedId);
   const detail = current ? (
     <SanctionDetail key={current.id} sanction={current} caseRow={caseRows.find((c) => c.id === current.caseId)} onChanged={sanctions.reload} />
-  ) : (
-    <div className="grid min-h-40 place-items-center rounded-xl border border-line bg-white px-5 py-10 text-center text-muted">
-      {all.length === 0 ? 'You have no sanctions.' : 'No sanction selected.'}
-    </div>
-  );
+  ) : selectedId !== null && !hidden ? (
+    <PageNotFound what="sanction" backTo="/sanctions" backLabel="Back to my sanctions" />
+  ) : null;
 
   return (
     <>
@@ -76,10 +76,10 @@ export function SanctionsPage() {
               onChange={(value) => setChip(value as SanctionChip)}
               className="justify-center [&>button]:min-h-11 rail:[&>button]:min-h-[38px]"
             />
-            <SanctionTable rows={rows} selectedId={current?.id ?? null} />
+            <SanctionTable rows={rows} selectedId={current?.id ?? null} emptyText={all.length === 0 ? 'You have no sanctions.' : undefined} />
           </div>
         }
-        detail={selectedId === null ? null : detail}
+        detail={selectedId === null || hidden ? null : detail}
         emptyDetail={detail}
       />
     </>

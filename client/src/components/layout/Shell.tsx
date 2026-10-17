@@ -9,6 +9,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { useAuth } from '@/context/AuthContext';
 import { UnreadProvider, badgeText, useUnread } from '@/context/UnreadContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUiZoom } from '@/hooks/useUiZoom';
 import { useNavBadges } from '@/hooks/useNavBadges';
@@ -60,7 +61,7 @@ function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclud
   }, [open]);
 
   const item =
-    'flex min-h-[42px] w-full items-center gap-2.5 rounded-full px-2.5 text-left text-sm focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)] focus-visible:outline-none';
+    'flex min-h-11 w-full items-center gap-2.5 rounded-full px-2.5 text-left text-sm focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)] focus-visible:outline-none';
 
   return (
     <div ref={rootRef} className="relative">
@@ -69,8 +70,9 @@ function AccountMenu({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclud
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
+        data-account-trigger
         onClick={() => setOpen((value) => !value)}
-        className="flex min-h-[42px] items-center gap-2 rounded-full px-1.5 text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none"
+        className="flex min-h-11 items-center gap-2 rounded-full px-1.5 rail:min-h-[42px] text-ink hover:bg-[rgba(127,137,160,0.18)] focus-visible:shadow-[0_0_0_3px_rgba(242,212,107,0.6)] focus-visible:outline-none"
       >
         <Avatar firstName={user.firstName} lastName={user.lastName} url={user.avatarUrl} className="size-8 bg-gold text-xs" />
         <span className="hidden text-sm font-semibold whitespace-nowrap rail:inline">{user.firstName}</span>
@@ -254,12 +256,12 @@ function PhoneTitle({ user, onOpen }: { user: AuthUser; onOpen: (dialog: Exclude
   );
 }
 
-/** Students see the unread nudge after sign-in (src 2074): top right under the header, 7 s. */
+/** Students see the unread nudge after sign-in (src 2074), 7 s: in the page flow on a phone (it pushes content down), top right under the header on wide screens. */
 function UnreadNudge({ role }: { role: 'staff' | 'student' }) {
   const { toast, dismissToast } = useUnread();
   if (toast === null || role !== 'student') return null;
   return (
-    <div className="fixed top-4 right-4 left-4 z-[70] flex justify-end rail:top-[76px] rail:right-5 rail:left-auto print:hidden">
+    <div className="mb-3 flex justify-end print:hidden rail:fixed rail:top-[76px] rail:right-5 rail:left-auto rail:z-[70] rail:mb-0">
       <NudgeCard text={toast} onDismiss={dismissToast} />
     </div>
   );
@@ -285,6 +287,7 @@ function ShellFrame({ user }: { user: AuthUser }) {
   const location = useLocation();
   const navigate = useNavigate();
   useUiZoom();
+  useDocumentTitle(breadcrumb(user.role, location.pathname)[1] ?? '');
   const wide = useMediaQuery('(min-width: 1100px)');
   // null = follow the width (rail from 720 to 1100 px, full sidebar above); the sidebar toggle overrides it.
   const [collapsedChoice, setCollapsedChoice] = useState<boolean | null>(null);
@@ -323,9 +326,8 @@ function ShellFrame({ user }: { user: AuthUser }) {
           </div>
         </header>
 
-        <UnreadNudge role={role} />
-
         <main className="ui-zoom w-full flex-1 p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(88px+env(safe-area-inset-bottom))] rail:p-8">
+          <UnreadNudge role={role} />
           <PhoneTitle user={user} onOpen={setDialog} />
           {/* Keyed on the first path segment only: list -> detail inside one page keeps its state and does not replay. */}
           <div key={location.pathname.split('/')[1] ?? ''} className="page-enter">

@@ -3,6 +3,7 @@ import {
   SANCTION_STEP_LABELS,
   caseStageIndex,
   formatDate,
+  formatClock,
   formatDateTime,
   formatTerm,
   pillTone,
@@ -127,6 +128,12 @@ describe('dates (Asia/Manila)', () => {
   test('a UTC timestamp late on the 11th is the 12th in Manila', () => {
     expect(formatDate('2026-10-11T20:00:00.000Z')).toBe('Oct 12, 2026');
     expect(formatDateTime('2026-10-11T20:00:00.000Z')).toContain('Oct 12, 2026');
+  });
+
+  test('the clock and time of day are Manila time (UTC+8), whatever the machine zone is', () => {
+    const instant = '2026-10-11T20:00:00.000Z';
+    expect(formatClock(new Date(instant))).toBe('4:00 AM');
+    expect(formatDateTime(instant)).toMatch(/4:00/);
   });
 
   test('formatTerm names the term and the school year (a fixed list of three terms)', () => {

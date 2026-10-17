@@ -194,3 +194,12 @@ export function latestRemark(timeline: CaseTimelineEntry[]): string | null {
   const entry = [...timeline].reverse().find((item) => item.eventType === 'remark' && item.remarks);
   return entry?.remarks ?? null;
 }
+
+/**
+ * True when the record the address points at exists but the current filters hide it. The detail pane must then
+ * not keep showing it beside a list that no longer contains it.
+ */
+export function hiddenByFilters<T extends { id: number }>(selectedId: number | null, all: readonly T[], rows: readonly T[]): boolean {
+  if (selectedId === null) return false;
+  return all.some((item) => item.id === selectedId) && !rows.some((item) => item.id === selectedId);
+}

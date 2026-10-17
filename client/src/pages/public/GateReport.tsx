@@ -4,6 +4,7 @@ import { gateApi } from '@/api/gate';
 import { Alert } from '@/components/ui/Alert';
 import { waitBeforeSubmit, type GateCategory, type GateFormValues, type GateViolation } from '@/utils/gateForm';
 import type { DetailsErrors } from '@/validators/gateForm';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { DetailsStep } from './gate/DetailsStep';
 import { GatePinned } from './gate/GatePinned';
 import { GateSkeleton } from './gate/GateSkeleton';
@@ -37,6 +38,7 @@ function GateColumn({ children, step }: { children: ReactNode; step?: 1 | 2 | 3 
  * commits. The form-timing token is fetched when the page opens and sent back with the report.
  */
 export default function GateReportPage() {
+  useDocumentTitle('Violation Form');
   const [options, setOptions] = useState<Options | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);

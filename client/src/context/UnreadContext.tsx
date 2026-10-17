@@ -3,8 +3,11 @@ import type { AccountRole } from '@shared/types';
 import { notificationsApi } from '@/api/notifications';
 import { usePoller } from '@/hooks/usePoller';
 import { hasNewNotifications } from '@/utils/revalidate';
+import { readSessionFlag, writeSessionFlag } from '@/utils/sessionFlag';
 
 const TOAST_MS = 7_000;
+/** Set once the nudge has been dismissed or has run its course, so a full reload in the same session does not bring it back. */
+export const NUDGE_SEEN_KEY = 'sdo.unreadNudgeSeen';
 
 interface UnreadContextValue {
   unreadCount: number;
@@ -47,7 +50,7 @@ export function UnreadProvider({ role, children }: { role: AccountRole; children
         // The "you have N unread" toast is shown once per sign-in, on the first load.
         if (!announced.current) {
           announced.current = true;
-          if (count > 0) setToast(unreadMessage(count));
+          if (count > 0 && !readSessionFlag(NUDGE_SEEN_KEY)) setToast(unreadMessage(count));
         }
       }),
     [role],
@@ -57,12 +60,19 @@ export function UnreadProvider({ role, children }: { role: AccountRole; children
 
   useEffect(() => {
     if (toast === null) return;
-    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    const timer = setTimeout(() => {
+      writeSessionFlag(NUDGE_SEEN_KEY);
+      setToast(null);
+    }, TOAST_MS);
     return () => clearTimeout(timer);
   }, [toast]);
 
   const value = useMemo<UnreadContextValue>(
-    () => ({ unreadCount, setUnreadCount, refresh, changeSignal, toast, dismissToast: () => setToast(null) }),
+    () => ({ unreadCount, setUnreadCount, refresh, changeSignal, toast, dismissToast: () => {
+        writeSessionFlag(NUDGE_SEEN_KEY);
+        setToast(null);
+      },
+    }),
     [unreadCount, refresh, changeSignal, toast],
   );
   return <UnreadContext.Provider value={value}>{children}</UnreadContext.Provider>;

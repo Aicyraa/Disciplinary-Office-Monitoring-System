@@ -13,6 +13,12 @@ import { accountRows } from '@/utils/account';
 import { passwordChangeError, passwordRules } from '@/validators/account';
 import { ProfilePicture } from '@/components/account/ProfilePicture';
 
+/** The account button that opened these dialogs (the menu item that did is gone once the menu closes); the phone and wide headers each have one, only one shows. */
+function accountTrigger(): HTMLElement | null {
+  const all = [...document.querySelectorAll<HTMLElement>('[data-account-trigger]')];
+  return all.find((el) => el.getClientRects().length > 0) ?? null;
+}
+
 /** The live checklist under a new password (deck src 2058). */
 export function PasswordRuleList({ password }: { password: string }) {
   return (
@@ -56,7 +62,7 @@ export function AccountDetailsModal({
   }, [open, user.role]);
 
   return (
-    <Dialog open={open} labelledBy={titleId} onClose={onClose}>
+    <Dialog open={open} labelledBy={titleId} onClose={onClose} fallbackFocus={accountTrigger}>
       <ProfilePicture user={user}>
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="text-xl font-bold text-ink">
@@ -67,6 +73,7 @@ export function AccountDetailsModal({
         <button
           type="button"
           aria-label="Close"
+          data-autofocus
           onClick={onClose}
           className="grid size-10 place-items-center rounded-full text-muted hover:bg-line-soft focus-visible:ring-[3px] focus-visible:ring-primary/30 focus-visible:outline-none"
         >
@@ -131,7 +138,7 @@ export function ChangePasswordModal({ open, onClose }: { open: boolean; onClose:
   const clear = () => setError(null);
 
   return (
-    <Dialog open={open} labelledBy={titleId} onClose={busy ? undefined : onClose} maxWidth="max-w-[420px]">
+    <Dialog open={open} labelledBy={titleId} onClose={busy ? undefined : onClose} maxWidth="max-w-[420px]" fallbackFocus={accountTrigger}>
       <form onSubmit={submit} noValidate className="flex flex-col gap-3.5">
         <h2 id={titleId} className="text-xl font-bold text-ink">
           Change password

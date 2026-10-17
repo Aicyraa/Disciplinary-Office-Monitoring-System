@@ -8,7 +8,7 @@ import { ClassTiles } from '@/components/student/ClassTiles';
 import { ChipGroup } from '@/components/ui/ChipGroup';
 import { meApi } from '@/api/me';
 import { useApi } from '@/hooks/useApi';
-import { classTiles, statusChips, violationBase, type CaseStatusKey, type ClassKey } from '@/utils/studentView';
+import { classTiles, hiddenByFilters, statusChips, violationBase, type CaseStatusKey, type ClassKey } from '@/utils/studentView';
 import { ViolationDetail } from './violations/ViolationDetail';
 import { VIOLATIONS_PER_PAGE, ViolationTable } from './violations/ViolationTable';
 
@@ -53,6 +53,8 @@ export function ViolationsPage() {
 
   const resetPage = () => setPage(1);
   const first = rows[(page - 1) * VIOLATIONS_PER_PAGE]?.id ?? null;
+  // A selected case the filters hide is not shown beside a list that no longer holds it.
+  const hidden = hiddenByFilters(caseId, cases, rows);
   const pane = (shownId: number) => <ViolationDetail key={shownId} caseId={shownId} />;
 
   return (
@@ -88,7 +90,8 @@ export function ViolationsPage() {
               rows={rows}
               page={page}
               onPage={setPage}
-              selectedId={caseId ?? first}
+              selectedId={hidden ? first : (caseId ?? first)}
+              emptyText={cases.length === 0 ? 'You have no violations on record.' : undefined}
               resolvedCount={cases.filter(isClosed).length}
               showResolved={showResolved}
               onToggleResolved={() => {
@@ -100,16 +103,8 @@ export function ViolationsPage() {
             />
           </div>
         }
-        detail={caseId === null ? null : pane(caseId)}
-        emptyDetail={
-          first === null ? (
-            <div className="grid min-h-40 place-items-center rounded-xl border border-line bg-white px-5 py-10 text-center text-muted">
-              {cases.length === 0 ? 'You have no violations on record.' : 'No violation selected.'}
-            </div>
-          ) : (
-            pane(first)
-          )
-        }
+        detail={caseId === null || hidden ? null : pane(caseId)}
+        emptyDetail={first === null ? null : pane(first)}
       />
     </>
   );

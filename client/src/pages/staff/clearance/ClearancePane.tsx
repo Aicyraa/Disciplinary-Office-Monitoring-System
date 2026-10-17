@@ -39,7 +39,7 @@ export function ClearancePane({ studentId, term, onChanged }: { studentId: strin
     const failed = row.status === 'error' ? row : detail;
     return (
       <div className="rounded-xl border border-line bg-white">
-        <PageError page="this clearance" detail={failed.status === 'error' ? failed.error.message : undefined} onRetry={failed.reload} />
+        <PageError page="this clearance" status={failed.status === 'error' ? failed.error.status : undefined} detail={failed.status === 'error' ? failed.error.message : undefined} onRetry={failed.reload} />
       </div>
     );
   }

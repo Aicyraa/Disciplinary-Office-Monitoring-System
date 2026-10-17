@@ -15,6 +15,7 @@ export function Dialog({
   onClose,
   maxWidth = 'max-w-[440px]',
   bare = false,
+  fallbackFocus,
   children,
 }: {
   open: boolean;
@@ -23,10 +24,12 @@ export function Dialog({
   onClose: (() => void) | undefined;
   maxWidth?: string;
   bare?: boolean;
+  /** Where focus returns on close if the element that opened the dialog no longer exists. */
+  fallbackFocus?: () => HTMLElement | null;
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  useDialogFocus({ open, panelRef, onClose });
+  useDialogFocus({ open, panelRef, onClose, fallbackFocus });
   useRegisterModal(open);
   if (!open) return null;
   return inBody(

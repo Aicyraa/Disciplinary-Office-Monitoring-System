@@ -142,7 +142,7 @@ export function StudentRecordPane({ studentId }: { studentId: string }) {
   if (record.status === 'error') {
     return (
       <div className="rounded-xl border border-line bg-white">
-        <PageError page="this student" detail={record.error.message} onRetry={record.reload} />
+        <PageError page="this student" status={record.error.status} detail={record.error.message} onRetry={record.reload} />
       </div>
     );
   }

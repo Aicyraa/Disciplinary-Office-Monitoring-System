@@ -5,7 +5,7 @@ import { cn } from '@/utils/cn';
 const chipVariants = cva(
   [
     'inline-flex items-center justify-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold whitespace-nowrap',
-    'min-h-[36px] transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35',
+    'min-h-11 transition-colors rail:min-h-[36px] outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35',
   ],
   {
     variants: {
