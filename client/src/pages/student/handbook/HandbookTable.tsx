@@ -38,7 +38,7 @@ export function HandbookTable({
             type="search"
             value={query}
             onChange={(event) => onQuery(event.target.value)}
-            placeholder="Search a violation, section or sanction…"
+            placeholder="Search handbook"
             className={cn(controlVariants(), 'pl-10')}
           />
         </label>

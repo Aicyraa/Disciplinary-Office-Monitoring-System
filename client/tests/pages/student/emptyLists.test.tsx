@@ -46,3 +46,8 @@ describe('handbook table semantics', () => {
     expect(html).toContain('role="cell"');
   });
 });
+
+test('the handbook search placeholder is short enough for a 320 px screen', () => {
+  const html = inRouter(<HandbookTable rows={[]} query="" onQuery={() => undefined} page={1} onPage={() => undefined} selectedId={null} />);
+  expect(html).toContain('placeholder="Search handbook"');
+});
