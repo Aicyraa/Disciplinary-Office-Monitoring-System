@@ -57,7 +57,7 @@ export function ViolationDetail({ caseId }: { caseId: number }) {
   if (resource.status === 'error') {
     return (
       <div className="rounded-xl border border-line bg-white">
-        <PageError page="this violation" detail={resource.error.message} onRetry={resource.reload} />
+        <PageError page="this violation" status={resource.error.status} detail={resource.error.message} onRetry={resource.reload} />
       </div>
     );
   }

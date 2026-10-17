@@ -60,8 +60,45 @@ export function PageEmpty({ text }: { text: string }) {
   );
 }
 
-/** A failed load. `detail` is the API's own message, shown under the fixed sentence. */
-export function PageError({ page = 'this page', detail, onRetry }: { page?: string; detail?: string; onRetry?: () => void }) {
+/** A record that does not exist (a wrong or removed link): said plainly, and not blamed on the connection. */
+export function PageNotFound({ what = 'page', backTo, backLabel }: { what?: string; backTo?: string; backLabel?: string }) {
+  return (
+    <StateCard>
+      <Icon name="search_off" className="!text-[40px] text-disabled" />
+      <h2 className="text-xl font-bold text-ink">We couldn’t find that {what}</h2>
+      <p className="max-w-[420px] text-muted">It may have been removed, or the link may be wrong.</p>
+      {backTo ? (
+        <Link to={backTo} className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }), 'mt-2')}>
+          {backLabel ?? 'Go back'}
+        </Link>
+      ) : null}
+    </StateCard>
+  );
+}
+
+/** What kind of failure is it: only a 404 means "not found"; no answer or a server fault stays a load failure. */
+export function isNotFoundStatus(status: number | undefined): boolean {
+  return status === 404;
+}
+
+/**
+ * A failed load. `detail` is the API's own message, shown under the fixed sentence. Pass the ApiError `status`
+ * for a single record: a 404 then shows the not-found state (`what` names the record) instead of "check your connection".
+ */
+export function PageError({
+  page = 'this page',
+  detail,
+  onRetry,
+  status,
+  what,
+}: {
+  page?: string;
+  detail?: string;
+  onRetry?: () => void;
+  status?: number;
+  what?: string;
+}) {
+  if (isNotFoundStatus(status)) return <PageNotFound what={what ?? page.replace(/^this /, '')} />;
   return (
     <StateCard tone="error" role="alert">
       <Icon name="cloud_off" className="!text-[40px] text-danger" />

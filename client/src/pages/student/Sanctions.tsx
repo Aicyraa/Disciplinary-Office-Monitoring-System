@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import type { Severity } from '@shared/types';
-import { PageError } from '@/components/feedback/PageState';
+import { PageError, PageNotFound } from '@/components/feedback/PageState';
 import { SkeletonList } from '@/components/feedback/Skeleton';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { ClassTiles } from '@/components/student/ClassTiles';
@@ -45,6 +45,8 @@ export function SanctionsPage() {
   const current = selectedId === null ? rows[0] : all.find((item) => item.id === selectedId);
   const detail = current ? (
     <SanctionDetail key={current.id} sanction={current} caseRow={caseRows.find((c) => c.id === current.caseId)} onChanged={sanctions.reload} />
+  ) : selectedId !== null ? (
+    <PageNotFound what="sanction" backTo="/sanctions" backLabel="Back to my sanctions" />
   ) : (
     <div className="grid min-h-40 place-items-center rounded-xl border border-line bg-white px-5 py-10 text-center text-muted">
       {all.length === 0 ? 'You have no sanctions.' : 'No sanction selected.'}
